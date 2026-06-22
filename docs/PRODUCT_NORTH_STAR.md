@@ -13,7 +13,7 @@ Feeding a codebase to an LLM should be one right-click, not a terminal session a
 
 ## The moat (lean into these)
 - **Right-click integration** — file / folder / background, no terminal.
-- **Zero install** — a single self-contained `.exe`; users need no .NET, no Node.
+- **Frictionless, lightweight delivery** — install in seconds from the Explorer menu, offered in download flavors (from a tiny zero-install build to a fully self-contained one) so users never pay for bytes or runtimes they don't want. No Node, ever, and a zero-install path is always available.
 - **GUI-first** — settings + (planned) live preview pane with token counts.
 - **Classic preserved** — the original `.txt` layout stays a first-class, user-selectable output. Users choose, in depth.
 
@@ -34,7 +34,8 @@ Feeding a codebase to an LLM should be one right-click, not a terminal session a
 - No telemetry.
 
 ## Principles
-- **Windows-native + zero-install** beats feature count.
+- **Native Windows delivery is the differentiator; the repomix-grade packing is the substance.** Win on frictionless delivery — but the product is the *brain* (smart output styles, token counts, ignore engine, compression, secret-safety), not a nicer wrapper around Classic. Packaging, installers, and footprint serve the features; shipping them is not, by itself, progress on the product.
+- **Lightweight, user-chosen footprint** — offer download flavors so each user picks their trade-off (smallest-possible vs zero-dependency). Always keep a true zero-install path; never make a runtime dependency the *only* option.
 - **The user chooses** — expose every knob; default sanely (Classic / clipboard-friendly).
 - **Never break Classic** — backward compatibility with existing `settings.json` and output.
 - **Engine decoupled from GUI** so the shell/UI is swappable.

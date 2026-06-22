@@ -2,6 +2,8 @@
 
 Cursor: **P2 (output styles) is next.** P0 + P1 are done.
 
+> Note: P9 (build & distribution) **partially landed early** at the user's request (small downloads → 3 flavors). The repomix-parity *features* that define the product — **P2–P8** — are still the bulk of the work; packaging progress ≠ product progress.
+
 Legend: ✅ done · 🚧 in progress · ⬜ todo
 
 ---

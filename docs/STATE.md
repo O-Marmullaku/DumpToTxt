@@ -1,38 +1,22 @@
-# DumpToTxt — STATE
+# STATE.md — DumpToTxt
+_Updated: 2026-06-22 · Phase: P1 done (P9 build pipeline landed early), next P2 · Baseline: build 0 warn / 0 err, tests 4/4 · HEAD: 10139e3_
 
-_Where the project stands NOW. Facts only — verify against code/git before acting._
+## We are here
+v2 is a C#/.NET 8 (WinForms) rewrite of the old PowerShell tool, live on GitHub (`main`). P0 (scaffold) + P1 (Classic-output parity) are done and verified, and the P9 multi-flavor download pipeline (lite / compact / full) also landed at the user's request. **No repomix-parity features exist yet** — Classic is the only working output style; the rest (styles, tree, tokens, ignore engine, secrets, presets, preview) are P2+.
 
-## Snapshot
-- **Repo:** https://github.com/O-Marmullaku/DumpToTxt (branch `main`).
-- **Phase:** P0 + P1 done; **next = P2 (output styles)**. See `docs/ROADMAP.md`.
-- **App:** .NET 8 WinForms, rewritten from the legacy PowerShell tool. Version 2.0.0.
+## Next
+- [ ] **P2 — output styles**: `IDumpFormatter` + Plain/Markdown/XML/JSON (Classic done), directory **tree** + file-summary **header**, **clipboard**/stdout output, GUI style picker, configurable output dir. Decide defaults first (output target Notepad vs clipboard; default style Classic vs Markdown/XML).
 
-## What exists (verified this run)
-- `.NET` solution at `src/`: `DumpToTxt.Core` (engine/config), `DumpToTxt.App` (WinForms exe, assembly name `DumpToTxt`), `DumpToTxt.Tests` (xUnit).
-- `DumpEngine.Run()` produces the **Classic** `.txt` layout; only Classic is implemented (other `OutputStyle` values throw `NotSupportedException`).
-- `ConfigStore` reads/writes legacy `settings.json` shape (`ExtSet`/`DotFilesAllow`/`ExcludeRegex`) + new `Style`; precedence user(%APPDATA%) → machine(%PROGRAMDATA%) → defaults.
-- `SettingsForm` ported from the legacy GUI (ext checklist, exclude checklist, dotfiles, Save/Reset/Close).
-- Legacy script preserved at `legacy/DumpToTxt.ps1`.
-- `build.ps1 -Flavor full|compact|lite|all` builds three download flavors to `dist/<flavor>/DumpToTxt.exe`; installer (v2.0.0) is flavor-parameterized via `ISCC /DFlavor=...`.
+## Open threads / risks
+- **Installers never compiled here** (no Inno Setup / ISCC). Flavor `.iss` is preprocessor-simple for full/lite; the compact .NET-8 runtime-check Pascal is isolated behind `#if Flavor=="compact"` but **UNTESTED** — needs ISCC + a clean-VM (no .NET 8) test.
+- Compact runtime install is **guided-manual** (opens MS download page), not auto-download.
+- **Lite is frozen** PowerShell (Classic-only forever); v2 features ship to compact/full only.
+- **No LICENSE; no GitHub Release** yet → binaries are gitignored, so real downloads need a Release with built installers + `gh` (neither available this session).
+- Classic parity verified structurally + by unit tests, **not byte-for-byte** vs legacy ps1 (BOM / EOL / enumeration order may differ trivially).
+- `full` exe = 68.8 MB (WinForms isn't trim/AOT-friendly — can't shrink much).
 
-## Verification done this run
-- `dotnet build src/DumpToTxt.sln` → **0 warnings, 0 errors**.
-- `dotnet test` → **4/4 passing** (SafeName, defaults, classic include/exclude, missing-path throws).
-- Rendered a real Classic dump via a throwaway harness → structure matches legacy (dir listing incl. folders, `node_modules` excluded, `====` separators, only legible files in contents, 3/3 included).
-- `build.ps1 -Flavor all` → **full 68.8 MB · compact 1.07 MB · lite 0.49 MB**; all three launch and show the settings GUI.
-
-## Not done / caveats
-- **No full installer build** — Inno Setup (ISCC) not installed here; `.iss` path/version verified by inspection only. `dist/DumpToTxt-Setup.exe` is the STALE legacy 1.1.7 installer.
-- **No ps2exe / no legacy rebuild** — not needed (C# replaces it).
-- Non-Classic styles, ignore engine, tokens, secrets, presets, GUI preview = not built yet (P2+).
-- Exe size large (self-contained). Framework-dependent alternative deferred to P9.
-
-## Decisions (this run)
-- Runtime: **C#/.NET 8** rewrite (LTS target; only 9.0 SDK installed, builds net8.0 fine).
-- GUI: **WinForms**. Transition: **big-bang** (installer → C# exe now; Classic parity keeps it functional).
-- Ambition: **full repomix parity**, with **Classic** kept as a first-class user-selectable style.
-- Binaries gitignored; distribute via Releases. Publish = self-contained single-file + compression.
-- Ship + maintain **all three flavors** (lite/compact/full) so users choose by size vs dependency.
-
-## Next step
-Start **P2**: introduce `IDumpFormatter`, implement Plain/Markdown/XML/JSON + directory tree + header, add clipboard output and a style picker in the GUI.
+## Recent
+- 2026-06-22 Three download flavors full/compact/lite + flavor-parameterized installer (10139e3)
+- 2026-06-22 v2 rewrite P0+P1: .NET 8 engine + WinForms, Classic parity, 4/4 tests (4cb6af6)
+- 2026-06-22 Reorganize into src/installer/assets/dist + README + .gitattributes (b36ccf1)
+- 2026-06-22 Initial commit: source + assets, binaries gitignored (46323d1)
