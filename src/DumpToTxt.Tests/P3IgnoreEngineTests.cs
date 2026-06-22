@@ -147,6 +147,17 @@ public class P3IgnoreEngineTests
     }
 
     [Fact]
+    public void Glob_NegatedBracketClass_DoesNotMatchSeparator()
+    {
+        // Regression: a NON-empty negated bracket "[!x]" must not match '/' (gitignore: brackets never match
+        // the separator). A plain "[^x]" translation wrongly matched '/' across a directory boundary.
+        var m = Matcher(exclude: new() { "a[!x]b" });
+        Assert.False(m.IsExcluded("a/b", "a/b", false));   // '/' must NOT satisfy the negated class
+        Assert.True(m.IsExcluded("aYb", "aYb", false));    // a real non-'x' char still matches
+        Assert.False(m.IsExcluded("axb", "axb", false));   // the excluded member is honored
+    }
+
+    [Fact]
     public void Glob_BracketClass_LiteralSlash_DoesNotMatchSeparator()
     {
         // A gitignore bracket expression never matches the '/' path separator, even when '/' is a member.

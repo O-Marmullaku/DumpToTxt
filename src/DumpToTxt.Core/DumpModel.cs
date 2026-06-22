@@ -18,6 +18,10 @@ public sealed class DumpFile
     /// <summary>BPE token count of <see cref="Content"/> (0 for binary/skipped, or when token counting was
     /// not run — the Classic style with no budget skips it for speed).</summary>
     public int TokenCount { get; init; }
+
+    /// <summary>Secrets detected in <see cref="Content"/> (empty when scanning is off or none found).
+    /// Findings are shared by every formatter; the non-Classic ones warn/redact/skip per the config.</summary>
+    public IReadOnlyList<SecretFinding> Secrets { get; init; } = Array.Empty<SecretFinding>();
 }
 
 /// <summary>A filesystem entry (file or directory) that survived the ignore filters.</summary>
@@ -82,6 +86,28 @@ public sealed class DumpModel
         {
             long t = 0;
             foreach (var f in Files) t += f.TokenCount;
+            return t;
+        }
+    }
+
+    /// <summary>Total number of secret findings across all files (0 when scanning was off / none found).</summary>
+    public int SecretFindingCount
+    {
+        get
+        {
+            int t = 0;
+            foreach (var f in Files) t += f.Secrets.Count;
+            return t;
+        }
+    }
+
+    /// <summary>Number of files carrying at least one secret finding.</summary>
+    public int FilesWithSecrets
+    {
+        get
+        {
+            int t = 0;
+            foreach (var f in Files) if (f.Secrets.Count > 0) t++;
             return t;
         }
     }

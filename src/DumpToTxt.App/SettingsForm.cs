@@ -53,6 +53,11 @@ public sealed class SettingsForm : Form
     private readonly ComboBox _cmbTokenEnc = new() { DropDownStyle = ComboBoxStyle.DropDownList };
     private readonly NumericUpDown _numMaxTokens = new() { Maximum = 2_000_000_000, ThousandsSeparator = true, Increment = 1000 };
 
+    // Secrets
+    private readonly ComboBox _cmbSecretScan = new() { DropDownStyle = ComboBoxStyle.DropDownList };
+    private readonly CheckBox _chkSecretEntropy = new() { Text = "Also flag generic high-entropy strings (noisier)" };
+    private readonly TextBox _tbSecretAllow = new() { Multiline = true, ScrollBars = ScrollBars.Vertical };
+
     // Presets
     private readonly ComboBox _cmbPreset = new() { DropDownStyle = ComboBoxStyle.DropDownList, DisplayMember = "Name" };
     private readonly Label _lblPresetDesc = new();
@@ -93,6 +98,7 @@ public sealed class SettingsForm : Form
         tabs.TabPages.Add(BuildCapsTab());
         tabs.TabPages.Add(BuildOutputTab());
         tabs.TabPages.Add(BuildTokensTab());
+        tabs.TabPages.Add(BuildSecretsTab());
         tabs.TabPages.Add(BuildPresetsTab());
 
         var btnSave = new Button { Text = "Save", Left = 12, Top = 595, Width = 120 };
@@ -269,6 +275,34 @@ public sealed class SettingsForm : Form
         return tab;
     }
 
+    private TabPage BuildSecretsTab()
+    {
+        var tab = new TabPage("Secrets");
+        var lblMode = new Label { Text = "On secret detected:", Left = 12, Top = 18, Width = 120 };
+        foreach (SecretScanMode m in Enum.GetValues<SecretScanMode>()) _cmbSecretScan.Items.Add(m);
+        _cmbSecretScan.SetBounds(138, 15, 180, 23);
+        var lblModeHint = new Label
+        {
+            Text = "Off = no scan. Warn = flag + count, content untouched. Redact = replace each secret with "
+                 + "[REDACTED]. Skip = drop the whole file's content. Redact/Skip apply to the non-Classic "
+                 + "styles only — Classic output stays byte-identical; findings still appear in the post-dump notice.",
+            Left = 12, Top = 46, Width = 720, Height = 60,
+        };
+
+        _chkSecretEntropy.SetBounds(12, 116, 500, 24);
+
+        var lblAllow = new Label { Text = "Allowlist — one regex per line (a finding whose match text matches is dropped):", Left = 12, Top = 150, Width = 720 };
+        _tbSecretAllow.SetBounds(12, 173, 720, 170);
+
+        tab.Controls.Add(lblMode);
+        tab.Controls.Add(_cmbSecretScan);
+        tab.Controls.Add(lblModeHint);
+        tab.Controls.Add(_chkSecretEntropy);
+        tab.Controls.Add(lblAllow);
+        tab.Controls.Add(_tbSecretAllow);
+        return tab;
+    }
+
     private TabPage BuildPresetsTab()
     {
         var tab = new TabPage("Presets");
@@ -325,6 +359,9 @@ public sealed class SettingsForm : Form
             _tbOutDir.Text = cfg.OutputDir ?? "";
             _cmbTokenEnc.SelectedItem = cfg.TokenEncoding;
             _numMaxTokens.Value = ClampTokens(cfg.MaxTokens);
+            _cmbSecretScan.SelectedItem = cfg.SecretScan;
+            _chkSecretEntropy.Checked = cfg.SecretScanEntropy;
+            _tbSecretAllow.Text = string.Join("\r\n", cfg.SecretAllowlist);
 
             // Stash the exact loaded values + reset dirty so an untouched save preserves them verbatim.
             _loadedExcludeRegex = cfg.ExcludeRegex;
@@ -364,6 +401,9 @@ public sealed class SettingsForm : Form
         // Preserve the exact loaded budget unless the user touched the spinner, so a value above the
         // spinner's display ceiling isn't silently clamped on an untouched save (mirrors the byte caps).
         MaxTokens = _maxTokensDirty ? (long)_numMaxTokens.Value : _loadedMaxTokens,
+        SecretScan = _cmbSecretScan.SelectedItem is SecretScanMode sm ? sm : SecretScanMode.Warn,
+        SecretScanEntropy = _chkSecretEntropy.Checked,
+        SecretAllowlist = SplitLines(_tbSecretAllow.Text),
     };
 
     private List<string> BuildExtSet()

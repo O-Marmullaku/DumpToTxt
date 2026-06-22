@@ -19,6 +19,7 @@ public sealed class JsonFormatter : IDumpFormatter
     public string Render(DumpModel model, DumpConfig cfg)
     {
         var top = DirectoryTree.TopByTokens(model.Files, 10);
+        bool scanOn = cfg.SecretScan != SecretScanMode.Off;
         var dto = new DumpJson
         {
             Root = model.Root,
@@ -28,19 +29,34 @@ public sealed class JsonFormatter : IDumpFormatter
             TokenEncoding = TokenCounter.EncodingName(cfg.TokenEncoding),
             MaxTokens = cfg.MaxTokens > 0 ? cfg.MaxTokens : null,
             OverBudget = cfg.MaxTokens > 0 ? model.TotalTokens > cfg.MaxTokens : null,
+            SecretScan = scanOn ? cfg.SecretScan.ToString() : null,
+            SecretFindings = scanOn ? model.SecretFindingCount : null,
+            FilesWithSecrets = scanOn ? model.FilesWithSecrets : null,
+            SecretRuleTally = scanOn && model.SecretFindingCount > 0
+                ? SecretScanner.RuleTally(model.Files).Select(kv => new SecretRuleJson { Rule = kv.Key, Count = kv.Value }).ToList()
+                : null,
             DirectoryStructure = DirectoryTree.RenderStructureOrNote(model.Entries),
             TokenTree = top.Count > 0 ? DirectoryTree.RenderTokenTree(model.Files) : null,
             TopFilesByTokens = top.Count > 0
                 ? top.Select(f => new TokenFileJson { Path = f.RelativePath, Tokens = f.TokenCount }).ToList()
                 : null,
-            FileList = model.Files.Select(f => new FileJson
+            FileList = model.Files.Select(f =>
             {
-                Path = f.RelativePath,
-                Size = f.Size,
-                Tokens = f.TokenCount,
-                Content = f.Content,
-                Binary = f.IsBinary ? true : null,
-                Truncated = f.IsTruncated ? true : null,
+                bool secretSkipped = false;
+                string body = f.IsBinary ? "" : SecretScanner.ContentForOutput(f, cfg.SecretScan, out secretSkipped);
+                return new FileJson
+                {
+                    Path = f.RelativePath,
+                    Size = f.Size,
+                    Tokens = f.TokenCount,
+                    Content = body,
+                    Binary = f.IsBinary ? true : null,
+                    Truncated = f.IsTruncated ? true : null,
+                    Secrets = f.Secrets.Count > 0
+                        ? f.Secrets.Select(s => new SecretJson { Rule = s.RuleId, Line = s.Line, Preview = s.Preview }).ToList()
+                        : null,
+                    SecretsSkipped = secretSkipped ? true : null,
+                };
             }).ToList(),
         };
         return JsonSerializer.Serialize(dto, Opts);
@@ -62,6 +78,22 @@ public sealed class JsonFormatter : IDumpFormatter
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public bool? OverBudget { get; init; }
 
+        [JsonPropertyName("secretScan")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? SecretScan { get; init; }
+
+        [JsonPropertyName("secretFindings")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public int? SecretFindings { get; init; }
+
+        [JsonPropertyName("filesWithSecrets")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public int? FilesWithSecrets { get; init; }
+
+        [JsonPropertyName("secretRuleTally")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<SecretRuleJson>? SecretRuleTally { get; init; }
+
         [JsonPropertyName("directoryStructure")] public required string DirectoryStructure { get; init; }
 
         [JsonPropertyName("tokenTree")]
@@ -81,6 +113,19 @@ public sealed class JsonFormatter : IDumpFormatter
         [JsonPropertyName("tokens")] public int Tokens { get; init; }
     }
 
+    private sealed class SecretRuleJson
+    {
+        [JsonPropertyName("rule")] public required string Rule { get; init; }
+        [JsonPropertyName("count")] public int Count { get; init; }
+    }
+
+    private sealed class SecretJson
+    {
+        [JsonPropertyName("rule")] public required string Rule { get; init; }
+        [JsonPropertyName("line")] public int Line { get; init; }
+        [JsonPropertyName("preview")] public required string Preview { get; init; }
+    }
+
     private sealed class FileJson
     {
         [JsonPropertyName("path")] public required string Path { get; init; }
@@ -95,5 +140,13 @@ public sealed class JsonFormatter : IDumpFormatter
         [JsonPropertyName("truncated")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public bool? Truncated { get; init; }
+
+        [JsonPropertyName("secrets")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<SecretJson>? Secrets { get; init; }
+
+        [JsonPropertyName("secretsSkipped")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public bool? SecretsSkipped { get; init; }
     }
 }

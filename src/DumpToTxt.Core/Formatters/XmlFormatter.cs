@@ -36,6 +36,12 @@ public sealed class XmlFormatter : IDumpFormatter
                 w.WriteAttributeString("maxTokens", cfg.MaxTokens.ToString());
                 w.WriteAttributeString("overBudget", model.TotalTokens > cfg.MaxTokens ? "true" : "false");
             }
+            if (cfg.SecretScan != SecretScanMode.Off)
+            {
+                w.WriteAttributeString("secretScan", cfg.SecretScan.ToString());
+                w.WriteAttributeString("secretFindings", model.SecretFindingCount.ToString());
+                w.WriteAttributeString("filesWithSecrets", model.FilesWithSecrets.ToString());
+            }
 
             w.WriteStartElement("directoryStructure");
             w.WriteString("\r\n" + Sanitize(DirectoryTree.RenderStructureOrNote(model.Entries)) + "\r\n");
@@ -46,6 +52,20 @@ public sealed class XmlFormatter : IDumpFormatter
                 w.WriteStartElement("tokenTree");
                 w.WriteString("\r\n" + Sanitize(DirectoryTree.RenderTokenTree(model.Files)) + "\r\n");
                 w.WriteEndElement();
+            }
+
+            if (cfg.SecretScan != SecretScanMode.Off && model.SecretFindingCount > 0)
+            {
+                w.WriteStartElement("secretScan");
+                w.WriteAttributeString("mode", cfg.SecretScan.ToString());
+                foreach (var kv in SecretScanner.RuleTally(model.Files))
+                {
+                    w.WriteStartElement("rule");
+                    w.WriteAttributeString("id", kv.Key);
+                    w.WriteAttributeString("count", kv.Value.ToString());
+                    w.WriteEndElement();
+                }
+                w.WriteEndElement(); // secretScan
             }
 
             w.WriteStartElement("files");
@@ -60,7 +80,25 @@ public sealed class XmlFormatter : IDumpFormatter
                     w.WriteAttributeString("truncated", "true");
                     w.WriteAttributeString("size", f.Size.ToString());
                 }
-                if (!f.IsBinary) w.WriteString(Sanitize(f.Content));
+
+                // Per-mode body (Off/Warn = original, Redact = redacted, Skip = omitted). Binary stays empty.
+                bool secretSkipped = false;
+                string body = f.IsBinary ? "" : SecretScanner.ContentForOutput(f, cfg.SecretScan, out secretSkipped);
+                if (f.Secrets.Count > 0)
+                {
+                    w.WriteAttributeString("secrets", f.Secrets.Count.ToString());
+                    if (secretSkipped) w.WriteAttributeString("secretsSkipped", "true");
+                }
+                // All attributes are written; now child <secret> elements (masked preview — never the raw secret).
+                foreach (var s in f.Secrets)
+                {
+                    w.WriteStartElement("secret");
+                    w.WriteAttributeString("rule", s.RuleId);
+                    w.WriteAttributeString("line", s.Line.ToString());
+                    w.WriteAttributeString("preview", Sanitize(s.Preview));
+                    w.WriteEndElement();
+                }
+                if (!f.IsBinary && !secretSkipped) w.WriteString(Sanitize(body));
                 w.WriteEndElement();
             }
             w.WriteEndElement(); // files

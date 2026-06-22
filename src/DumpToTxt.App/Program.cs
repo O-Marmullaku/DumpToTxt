@@ -31,22 +31,41 @@ internal static class Program
 
             var result = new DumpEngine().Run(target!, cfg);
 
+            // Secret-scan notice: the realistic "surface in the GUI" channel until the P7 preview pane lands.
+            bool hasSecrets = result.SecretFindingCount > 0;
+            // Classic never redacts/skips (its output is golden byte-identical), so warn loudly if the user
+            // picked Redact/Skip but left the style on Classic — the raw secrets ARE in the output.
+            bool classicUnsanitized = cfg.Style == OutputStyle.Classic
+                && cfg.SecretScan is SecretScanMode.Redact or SecretScanMode.Skip;
+            string secretNotice = hasSecrets
+                ? $"\n\n⚠ {result.SecretFindingCount} secret(s) detected in {result.FilesWithSecrets} file(s) (mode: {cfg.SecretScan})."
+                  + (classicUnsanitized
+                      ? "\nClassic style does NOT redact/skip — the output contains the raw secrets. Pick a non-Classic style to sanitize."
+                      : "")
+                : "";
+
             switch (cfg.OutputTarget)
             {
                 case OutputTarget.Clipboard:
                     Clipboard.SetText(string.IsNullOrEmpty(result.Text) ? " " : result.Text);
                     MessageBox.Show(
-                        $"Copied {result.FilesIncluded} file(s) to the clipboard.",
-                        "DumpToTxt", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        $"Copied {result.FilesIncluded} file(s) to the clipboard." + secretNotice,
+                        "DumpToTxt", MessageBoxButtons.OK,
+                        hasSecrets ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
                     break;
 
                 case OutputTarget.Stdout:
                     Console.Out.Write(result.Text);
                     Console.Out.Flush();
+                    if (hasSecrets) Console.Error.WriteLine(secretNotice.Trim());
                     break;
 
                 case OutputTarget.File:
                 default:
+                    if (hasSecrets)
+                        MessageBox.Show(
+                            $"Dump written to:\n{result.OutputPath}{secretNotice}",
+                            "DumpToTxt — secrets detected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     // Open the written file; surface its path if the viewer can't launch.
                     try
                     {

@@ -10,6 +10,10 @@ public sealed class DumpResult
     /// <summary>The rendered dump text (no BOM), regardless of output target.</summary>
     public string Text { get; init; } = "";
     public int FilesIncluded { get; init; }
+    /// <summary>Total secret findings across the dump (0 when scanning is off / none found).</summary>
+    public int SecretFindingCount { get; init; }
+    /// <summary>Number of files that carried at least one secret finding.</summary>
+    public int FilesWithSecrets { get; init; }
 }
 
 /// <summary>
@@ -86,7 +90,14 @@ public sealed class DumpEngine
         if (outPath != null)
             File.WriteAllText(outPath, text, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
 
-        return new DumpResult { OutputPath = outPath, Text = text, FilesIncluded = model.Files.Count };
+        return new DumpResult
+        {
+            OutputPath = outPath,
+            Text = text,
+            FilesIncluded = model.Files.Count,
+            SecretFindingCount = model.SecretFindingCount,
+            FilesWithSecrets = model.FilesWithSecrets,
+        };
     }
 
     private static IDumpFormatter SelectFormatter(OutputStyle style) =>
@@ -131,6 +142,9 @@ public sealed class DumpEngine
         }
 
         long budget = cfg.MaxTotalSizeBytes > 0 ? cfg.MaxTotalSizeBytes : long.MaxValue;
+        // Compile the secret allowlist once for the whole dump (skipped entirely when scanning is off).
+        var allowlist = cfg.SecretScan != SecretScanMode.Off
+            ? SecretScanner.CompileAllowlist(cfg.SecretAllowlist) : null;
         List<DumpFile> files;
         string? skipped = null;
         bool skippedUnchanged = false;
@@ -145,7 +159,7 @@ public sealed class DumpEngine
                 && !matcher.IsExcluded(fi.FullName, rel, isDir: false)
                 && matcher.MatchesInclude(rel);
             if (legible && (changed is null || changed.Contains(fi.FullName)))
-                files.Add(ReadDumpFile(fi, root, cfg, ref budget));
+                files.Add(ReadDumpFile(fi, root, cfg, ref budget, allowlist));
             else if (legible)                       // filtered out only because it has no git changes
             {
                 skipped = fi.FullName;
@@ -158,7 +172,7 @@ public sealed class DumpEngine
         {
             files = new List<DumpFile>(candidates.Count);
             foreach (var fi in candidates)
-                files.Add(ReadDumpFile(fi, root, cfg, ref budget));
+                files.Add(ReadDumpFile(fi, root, cfg, ref budget, allowlist));
         }
 
         return new DumpModel
@@ -218,7 +232,8 @@ public sealed class DumpEngine
     }
 
     /// <summary>Reads a candidate file applying binary detection and per-file + total size caps.</summary>
-    private static DumpFile ReadDumpFile(FileInfo fi, string root, DumpConfig cfg, ref long totalBudget)
+    private static DumpFile ReadDumpFile(FileInfo fi, string root, DumpConfig cfg, ref long totalBudget,
+        IReadOnlyList<System.Text.RegularExpressions.Regex>? secretAllowlist)
     {
         string rel = Path.GetRelativePath(root, fi.FullName);
         long size;
@@ -243,7 +258,14 @@ public sealed class DumpEngine
         int tokens = (cfg.Style != OutputStyle.Classic || cfg.MaxTokens > 0)
             ? TokenCounter.Count(content, cfg.TokenEncoding) : 0;
 
-        return new DumpFile { FullName = fi.FullName, RelativePath = rel, Content = content, Size = size, IsTruncated = truncated, TokenCount = tokens };
+        // Scan the dumped (post-truncation) content for secrets. Runs regardless of style when enabled so the
+        // count surfaces in the post-dump notice even for Classic; Classic output itself is never altered
+        // (redact/skip is a render-time transform the non-Classic formatters apply — see SecretScanner).
+        var secrets = cfg.SecretScan != SecretScanMode.Off
+            ? SecretScanner.Scan(content, cfg.SecretScanEntropy, secretAllowlist)
+            : Array.Empty<SecretFinding>();
+
+        return new DumpFile { FullName = fi.FullName, RelativePath = rel, Content = content, Size = size, IsTruncated = truncated, TokenCount = tokens, Secrets = secrets };
     }
 
     private static string MakeOutputPath(string dir, string safeBase)

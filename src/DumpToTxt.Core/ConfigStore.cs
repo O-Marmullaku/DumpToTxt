@@ -141,6 +141,9 @@ public static class ConfigStore
         public long? MaxTotalSizeBytes { get; set; }
         public string? TokenEncoding { get; set; }
         public long? MaxTokens { get; set; }
+        public string? SecretScan { get; set; }
+        public bool? SecretScanEntropy { get; set; }
+        public List<string>? SecretAllowlist { get; set; }
 
         public DumpConfig ToConfig() => Apply(DumpConfig.CreateDefault());
 
@@ -173,6 +176,9 @@ public static class ConfigStore
             if (MaxTotalSizeBytes is { } mt) acc.MaxTotalSizeBytes = mt > 0 ? mt : 0;
             if (TryParseEnum(TokenEncoding, out Core.TokenEncoding te)) acc.TokenEncoding = te;
             if (MaxTokens is { } mx) acc.MaxTokens = mx > 0 ? mx : 0;
+            if (TryParseEnum(SecretScan, out Core.SecretScanMode ss)) acc.SecretScan = ss;
+            if (SecretScanEntropy is { } se) acc.SecretScanEntropy = se;
+            if (SecretAllowlist is not null) acc.SecretAllowlist = SecretAllowlist;
             return acc;
         }
 
@@ -201,6 +207,9 @@ public static class ConfigStore
             MaxTotalSizeBytes = c.MaxTotalSizeBytes,
             TokenEncoding = c.TokenEncoding.ToString(),
             MaxTokens = c.MaxTokens,
+            SecretScan = c.SecretScan.ToString(),
+            SecretScanEntropy = c.SecretScanEntropy,
+            SecretAllowlist = c.SecretAllowlist,
         };
     }
 }

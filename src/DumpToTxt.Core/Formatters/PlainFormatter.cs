@@ -38,18 +38,49 @@ public sealed class PlainFormatter : IDumpFormatter
             sb.Append(DirectoryTree.RenderTokenTree(model.Files)).Append("\r\n\r\n");
         }
 
+        if (cfg.SecretScan != SecretScanMode.Off)
+        {
+            sb.Append("----- Secret scan (").Append(cfg.SecretScan).Append(") -----\r\n");
+            if (model.SecretFindingCount == 0)
+                sb.Append("No secrets detected.\r\n\r\n");
+            else
+            {
+                sb.Append(model.SecretFindingCount).Append(" secret(s) in ")
+                  .Append(model.FilesWithSecrets).Append(" file(s).\r\n");
+                foreach (var kv in SecretScanner.RuleTally(model.Files))
+                    sb.Append("  ").Append(kv.Key).Append(": ").Append(kv.Value).Append("\r\n");
+                foreach (var f in model.Files)
+                {
+                    if (f.Secrets.Count == 0) continue;
+                    sb.Append(f.RelativePath).Append("\r\n");
+                    foreach (var s in f.Secrets)
+                        sb.Append("  line ").Append(s.Line).Append(" · ").Append(s.RuleName)
+                          .Append(" · ").Append(s.Preview).Append("\r\n");
+                }
+                sb.Append("\r\n");
+            }
+        }
+
         sb.Append("----- Files -----\r\n");
         foreach (var f in model.Files)
         {
             sb.Append("\r\n================ File: ").Append(f.RelativePath)
-              .Append(" (").Append(f.TokenCount.ToString("N0")).Append(" tokens) ================\r\n");
+              .Append(" (").Append(f.TokenCount.ToString("N0")).Append(" tokens)");
+            if (f.Secrets.Count > 0) sb.Append(" [⚠ ").Append(f.Secrets.Count).Append(" secret(s)]");
+            sb.Append(" ================\r\n");
             if (f.IsBinary)
             {
                 sb.Append("[binary file — content skipped]\r\n");
                 continue;
             }
-            sb.Append(f.Content);
-            if (!f.Content.EndsWith('\n')) sb.Append("\r\n");
+            string body = SecretScanner.ContentForOutput(f, cfg.SecretScan, out bool secretSkipped);
+            if (secretSkipped)
+            {
+                sb.Append("[content skipped: ").Append(f.Secrets.Count).Append(" secret(s) detected]\r\n");
+                continue;
+            }
+            sb.Append(body);
+            if (!body.EndsWith('\n')) sb.Append("\r\n");
             if (f.IsTruncated)
                 sb.Append("[truncated: file is ").Append(DirectoryTree.FormatSize(f.Size)).Append("]\r\n");
         }

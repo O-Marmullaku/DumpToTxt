@@ -60,6 +60,21 @@ public sealed class DumpConfig
     /// no content dropped). 0 = no budget.</summary>
     public long MaxTokens { get; set; }
 
+    // ---- P6: secret scan ----
+
+    /// <summary>What the dump does when a secret is detected. Defaults to <see cref="SecretScanMode.Warn"/>
+    /// (flag + count, content untouched). Redact/Skip apply to the non-Classic styles only — Classic output
+    /// stays byte-identical; findings still surface in the non-Classic formatters + the post-dump notice.</summary>
+    public SecretScanMode SecretScan { get; set; } = SecretScanMode.Warn;
+
+    /// <summary>Enable the generic high-entropy-string detector (catches secrets no named rule matches).
+    /// Off by default — it is the noisy detector (hashes / base64 assets can trip it).</summary>
+    public bool SecretScanEntropy { get; set; }
+
+    /// <summary>Regex patterns that suppress a finding whose matched text matches one (false-positive
+    /// allowlist). Empty by default.</summary>
+    public List<string> SecretAllowlist { get; set; } = new();
+
     /// <summary>Transient (NOT persisted to settings.json): when true the dump is restricted to files
     /// changed since the last git commit. Set by the "Changed files" preset / <c>--changed</c>; if the
     /// target is not inside a git repo the engine falls back to a normal dump.</summary>
@@ -86,6 +101,9 @@ public sealed class DumpConfig
         MaxTotalSizeBytes = 0,
         TokenEncoding = TokenEncoding.O200kBase,
         MaxTokens = 0,
+        SecretScan = SecretScanMode.Warn,
+        SecretScanEntropy = false,
+        SecretAllowlist = new(),
     };
 
     public DumpConfig Clone() => new()
@@ -105,6 +123,9 @@ public sealed class DumpConfig
         MaxTotalSizeBytes = MaxTotalSizeBytes,
         TokenEncoding = TokenEncoding,
         MaxTokens = MaxTokens,
+        SecretScan = SecretScan,
+        SecretScanEntropy = SecretScanEntropy,
+        SecretAllowlist = new List<string>(SecretAllowlist),
         OnlyGitChanged = OnlyGitChanged,
     };
 }
