@@ -5,21 +5,21 @@ namespace DumpToTxt.Core;
 
 public sealed class DumpResult
 {
-    public required string OutputPath { get; init; }
+    /// <summary>Path of the written file, or null when the target was not <see cref="OutputTarget.File"/>.</summary>
+    public string? OutputPath { get; init; }
+    /// <summary>The rendered dump text (no BOM), regardless of output target.</summary>
+    public string Text { get; init; } = "";
     public int FilesIncluded { get; init; }
 }
 
 /// <summary>
-/// Core dumper. P1 implements the <see cref="OutputStyle.Classic"/> layout with
-/// behavior matching the legacy PowerShell tool. Other styles are stubbed and
-/// will be added in later phases.
+/// Core dumper. Walks the target once into a <see cref="DumpModel"/>, then hands it to the
+/// <see cref="IDumpFormatter"/> for the configured <see cref="OutputStyle"/>. The Classic
+/// style reproduces the legacy .txt layout; the others are repomix-inspired.
 /// </summary>
 public sealed class DumpEngine
 {
-    private const string Sep = "==============================";
-
-    // Mirror PowerShell's `Get-ChildItem -Recurse -Force -ErrorAction SilentlyContinue`:
-    // recurse, include hidden/system, swallow access errors.
+    // Recurse, include hidden/system, swallow access errors (matches the legacy -Recurse -Force).
     private static readonly EnumerationOptions EnumOpts = new()
     {
         RecurseSubdirectories = true,
@@ -27,10 +27,22 @@ public sealed class DumpEngine
         AttributesToSkip = 0,
     };
 
+    private static readonly IReadOnlyDictionary<OutputStyle, IDumpFormatter> Formatters =
+        new Dictionary<OutputStyle, IDumpFormatter>
+        {
+            [OutputStyle.Classic] = new ClassicFormatter(),
+            [OutputStyle.Plain] = new PlainFormatter(),
+            [OutputStyle.Markdown] = new MarkdownFormatter(),
+            [OutputStyle.Xml] = new XmlFormatter(),
+            [OutputStyle.Json] = new JsonFormatter(),
+        };
+
     /// <summary>
-    /// Runs a dump for <paramref name="targetPath"/> (a file or folder) and writes the result.
+    /// Runs a dump for <paramref name="targetPath"/> (file or folder). Writes a file when the
+    /// configured target is <see cref="OutputTarget.File"/>; otherwise just returns the text for
+    /// the caller to route (clipboard/stdout). <paramref name="outputDir"/> overrides the config
+    /// output dir (defaults to the config value, then the Desktop).
     /// </summary>
-    /// <param name="outputDir">Where to write the dump. Defaults to the Desktop (legacy behavior).</param>
     public DumpResult Run(string targetPath, DumpConfig cfg, string? outputDir = null)
     {
         targetPath = Path.GetFullPath(targetPath);
@@ -53,16 +65,90 @@ public sealed class DumpEngine
             if (string.IsNullOrWhiteSpace(baseNameRaw)) baseNameRaw = "folder";
         }
 
-        outputDir ??= Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-        Directory.CreateDirectory(outputDir);
-        string outPath = MakeOutputPath(outputDir, SafeName(baseNameRaw));
+        // Resolve the output file path up front (File target only) so the dump can exclude itself.
+        string? outPath = null;
+        string outNameOnly = "\0";   // sentinel that can never equal a real file name
+        if (cfg.OutputTarget == OutputTarget.File)
+        {
+            string dir = outputDir ?? cfg.OutputDir
+                ?? Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+            Directory.CreateDirectory(dir);
+            outPath = MakeOutputPath(dir, SafeName(baseNameRaw));
+            outNameOnly = Path.GetFileName(outPath);
+        }
 
-        if (cfg.Style != OutputStyle.Classic)
-            throw new NotSupportedException($"Output style '{cfg.Style}' is not implemented yet (P2).");
+        var model = Gather(targetPath, isFile, root, cfg, outNameOnly);
+        string text = SelectFormatter(cfg.Style).Render(model, cfg);
 
-        var (text, count) = BuildClassic(targetPath, isFile, root, cfg, Path.GetFileName(outPath));
-        File.WriteAllText(outPath, text, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
-        return new DumpResult { OutputPath = outPath, FilesIncluded = count };
+        if (outPath != null)
+            File.WriteAllText(outPath, text, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+
+        return new DumpResult { OutputPath = outPath, Text = text, FilesIncluded = model.Files.Count };
+    }
+
+    private static IDumpFormatter SelectFormatter(OutputStyle style) =>
+        Formatters.TryGetValue(style, out var f) ? f : Formatters[OutputStyle.Classic];
+
+    private static DumpModel Gather(string targetPath, bool isFile, string root, DumpConfig cfg, string outNameOnly)
+    {
+        var rx = new Regex(cfg.ExcludeRegex, RegexOptions.IgnoreCase);
+        var extSet = new HashSet<string>(
+            cfg.ExtSet.Select(e => e.ToLowerInvariant()), StringComparer.OrdinalIgnoreCase);
+        var dotAllow = new HashSet<string>(cfg.DotFilesAllow, StringComparer.OrdinalIgnoreCase);
+
+        // DIRECTORY LIST: every non-excluded entry, sorted by full path for cross-machine determinism.
+        var listed = SafeEnumerate(root, filesOnly: false)
+            .Where(p => !rx.IsMatch(p))
+            .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var files = new List<DumpFile>();
+        string? skipped = null;
+
+        if (isFile)
+        {
+            var fi = new FileInfo(targetPath);
+            if (IsLegible(fi, extSet, dotAllow) && !rx.IsMatch(fi.FullName))
+                files.Add(ToDumpFile(fi, root));
+            else
+                skipped = fi.FullName;
+        }
+        else
+        {
+            files = SafeEnumerate(root, filesOnly: true)
+                .Select(p => new FileInfo(p))
+                .Where(f => !rx.IsMatch(f.FullName)
+                            && !Regex.IsMatch(f.Name, @"\.min\.", RegexOptions.IgnoreCase)
+                            && !string.Equals(f.Name, outNameOnly, StringComparison.OrdinalIgnoreCase)
+                            && IsLegible(f, extSet, dotAllow))
+                .OrderBy(f => f.FullName, StringComparer.OrdinalIgnoreCase)
+                .Select(f => ToDumpFile(f, root))
+                .ToList();
+        }
+
+        return new DumpModel
+        {
+            Root = root,
+            TargetPath = targetPath,
+            IsSingleFile = isFile,
+            ListedEntries = listed,
+            Files = files,
+            SkippedSingleFile = skipped,
+        };
+    }
+
+    private static DumpFile ToDumpFile(FileInfo fi, string root)
+    {
+        string content = SafeReadText(fi.FullName);
+        long size;
+        try { size = fi.Length; } catch { size = content.Length; }
+        return new DumpFile
+        {
+            FullName = fi.FullName,
+            RelativePath = Path.GetRelativePath(root, fi.FullName),
+            Content = content,
+            Size = size,
+        };
     }
 
     private static string MakeOutputPath(string dir, string safeBase)
@@ -75,73 +161,6 @@ public sealed class DumpEngine
             candidate = Path.Combine(dir, $"{safeBase}-dump-{timeTag}-{i:00}.txt");
             if (!File.Exists(candidate)) return candidate;
         }
-    }
-
-    private static (string text, int count) BuildClassic(
-        string targetPath, bool isFile, string root, DumpConfig cfg, string outNameOnly)
-    {
-        var rx = new Regex(cfg.ExcludeRegex, RegexOptions.IgnoreCase);
-        var extSet = new HashSet<string>(
-            cfg.ExtSet.Select(e => e.ToLowerInvariant()), StringComparer.OrdinalIgnoreCase);
-        var dotAllow = new HashSet<string>(cfg.DotFilesAllow, StringComparer.OrdinalIgnoreCase);
-
-        var sb = new StringBuilder();
-        sb.Append("===== DIRECTORY LIST (filtered) =====\r\n");
-        sb.Append("ROOT: ").Append(root).Append("\r\n");
-        sb.Append("\r\n");
-
-        // Directory listing: every entry (files + folders) under root, minus excluded paths.
-        foreach (var entry in SafeEnumerate(root, filesOnly: false))
-        {
-            if (rx.IsMatch(entry)) continue;
-            sb.Append(entry).Append("\r\n");
-        }
-
-        sb.Append("\r\n\r\n===== FILE CONTENTS (LEGIBLE ONLY) =====\r\n");
-
-        int count = 0;
-        if (isFile)
-        {
-            var fi = new FileInfo(targetPath);
-            if (IsLegible(fi, extSet, dotAllow) && !rx.IsMatch(fi.FullName))
-            {
-                AppendFileBlock(sb, fi.FullName);
-                count++;
-            }
-            else
-            {
-                sb.Append("\r\n[Skipped: file not considered legible or is excluded]\r\n");
-                sb.Append(fi.FullName).Append("\r\n");
-            }
-        }
-        else
-        {
-            var files = SafeEnumerate(root, filesOnly: true)
-                .Select(p => new FileInfo(p))
-                .Where(f => !rx.IsMatch(f.FullName)
-                            && !Regex.IsMatch(f.Name, @"\.min\.", RegexOptions.IgnoreCase)
-                            && !string.Equals(f.Name, outNameOnly, StringComparison.OrdinalIgnoreCase)
-                            && IsLegible(f, extSet, dotAllow))
-                .OrderBy(f => f.FullName, StringComparer.OrdinalIgnoreCase);
-
-            foreach (var f in files)
-            {
-                AppendFileBlock(sb, f.FullName);
-                count++;
-            }
-        }
-
-        return (sb.ToString(), count);
-    }
-
-    private static void AppendFileBlock(StringBuilder sb, string fullName)
-    {
-        sb.Append("\r\n").Append(Sep).Append("\r\n");
-        sb.Append(fullName).Append("\r\n");
-        sb.Append(Sep).Append("\r\n");
-        string content = SafeReadText(fullName);
-        sb.Append(content);
-        if (!content.EndsWith('\n')) sb.Append("\r\n");
     }
 
     private static bool IsLegible(FileInfo fi, HashSet<string> extSet, HashSet<string> dotAllow)

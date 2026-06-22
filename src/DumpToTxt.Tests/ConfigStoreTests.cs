@@ -1,0 +1,114 @@
+using System.Text.RegularExpressions;
+using DumpToTxt.Core;
+
+namespace DumpToTxt.Tests;
+
+/// <summary>Round-trip + robustness for ConfigStore, using the pure Parse/Serialize/SaveTo/LoadFrom
+/// seams so no real %APPDATA% config is touched.</summary>
+public class ConfigStoreTests
+{
+    [Fact]
+    public void RoundTrip_PreservesNewOutputFields()
+    {
+        var cfg = new DumpConfig
+        {
+            ExtSet = new() { ".cs", ".md" },
+            DotFilesAllow = new() { ".gitignore" },
+            ExcludeRegex = DumpConfig.DefaultExcludeRegex,
+            Style = OutputStyle.Markdown,
+            OutputTarget = OutputTarget.Clipboard,
+            OutputDir = @"C:\dumps",
+        };
+
+        var back = ConfigStore.Parse(ConfigStore.Serialize(cfg));
+
+        Assert.Equal(OutputStyle.Markdown, back.Style);
+        Assert.Equal(OutputTarget.Clipboard, back.OutputTarget);
+        Assert.Equal(@"C:\dumps", back.OutputDir);
+        Assert.Equal(cfg.ExtSet, back.ExtSet);
+        Assert.Equal(cfg.ExcludeRegex, back.ExcludeRegex);
+    }
+
+    [Fact]
+    public void InstallerDoubleEscapedExcludeRegex_RoundTrips()
+    {
+        // Exactly what the Inno installer hand-writes: every backslash doubled for JSON.
+        string json = @"{ ""ExtSet"": ["".cs""], ""ExcludeRegex"": ""\\\\(\\.git|\\.vs|node_modules|dist|build|obj)(\\\\|$)"" }";
+
+        var cfg = ConfigStore.Parse(json);
+
+        Assert.Equal(@"\\(\.git|\.vs|node_modules|dist|build|obj)(\\|$)", cfg.ExcludeRegex);
+        _ = new Regex(cfg.ExcludeRegex); // compiles
+    }
+
+    [Theory]
+    [InlineData("999")]   // out-of-range numeric -> undefined -> guarded back to Classic
+    [InlineData("bogus")]
+    [InlineData("")]
+    public void Style_InvalidOrUndefined_FallsBackToClassic(string raw)
+    {
+        var cfg = ConfigStore.Parse(@"{ ""ExtSet"": ["".cs""], ""Style"": """ + raw + @""" }");
+        Assert.Equal(OutputStyle.Classic, cfg.Style);
+    }
+
+    [Fact]
+    public void Style_ValidName_Parses()
+    {
+        var cfg = ConfigStore.Parse(@"{ ""ExtSet"": ["".cs""], ""Style"": ""Markdown"" }");
+        Assert.Equal(OutputStyle.Markdown, cfg.Style);
+    }
+
+    [Fact]
+    public void OutputTarget_Garbage_FallsBackToFile()
+    {
+        var cfg = ConfigStore.Parse(@"{ ""ExtSet"": ["".cs""], ""OutputTarget"": ""nonsense"" }");
+        Assert.Equal(OutputTarget.File, cfg.OutputTarget);
+    }
+
+    [Fact]
+    public void EmptyExtSet_FallsBackToDefaults()
+    {
+        var cfg = ConfigStore.Parse(@"{ ""ExtSet"": [] }");
+        Assert.Contains(".cs", cfg.ExtSet);
+        Assert.Equal(DumpConfig.CreateDefault().ExtSet, cfg.ExtSet);
+    }
+
+    [Fact]
+    public void LoadFrom_FirstExistingPathWins()
+    {
+        string a = Path.Combine(Path.GetTempPath(), "dtt-cfg-a-" + Guid.NewGuid().ToString("N") + ".json");
+        string b = Path.Combine(Path.GetTempPath(), "dtt-cfg-b-" + Guid.NewGuid().ToString("N") + ".json");
+        File.WriteAllText(a, @"{ ""ExtSet"": ["".cs""], ""Style"": ""Markdown"" }");
+        File.WriteAllText(b, @"{ ""ExtSet"": ["".cs""], ""Style"": ""Xml"" }");
+        try
+        {
+            Assert.Equal(OutputStyle.Markdown, ConfigStore.LoadFrom(a, b).Style);
+            Assert.Equal(OutputStyle.Xml, ConfigStore.LoadFrom("nope.json", b).Style);
+        }
+        finally { File.Delete(a); File.Delete(b); }
+    }
+
+    [Fact]
+    public void SaveTo_LoadFrom_RoundTrips()
+    {
+        string p = Path.Combine(Path.GetTempPath(), "dtt-cfg-" + Guid.NewGuid().ToString("N") + ".json");
+        var cfg = new DumpConfig
+        {
+            ExtSet = new() { ".cs" },
+            DotFilesAllow = new() { ".env" },
+            ExcludeRegex = DumpConfig.DefaultExcludeRegex,
+            Style = OutputStyle.Xml,
+            OutputTarget = OutputTarget.Stdout,
+            OutputDir = null,
+        };
+        try
+        {
+            ConfigStore.SaveTo(p, cfg);
+            var back = ConfigStore.LoadFrom(p);
+            Assert.Equal(OutputStyle.Xml, back.Style);
+            Assert.Equal(OutputTarget.Stdout, back.OutputTarget);
+            Assert.Null(back.OutputDir);
+        }
+        finally { File.Delete(p); }
+    }
+}

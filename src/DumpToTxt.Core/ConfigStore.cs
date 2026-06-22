@@ -29,16 +29,15 @@ public static class ConfigStore
         Converters = { new JsonStringEnumConverter() },
     };
 
-    public static DumpConfig Load()
+    public static DumpConfig Load() => LoadFrom(UserPath, MachinePath);
+
+    /// <summary>Loads from the given paths in precedence order; falls back to defaults. Testable seam.</summary>
+    public static DumpConfig LoadFrom(params string[] paths)
     {
-        foreach (var path in new[] { UserPath, MachinePath })
+        foreach (var path in paths)
         {
             if (!File.Exists(path)) continue;
-            try
-            {
-                var dto = JsonSerializer.Deserialize<ConfigDto>(File.ReadAllText(path), JsonOpts);
-                if (dto != null) return dto.ToConfig();
-            }
+            try { return Parse(File.ReadAllText(path)); }
             catch
             {
                 // Corrupt/locked file: fall through to the next source, then defaults.
@@ -47,19 +46,35 @@ public static class ConfigStore
         return DumpConfig.CreateDefault();
     }
 
-    public static void Save(DumpConfig cfg)
+    public static void Save(DumpConfig cfg) => SaveTo(UserPath, cfg);
+
+    /// <summary>Saves to a specific path. Testable seam used by <see cref="Save"/>.</summary>
+    public static void SaveTo(string path, DumpConfig cfg)
     {
-        Directory.CreateDirectory(UserDir);
-        File.WriteAllText(UserPath, JsonSerializer.Serialize(ConfigDto.FromConfig(cfg), JsonOpts));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, Serialize(cfg));
     }
 
-    /// <summary>DTO matching the legacy settings.json shape, plus the new Style field.</summary>
+    /// <summary>Parses a settings.json string into a config. Pure (no IO) — used by Load and tests.</summary>
+    public static DumpConfig Parse(string json)
+    {
+        var dto = JsonSerializer.Deserialize<ConfigDto>(json, JsonOpts);
+        return (dto ?? new ConfigDto()).ToConfig();
+    }
+
+    /// <summary>Serializes a config to settings.json text. Pure — used by Save and tests.</summary>
+    public static string Serialize(DumpConfig cfg) =>
+        JsonSerializer.Serialize(ConfigDto.FromConfig(cfg), JsonOpts);
+
+    /// <summary>DTO matching the legacy settings.json shape, plus the new output fields.</summary>
     private sealed class ConfigDto
     {
         public List<string>? ExtSet { get; set; }
         public List<string>? DotFilesAllow { get; set; }
         public string? ExcludeRegex { get; set; }
         public string? Style { get; set; }
+        public string? OutputTarget { get; set; }
+        public string? OutputDir { get; set; }
 
         public DumpConfig ToConfig()
         {
@@ -71,9 +86,15 @@ public static class ConfigStore
                     : def.ExtSet,
                 DotFilesAllow = DotFilesAllow ?? def.DotFilesAllow,
                 ExcludeRegex = string.IsNullOrWhiteSpace(ExcludeRegex) ? def.ExcludeRegex : ExcludeRegex,
-                Style = Enum.TryParse<OutputStyle>(Style, ignoreCase: true, out var s) ? s : OutputStyle.Classic,
+                Style = ParseEnum(Style, OutputStyle.Classic),
+                OutputTarget = ParseEnum(OutputTarget, Core.OutputTarget.File),
+                OutputDir = string.IsNullOrWhiteSpace(OutputDir) ? null : OutputDir,
             };
         }
+
+        // Accept only defined enum names; anything else (numbers, typos, garbage) -> fallback.
+        private static TEnum ParseEnum<TEnum>(string? raw, TEnum fallback) where TEnum : struct, Enum =>
+            Enum.TryParse<TEnum>(raw, ignoreCase: true, out var v) && Enum.IsDefined(v) ? v : fallback;
 
         public static ConfigDto FromConfig(DumpConfig c) => new()
         {
@@ -81,6 +102,8 @@ public static class ConfigStore
             DotFilesAllow = c.DotFilesAllow,
             ExcludeRegex = c.ExcludeRegex,
             Style = c.Style.ToString(),
+            OutputTarget = c.OutputTarget.ToString(),
+            OutputDir = c.OutputDir,
         };
     }
 }

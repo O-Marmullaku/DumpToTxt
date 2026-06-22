@@ -1,6 +1,6 @@
 # DumpToTxt — Roadmap
 
-Cursor: **P2 (output styles) is next.** P0 + P1 are done.
+Cursor: **P3 (ignore/include engine) is next.** P0 + P1 + P2 are done.
 
 > Note: P9 (build & distribution) **partially landed early** at the user's request (small downloads → 3 flavors). The repomix-parity *features* that define the product — **P2–P8** — are still the bulk of the work; packaging progress ≠ product progress.
 
@@ -20,11 +20,14 @@ Legend: ✅ done · 🚧 in progress · ⬜ todo
 - WinForms `SettingsForm` ported from the legacy GUI.
 - Installer points at the new `dist\DumpToTxt.exe` (big-bang switch); version → 2.0.0.
 
-## ⬜ P2 — Output styles
-- `IDumpFormatter` + formatters: Plain, Markdown, XML, JSON (Classic already done).
-- Directory **tree** rendering + file-summary **header** preamble.
-- Output targets: **clipboard** + stdout (today: file only).
-- Style picker in the GUI; configurable output directory (today: hardcoded Desktop).
+## ✅ P2 — Output styles
+- `IDumpFormatter` + `DumpModel`; engine walks once, dispatches per `OutputStyle`.
+- Formatters: Classic (extracted **byte-identical**, golden-pinned), Plain, Markdown, XML, JSON.
+- Directory **tree** + summary **header** for non-Classic styles (shared `DirectoryTree`).
+- Output targets: **clipboard** + stdout + file (`OutputTarget`); configurable output dir (`OutputDir`).
+- GUI Output group: style + target pickers + folder browse; persists + round-trips via `ConfigStore`.
+- 22/22 xUnit (golden + per-formatter validity + config round-trip). Classic = byte-identical to v2-P1, intentionally NOT to legacy (uniform CRLF + locale-independent order — see STATE Decisions).
+- Deferred to an ISCC session: installer-side style/target pickers + installer hardening (`to-do-for-human.md`). GUI already lets users choose today.
 
 ## ⬜ P3 — Ignore / include engine
 - `.gitignore` + `.dumptotxtignore` aware; include/exclude globs.
@@ -62,5 +65,6 @@ Legend: ✅ done · 🚧 in progress · ⬜ todo
 
 ## Known open decisions
 - **Exe size:** RESOLVED — ship all three flavors so users choose (lite 0.49 MB / compact 1.07 MB / full 68.8 MB).
-- **Default output target:** Notepad (legacy) vs clipboard (LLM-first). Decide at P2.
-- **Default style for new users:** Classic vs Markdown/XML. Decide at P2.
+- **Default output target:** RESOLVED (P2) — **File + open Notepad** (legacy); Clipboard/Stdout user-selectable in settings (and, pending, installer).
+- **Default style for new users:** RESOLVED (P2) — **Classic**; all five styles selectable; existing configs stay Classic.
+- **Classic fidelity:** RESOLVED (P2) — froze current C# Classic as canonical (golden), intentional documented divergence from legacy ps1; did not chase legacy byte-parity.

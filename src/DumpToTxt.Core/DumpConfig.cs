@@ -22,6 +22,12 @@ public sealed class DumpConfig
     /// <summary>Output format. Defaults to <see cref="OutputStyle.Classic"/>.</summary>
     public OutputStyle Style { get; set; } = OutputStyle.Classic;
 
+    /// <summary>Where the finished dump is delivered. Defaults to <see cref="OutputTarget.File"/> (legacy).</summary>
+    public OutputTarget OutputTarget { get; set; } = OutputTarget.File;
+
+    /// <summary>Directory for file output. Null = the Desktop (legacy behavior).</summary>
+    public string? OutputDir { get; set; }
+
     public static DumpConfig CreateDefault() => new()
     {
         ExtSet = new()
@@ -32,6 +38,8 @@ public sealed class DumpConfig
         DotFilesAllow = new() { ".gitignore", ".gitattributes", ".editorconfig", ".env", ".env.example" },
         ExcludeRegex = DefaultExcludeRegex,
         Style = OutputStyle.Classic,
+        OutputTarget = OutputTarget.File,
+        OutputDir = null,
     };
 
     public DumpConfig Clone() => new()
@@ -40,5 +48,7 @@ public sealed class DumpConfig
         DotFilesAllow = new List<string>(DotFilesAllow),
         ExcludeRegex = ExcludeRegex,
         Style = Style,
+        OutputTarget = OutputTarget,
+        OutputDir = OutputDir,
     };
 }

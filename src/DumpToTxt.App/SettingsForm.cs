@@ -5,9 +5,10 @@ using DumpToTxt.Core;
 namespace DumpToTxt.App;
 
 /// <summary>
-/// Settings GUI, ported from the legacy PowerShell Show-SettingsGui. Lets the user pick
-/// which file types are printed in full, which folders are excluded, and which dotfiles
-/// are allowed. Saves to the user config (%APPDATA%\DumpToTxt\settings.json).
+/// Settings GUI, ported from the legacy PowerShell Show-SettingsGui and extended in P2 with an
+/// Output section (style / target / folder). Lets the user pick which file types are printed in
+/// full, which folders are excluded, which dotfiles are allowed, and how the dump is delivered.
+/// Saves to the user config (%APPDATA%\DumpToTxt\settings.json).
 /// </summary>
 public sealed class SettingsForm : Form
 {
@@ -29,14 +30,17 @@ public sealed class SettingsForm : Form
     private readonly CheckedListBox _clbExcl = new() { CheckOnClick = true };
     private readonly TextBox _tbExclCustom = new();
     private readonly TextBox _tbDot = new();
+    private readonly ComboBox _cmbStyle = new() { DropDownStyle = ComboBoxStyle.DropDownList };
+    private readonly ComboBox _cmbTarget = new() { DropDownStyle = ComboBoxStyle.DropDownList };
+    private readonly TextBox _tbOutDir = new();
     private readonly Label _status = new();
 
     public SettingsForm()
     {
         Text = "DumpToTxt Settings";
         Width = 860;
-        Height = 600;
-        MinimumSize = new Size(820, 560);
+        Height = 720;
+        MinimumSize = new Size(820, 700);
         StartPosition = FormStartPosition.CenterScreen;
         try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { /* no icon */ }
 
@@ -75,19 +79,51 @@ public sealed class SettingsForm : Form
         var lblDot = new Label { Text = "Allowed dotfiles (comma-separated):", Left = 12, Top = 430, Width = 500 };
         _tbDot.SetBounds(12, 452, 818, 23);
 
-        var btnSave = new Button { Text = "Save", Left = 12, Top = 486, Width = 120 };
+        // ---- Output section (P2) ----
+        var gOut = new GroupBox { Text = "Output", Left = 12, Top = 485, Width = 818, Height = 120 };
+
+        var lblStyle = new Label { Text = "Output style:", Left = 12, Top = 28, Width = 90 };
+        foreach (OutputStyle s in Enum.GetValues<OutputStyle>()) _cmbStyle.Items.Add(s);
+        _cmbStyle.SetBounds(105, 25, 150, 23);
+
+        var lblTarget = new Label { Text = "Output to:", Left = 280, Top = 28, Width = 70 };
+        foreach (OutputTarget t in Enum.GetValues<OutputTarget>()) _cmbTarget.Items.Add(t);
+        _cmbTarget.SetBounds(355, 25, 160, 23);
+
+        var lblDir = new Label { Text = "Output folder:", Left = 12, Top = 62, Width = 90 };
+        _tbOutDir.SetBounds(105, 59, 555, 23);
+        var btnBrowse = new Button { Text = "Browse…", Left = 670, Top = 58, Width = 120 };
+        btnBrowse.Click += (_, _) => OnBrowse();
+
+        var lblOutHint = new Label
+        {
+            Text = "Folder applies to file output only (blank = Desktop). Clipboard / Stdout ignore it.",
+            Left = 12, Top = 90, Width = 790,
+        };
+
+        gOut.Controls.Add(lblStyle);
+        gOut.Controls.Add(_cmbStyle);
+        gOut.Controls.Add(lblTarget);
+        gOut.Controls.Add(_cmbTarget);
+        gOut.Controls.Add(lblDir);
+        gOut.Controls.Add(_tbOutDir);
+        gOut.Controls.Add(btnBrowse);
+        gOut.Controls.Add(lblOutHint);
+
+        var btnSave = new Button { Text = "Save", Left = 12, Top = 620, Width = 120 };
         btnSave.Click += (_, _) => OnSave();
-        var btnReset = new Button { Text = "Reset defaults", Left = 142, Top = 486, Width = 140 };
+        var btnReset = new Button { Text = "Reset defaults", Left = 142, Top = 620, Width = 140 };
         btnReset.Click += (_, _) => OnReset();
-        var btnClose = new Button { Text = "Close", Left = 710, Top = 486, Width = 120 };
+        var btnClose = new Button { Text = "Close", Left = 710, Top = 620, Width = 120 };
         btnClose.Click += (_, _) => Close();
 
-        _status.SetBounds(300, 492, 380, 23);
+        _status.SetBounds(300, 626, 380, 23);
 
         Controls.Add(gExt);
         Controls.Add(gExcl);
         Controls.Add(lblDot);
         Controls.Add(_tbDot);
+        Controls.Add(gOut);
         Controls.Add(btnSave);
         Controls.Add(btnReset);
         Controls.Add(btnClose);
@@ -107,6 +143,9 @@ public sealed class SettingsForm : Form
         }
 
         _tbDot.Text = string.Join(", ", cfg.DotFilesAllow);
+        _cmbStyle.SelectedItem = cfg.Style;
+        _cmbTarget.SelectedItem = cfg.OutputTarget;
+        _tbOutDir.Text = cfg.OutputDir ?? "";
     }
 
     private List<string> BuildExtSet()
@@ -127,6 +166,15 @@ public sealed class SettingsForm : Form
         return @"\\(" + string.Join("|", alts) + @")(\\|$)";
     }
 
+    private void OnBrowse()
+    {
+        using var dlg = new FolderBrowserDialog { Description = "Choose the output folder for dumps" };
+        if (!string.IsNullOrWhiteSpace(_tbOutDir.Text) && Directory.Exists(_tbOutDir.Text))
+            dlg.SelectedPath = _tbOutDir.Text;
+        if (dlg.ShowDialog(this) == DialogResult.OK)
+            _tbOutDir.Text = dlg.SelectedPath;
+    }
+
     private void OnSave()
     {
         var ext = BuildExtSet();
@@ -137,13 +185,16 @@ public sealed class SettingsForm : Form
         catch { _status.Text = "❌ Exclude regex invalid."; return; }
 
         var dot = _tbDot.Text.Split(',').Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+        var dir = _tbOutDir.Text.Trim();
 
         ConfigStore.Save(new DumpConfig
         {
             ExtSet = ext,
             DotFilesAllow = dot,
             ExcludeRegex = rx,
-            Style = OutputStyle.Classic,
+            Style = _cmbStyle.SelectedItem is OutputStyle s ? s : OutputStyle.Classic,
+            OutputTarget = _cmbTarget.SelectedItem is OutputTarget t ? t : OutputTarget.File,
+            OutputDir = dir.Length == 0 ? null : dir,
         });
         _status.Text = "✅ Saved.";
     }
@@ -162,6 +213,9 @@ public sealed class SettingsForm : Form
         _tbExtCustom.Text = "";
         _tbExclCustom.Text = "";
         _tbDot.Text = string.Join(", ", def.DotFilesAllow);
+        _cmbStyle.SelectedItem = def.Style;
+        _cmbTarget.SelectedItem = def.OutputTarget;
+        _tbOutDir.Text = "";
         _status.Text = "Defaults loaded (not saved yet).";
     }
 }
