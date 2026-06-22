@@ -12,7 +12,7 @@ AppId={{9F8D92F4-7B4C-4E90-8D4F-7A1E4B1A8C21}
 AppName={#AppName}
 AppVersion={#AppVersion}
 DefaultDirName={pf}\{#AppName}
-OutputDir=.
+OutputDir=..\dist
 OutputBaseFilename=DumpToTxt-Setup
 Compression=lzma2
 SolidCompression=yes
@@ -21,24 +21,24 @@ WizardStyle=modern
 DisableDirPage=yes
 DisableProgramGroupPage=yes
 UninstallDisplayIcon={app}\{#AppExeName}
-SetupIconFile={#AppIcoName}
-WizardSmallImageFile=DumpToTxtWizard.bmp
+SetupIconFile=..\assets\icons\{#AppIcoName}
+WizardSmallImageFile=..\assets\installer-images\DumpToTxtWizard.bmp
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#AppIcoName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\assets\icons\{#AppIcoName}"; DestDir: "{app}"; Flags: ignoreversion
 
 ; welcome cat (small)
-Source: "cutecat.bmp"; DestDir: "{tmp}"; Flags: dontcopy
+Source: "..\assets\installer-images\cutecat.bmp"; DestDir: "{tmp}"; Flags: dontcopy
 
 ; wizard top-right image
-Source: "DumpToTxtWizard.bmp"; DestDir: "{tmp}"; Flags: dontcopy
+Source: "..\assets\installer-images\DumpToTxtWizard.bmp"; DestDir: "{tmp}"; Flags: dontcopy
 
 ; bonus/promo cat (full page)
-Source: "cutecat_bonus.bmp"; DestDir: "{tmp}"; Flags: dontcopy
+Source: "..\assets\installer-images\cutecat_bonus.bmp"; DestDir: "{tmp}"; Flags: dontcopy
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Flags: postinstall nowait skipifsilent
