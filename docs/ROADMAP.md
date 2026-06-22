@@ -1,6 +1,6 @@
 # DumpToTxt — Roadmap
 
-Cursor: **P4 (config & presets) is next.** P0 + P1 + P2 + P3 are done.
+Cursor: **P5 (token counting) is next.** P0 + P1 + P2 + P3 + P4 are done.
 
 > Note: P9 (build & distribution) **partially landed early** at the user's request (small downloads → 3 flavors). The repomix-parity *features* that define the product — **P2–P8** — are still the bulk of the work; packaging progress ≠ product progress.
 
@@ -35,13 +35,25 @@ Legend: ✅ done · 🚧 in progress · ⬜ todo
 - **Single-pass pruning walk** (`DumpEngine.Walk`): one traversal feeds both the listing and the contents; ignored directories are pruned (never descended). Replaces the old double enumeration.
 - Non-Classic **directory tree = full scanned structure** (all non-ignored dirs+files, incl. empty dirs / non-legible / binary), built from `DumpModel.Entries`.
 - Markers across all 5 formatters: Classic/Plain/Markdown inline text; XML `binary`/`truncated`/`size` attrs; JSON `binary`/`truncated` fields.
-- 45/45 xUnit (ignore/glob/precedence/caps/binary/full-tree + config round-trip + back-compat); Classic golden still byte-identical. All three flavors build + launch.
+- 47/47 xUnit (ignore/glob/precedence/caps/binary/full-tree + config round-trip + back-compat + Classic-honors-gitignore/binary); Classic golden still byte-identical. All three flavors build + launch.
 - Scope cut: ignore files read at **root only** (nested per-dir `.gitignore` → P4); GUI knobs for the new fields → P4 (config round-trips via `settings.json` today).
 
-## ⬜ P4 — Config & presets
-- Richer config schema + per-folder `.dumptotxt.json`; precedence resolver.
-- Named **presets** ("Frontend", "Docs only", "Changed files", "Classic") as context-menu submenu.
-- GUI settings rebuild around the full config.
+## ✅ P4 — Config & presets
+- **Precedence resolver** (`ConfigStore.Resolve`): MERGES defaults → machine → user → every `.dumptotxt.json`
+  from the volume root down to the target's folder (**nearest-wins**, field-level overlay). `Load` stays first-match
+  for the GUI; back-compat pinned (`Resolve` == old `Load` when only a user file exists).
+- **Built-in presets** (`Core/Presets.cs`): **Classic** (strict legacy), **Frontend**, **Docs only**, **Changed files**
+  (git diff vs HEAD; falls back to a full dump outside a repo). Surfaced in a GUI Presets tab + the `--preset <name>` /
+  `--changed` CLI flags (which back the right-click verbs).
+- **GUI rebuilt into tabs** (File types / Ignore & globs / Caps & binary / Output / Presets) — every P3 ignore/glob/caps
+  knob now reachable; **Save round-trips the COMPLETE config** (fixes the prior save-erases-P3-fields bug).
+- **3 P3 review fixes folded in:** gitignore **bracket char-classes** (`[Dd]ebug/`, `*.[oa]`) now honored; **BOM-aware
+  capped read** (UTF-16/32 no longer mojibakes when a size cap clips it); all-field GUI save (above).
+- Right-click menu = **two flat verbs** ("Dump into …" with a dynamic label the app syncs on save + "Dump changed files");
+  app-side brains shipped + tested, registry/installer wiring **designed + deferred** to `docs/to-do-for-human.md`.
+- 68/68 xUnit (resolver precedence/merge/back-compat/both-present + presets + label + git changed-files + bracket classes
+  + invalid-range guard + UTF-16 cap + earlier suites); build 0/0; Classic golden byte-identical; all 3 flavors build + launch;
+  GUI screenshot-verified. Fresh-eyes review: solid, 1 fix-first (bracket-class regex-throw guard) found + fixed.
 
 ## ⬜ P5 — Token counting
 - `Microsoft.ML.Tokenizers` (o200k_base / cl100k_base): total, per-file, top-N, token-count tree, budget.

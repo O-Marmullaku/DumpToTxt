@@ -149,15 +149,48 @@ public sealed class IgnoreMatcher
             }
             else if (c == '?') sb.Append("[^/]");
             else if (c == '/') sb.Append('/');
+            else if (c == '[')
+            {
+                int end = ClassEnd(p, i);
+                if (end < 0) sb.Append("\\[");          // unterminated '[': treat as a literal
+                else { AppendClass(sb, p, i, end); i = end; }
+            }
             else sb.Append(Regex.Escape(c.ToString()));
         }
         sb.Append('$');
 
-        return new GlobRule
+        Regex rx;
+        try { rx = new Regex(sb.ToString(), RegexOptions.IgnoreCase); }
+        catch { return null; }   // invalid translated pattern (e.g. a reversed char-class range [z-a]): drop the rule
+        return new GlobRule { Rx = rx, Negate = negate, DirOnly = dirOnly };
+    }
+
+    /// <summary>Index of the <c>]</c> closing a gitignore bracket expression opened at <paramref name="open"/>, or -1
+    /// when unterminated. A leading <c>!</c> (negation) and a literal <c>]</c> as the first member are skipped first.</summary>
+    private static int ClassEnd(string p, int open)
+    {
+        int j = open + 1;
+        if (j < p.Length && p[j] == '!') j++;   // negation marker
+        if (j < p.Length && p[j] == ']') j++;    // a ']' as the first member is literal, not the close
+        for (; j < p.Length; j++) if (p[j] == ']') return j;
+        return -1;
+    }
+
+    /// <summary>Translates a gitignore bracket expression <c>p[open..end]</c> into a regex character class
+    /// (e.g. <c>[Dd]ebug</c>, <c>*.[oa]</c>, <c>[!x]</c>). Ranges like <c>a-z</c> pass through unchanged.</summary>
+    private static void AppendClass(StringBuilder sb, string p, int open, int end)
+    {
+        sb.Append('[');
+        int j = open + 1;
+        if (j <= end && p[j] == '!') { sb.Append('^'); j++; }   // gitignore '!' -> regex '^'
+        for (; j < end; j++)
         {
-            Rx = new Regex(sb.ToString(), RegexOptions.IgnoreCase),
-            Negate = negate,
-            DirOnly = dirOnly,
-        };
+            char cc = p[j];
+            if (cc == '\\') sb.Append("\\\\");
+            else if (cc == ']') sb.Append("\\]");   // literal ']' member (.NET requires escaping inside a class)
+            else if (cc == '[') sb.Append("\\[");
+            else sb.Append(cc);                     // a-z ranges, digits, '-', '^' (non-leading) pass through
+        }
+        sb.Append(']');
     }
 }

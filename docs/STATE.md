@@ -1,53 +1,43 @@
 # STATE.md — DumpToTxt
-_Updated: 2026-06-22 · Phase: P3 (ignore/include engine) done, next P4 · Baseline: build 0 warn / 0 err, tests 45/45 · HEAD: P2 commit 6f888cf (P3 uncommitted, this session)_
+_Updated: 2026-06-22 · Phase: P4 (config & presets) DONE + committed · next P5 · Baseline: build 0/0, tests 68/68 · HEAD: P4 (this run — see git log)_
 
 ## We are here
-v2 is a C#/.NET 8 (WinForms) rewrite of the old PowerShell tool, on GitHub (`main`). P0 (scaffold), P1 (Classic parity), P9 (3-flavor build pipeline), P2 (output styles), and now **P3 (ignore/include engine)** are done. The engine walks a target **once** (single pruning walk) into a `DumpModel` and dispatches to an `IDumpFormatter` per `OutputStyle`. Five styles ship: **Classic** (golden-pinned), **Plain**, **Markdown**, **XML**, **JSON**. P3 adds a layered ignore engine (`.gitignore` + `.dumptotxtignore` + globs + legacy ExcludeRegex), user-settable size caps with `[truncated]`, NUL-sniff binary detection, and a **full scanned-structure** tree for the non-Classic styles. Output **targets** (File / Clipboard / Stdout) and a configurable **output dir** are wired through config + GUI + engine. Still no tokens / secrets / presets / preview (P4–P8).
+v2 is a C#/.NET 8 (WinForms) rewrite of the old PowerShell tool, on GitHub (`main`). P0–P4 + P9 (3-flavor build) done. The engine walks a target once into a `DumpModel` and dispatches to an `IDumpFormatter` per `OutputStyle` (Classic golden-pinned; Plain/Markdown/XML/JSON). P3's layered ignore engine (gitignore + .dumptotxtignore + globs + legacy regex), size caps, and binary detection are intact. **P4 added:** a config precedence resolver + per-folder `.dumptotxt.json`, built-in presets, a git "changed files" mode, a tabbed Settings GUI exposing every knob, and the dynamic right-click label brains — plus 3 folded-in P3-review fixes.
 
 ## Next
-- [ ] **P4 — config & presets**: richer config schema + per-folder `.dumptotxt.json`; named presets as context-menu submenu; **GUI rebuild around the full config (incl. the P3 ignore/glob/caps knobs, currently settings.json-only)**.
+- [ ] **P5 — token counting** (`Microsoft.ML.Tokenizers`, o200k/cl100k: total / per-file / top-N / token-count tree / budget). Surface in the formatters + the GUI; decide default encoding + where counts appear.
 
-## P3 — what landed (this run)
-- New `IgnoreMatcher` (`src/DumpToTxt.Core/IgnoreMatcher.cs`): custom gitignore/glob → regex translator (no new dep). Supports `#`comments, leading-`/` anchor, trailing-`/` dir-only, `**`, `*`/`?` within-segment, `!`negation (last-match-wins). Reads root `.gitignore` + `.dumptotxtignore`; layers config exclude/include globs + legacy backslash `ExcludeRegex`. Exclude = drop from listing+content; include globs = content whitelist.
-- `DumpEngine` rewritten to a **single pruning walk** (`Walk`, manual DFS via `EnumerateFileSystemInfos`): one traversal feeds both `Entries` (full surviving structure) and content candidates; ignored dirs pruned (never descended). Was two full enumerations + descend-then-filter.
-- Size caps (`MaxFileSizeBytes` / `MaxTotalSizeBytes`, 0 = unlimited) → content truncated with `[truncated]`; total budget threaded across files in sorted order. Binary detection (`DetectBinary`, NUL sniff first 8 KB, UTF-16 BOM = text) → content skipped + marked.
-- `DumpModel`: `ListedEntries` → `Entries` (rel + isDir + full) for the full-structure tree; `DumpFile` gains `IsBinary` / `IsTruncated`. `DirectoryTree.RenderStructureOrNote(Entries)` renders the full scanned tree (dirs incl. empty). All 5 formatters render markers (Classic/Plain/MD inline; XML attrs; JSON fields). Markdown dir-tree fence now dynamic (was fixed 3-backtick).
-- `DumpConfig` + `ConfigStore`: 7 new fields round-trip with back-compat (missing → defaults). Caps default off, gitignore/.dumptotxtignore/binary default on.
-- 45/45 xUnit (was 22): ignore/glob/precedence/caps/binary/full-tree + config round-trip + back-compat. Classic golden still byte-identical. All 3 flavors build + launch.
+## P4 — what landed (this run, uncommitted)
+- **Precedence resolver** (`ConfigStore.Resolve(target)`): MERGES defaults → machine → user → every `.dumptotxt.json` from the volume root down to the target's folder (**nearest-wins**, field-level overlay via `ConfigDto.Apply`). `Load` stays first-match for the GUI; back-compat pinned by test (`Resolve` == old `Load` for a user-only config).
+- **Presets** (`Core/Presets.cs`): **Classic** (strict legacy: gitignore/binary off, Classic style), **Frontend** (web ExtSet), **Docs only** (doc ExtSet), **Changed files** (`OnlyGitChanged` → git diff vs HEAD). Surfaced in a GUI Presets tab + `--preset <name>` / `--changed` CLI flags.
+- **Git changed-files** (`Core/GitChanges.cs`): `git rev-parse --show-toplevel` + `status --porcelain`; filters candidates + listing to changed files (+ ancestor dirs); **null/!git-repo → falls back to a full dump**. 5s timeout, pipe-drained, kill-on-hang.
+- **GUI rebuilt into tabs** (`SettingsForm`): File types / Ignore & globs / Caps & binary / Output / Presets. **Save now round-trips the COMPLETE config** (fixes the P3-review save-erases-fields bug). Screenshot-verified all 5 tabs.
+- **Dynamic right-click label** (`Core/ContextMenuLabel.cs` + `App/ContextMenu.cs`): "Dump into .md / Clipboard / …" reflecting the chosen output; app best-effort syncs the HKCU verb label on save. Menu *wiring* designed + deferred (see to-do-for-human; HKCU-vs-HKLM caveat noted).
+- **3 P3-review fixes folded in:** (1) gitignore **bracket char-classes** `[Dd]ebug/` `*.[oa]` now honored (`IgnoreMatcher.Translate` + `ClassEnd`/`AppendClass`); (2) **BOM-aware capped read** (`SafeReadText(path,maxBytes)` via StreamReader) — UTF-16/32 no longer mojibakes under a size cap; (3) all-field GUI save (above).
+- 68/68 xUnit (+16: resolver precedence/merge/back-compat/both-present-merge, presets, label theory, git changed-files ×2, bracket classes ×4 + invalid-range guard, UTF-16 cap); build 0/0; Classic golden still byte-identical; all 3 flavors build + launch.
 
-## Decisions (this run — P3)
-- **Ignore layering = all three additive** (gitignore + .dumptotxtignore + ExcludeRegex), exclude wins, include = content whitelist. (user)
-- **Globs in both** `settings.json` + `.dumptotxtignore`. (user)
-- **Caps settable by user**; default **off (0 = unlimited)** — no truncation markers until a user sets a cap. (my call within "settable") NOTE: binary detection + the ignore engine ARE on by default, so on a real repo Classic now reflects `.gitignore` and skips a whitelisted NUL file — i.e. Classic is byte-identical to P1 only for the *same surviving file set* (format/layout is pinned; file selection intentionally changed by P3).
-- **Non-Classic tree = full scanned structure** (not included-files-only). (user; fixes the P2 review finding)
-- **Scope cuts:** ignore files read at root only (nested `.gitignore` → P4); GUI knobs for new fields → P4 (config round-trips via settings.json now). (my call, gate-approved)
+## P4 fresh-eyes review (this run — Codex was rate-limited, Claude reviewed instead)
+- **Verdict: solid, 1 fix-first — fixed.** (1) **HIGH, fixed:** the new bracket-class translation could throw an uncaught `RegexParseException` on an invalid pattern (e.g. reversed range `[z-a]`) → crashed the whole dump; now `Translate` wraps the `new Regex` in try/catch and drops the bad rule (matches the legacy `ExcludeRegex` handling), guarded by a test. (2) **fixed:** git status now passes `-c core.quotepath=false` so non-ASCII filenames aren't C-quoted/dropped. (3) **documented:** `Apply`'s ExtSet present-empty special-case; added a both-present machine+user merge test. Clean elsewhere (changed-files filter, presets, HKCU label sync, BOM-aware capped read all verified sound).
 
-## P2 — what landed
-- `IDumpFormatter` + `DumpModel`; `DumpEngine` gathers once, dispatches, routes output. `ClassicFormatter` extracted; FILE CONTENTS **byte-identical** to v2-P1, DIRECTORY LIST now sorted OrdinalIgnoreCase (P1 used enumeration order — intentional determinism change), pinned by an independent-oracle golden test.
-- New formatters: `Plain`, `Markdown` (lang-by-ext fences, backtick-run escaping), `Xml` (`XmlWriter`, `encoding="utf-8"`, invalid-XML-char sanitize, no newline rewrite), `Json` (`System.Text.Json`). Shared `DirectoryTree` (dirs-first ASCII tree) + size/header helpers.
-- `DumpConfig.OutputTarget` + `OutputDir`; `ConfigStore` round-trips them, `Enum.IsDefined` guard (bad/garbage `Style`→Classic, no throw), and new pure/testable seams (`Parse`/`Serialize`/`LoadFrom`/`SaveTo`).
-- GUI: new **Output** group (style + target dropdowns, output-folder textbox + Browse). Persists + round-trips. Visually verified (rendered PNG).
-- `Program.cs`: routes File (open Notepad, now `UseShellExecute=true` + path-surfacing on viewer fail) / Clipboard (`Clipboard.SetText` + count dialog) / Stdout.
-- Determinism fix: Classic DIRECTORY LIST now explicitly sorted `OrdinalIgnoreCase` (was OS-order); contents stay Ordinal; false "Mirror Get-ChildItem" comment removed.
-
-## Decisions (this run)
-- **Default output target = File + open Notepad** (legacy, non-surprising). Clipboard/Stdout user-selectable. (User: choosable in setup + settings.)
-- **Default style = Classic** (user). All five selectable; existing `settings.json` with no `Style` → Classic (backward-compat preserved).
-- **Classic fidelity = freeze current C# Classic as canonical + determinism fixes** (my call; user "not sure"). Intentional, documented divergence from legacy ps1: uniform CRLF structure (vs legacy lone-LF) + locale-independent Ordinal ordering (vs legacy culture-aware `Sort-Object`) + sorted dir list. FILE CONTENTS are byte-identical to v2-P1; the DIRECTORY LIST is now OrdinalIgnoreCase-sorted (P1 emitted enumeration order), so whole-output byte-identity to P1 holds only where enumeration order already matched the sort. NOT byte-identical to legacy.
-- Installer-side style/target pickers + the medium installer-hardening fixes are **deferred** to an ISCC-equipped session (see `to-do-for-human.md`) — can't compile/verify `.iss` here.
-- **Non-Classic tree scope = included files only** (repomix-parity per North Star), not full structure. Empty packs render an explicit `(no matching files)` note (was confusingly blank). _[SUPERSEDED in P3 → now FULL scanned structure; see Decisions (this run — P3).]_
-
-## Dev test setup (this machine) — see docs/DEV-TESTING.md
-Right-click testing uses two HKLM verbs pointing **directly at the dist build outputs** so rebuilds are instantly live: `DumpToTxt` ("Dump Into a txt (.NET 8)") → `dist\full\DumpToTxt.exe`; `DumpToTxtLegacy` ("(legacy)") → `dist\lite\DumpToTxt.exe`. The old install (`C:\Program Files (x86)\DumpToTxt\`) still holds the legacy ps2exe (`.exe.legacybak`) + now-unused v2 copies — left as-is until the real ISCC installer lands.
+## Decisions (this run — P4)
+- **Per-folder `.dumptotxt.json` = MERGE, nearest-wins** (folder → user → machine → defaults); lists replace when present. (user)
+- **Presets = built-in code + GUI selectable**; right-click submenu deferred to to-do-for-human. (user)
+- **Right-click = two flat verbs** — "Dump into <format>" (dynamic label) + "Dump changed files (since last commit)"; label reflects the saved output, app updates it on save. (user)
+- **GUI = tabbed rebuild.** (user)
+- **"Changed files" built for real now** (git), not stubbed. (user)
+- **3 P3 fixes folded into P4** rather than a separate pre-commit. (user)
+- **`RespectGitignore` stays default ON**; strict-legacy users get the **Classic preset** (gitignore/binary off). (my call within the kept-ON decision)
 
 ## Open threads / risks
-- **Installer never compiled here** (no ISCC). `.iss` unchanged this run. P1 audit flagged installer mediums (ExtSet custom tokens not JSON-escaped → invalid settings.json → silent default fallback; `SaveStringToFile` is ANSI not UTF-8) and nits (x86 install dir; dead `DumpToTxtWizard.bmp`) — all in `to-do-for-human.md`.
-- Clipboard `Stdout` from a WinForms app only reaches a console if one is attached; otherwise it is silently dropped (acceptable; niche target).
-- `full` exe 68.8 MB (WinForms not trim/AOT-friendly).
-- No LICENSE; no GitHub Release yet → binaries gitignored.
+- **Codex P4 cross-review still owed** — Codex usage limit had not reset by commit time; P4 was committed on the strength of the **fresh-eyes Claude review** (verdict: solid; 1 fix-first found + fixed — the bracket-class regex-throw guard). Re-run `codex review --commit <P4 hash>` next session as the belated GPT second opinion.
+- **Context-menu HKCU-vs-HKLM tension** — the dynamic label needs HKCU verbs (app self-updates, no admin), but `DEV-TESTING.md` says HKCU verbs don't render on this Win11 → dev uses HKLM (static label). Decide at installer time; re-verify HKCU rendering. (to-do-for-human)
+- **Caps GUI is KB-granular** — a byte cap set via JSON that isn't a 1 KB multiple round-trips lossily through the GUI (rounds to KB). Acceptable; documented.
+- P3 leftovers still valid: UTF-32-BE-BOM flagged binary (rare); escaped `\#`/`\!` dead patterns (rare); `outNameOnly` self-exclusion is dead code (benign). All low/document-only.
+- Installer never compiled here (no ISCC); `.iss` unchanged. Output pickers + the two context-menu verbs + installer hardening all in `to-do-for-human.md`.
 
 ## Recent
-- 2026-06-22 P3 ignore/include engine: IgnoreMatcher (gitignore+.dumptotxtignore+globs+regex layered), single pruning walk, size caps + `[truncated]`, NUL binary detect, full-structure tree; 45/45 tests (uncommitted)
-- 2026-06-22 P2 output styles: IDumpFormatter + Plain/Markdown/XML/JSON + tree/header + targets + GUI picker; 22/22 tests (6f888cf)
-- 2026-06-22 Three download flavors full/compact/lite (10139e3)
-- 2026-06-22 v2 rewrite P0+P1: .NET 8 engine + WinForms, Classic parity, 4/4 tests (4cb6af6)
+- 2026-06-22 P4 config & presets: resolver + per-folder `.dumptotxt.json`, presets, git changed-files, tabbed GUI, dynamic menu label, +3 P3 fixes, fresh-eyes review (1 fix-first fixed); 68/68 tests
+- 2026-06-22 P3 ignore/include engine: IgnoreMatcher + single pruning walk + caps + binary detect + full tree; 47/47 (70ec91f)
+- 2026-06-22 P2 output styles: IDumpFormatter + Plain/Markdown/XML/JSON + targets + GUI picker; 22/22 (6f888cf)
+- 2026-06-22 Three flavors full/compact/lite (10139e3)
+- 2026-06-22 v2 rewrite P0+P1: .NET 8 engine + WinForms, Classic parity (4cb6af6)

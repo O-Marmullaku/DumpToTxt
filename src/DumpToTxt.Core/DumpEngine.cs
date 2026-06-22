@@ -109,6 +109,27 @@ public sealed class DumpEngine
         entries.Sort((a, b) => string.Compare(a.FullName, b.FullName, StringComparison.OrdinalIgnoreCase));
         candidates.Sort((a, b) => string.Compare(a.FullName, b.FullName, StringComparison.OrdinalIgnoreCase));
 
+        // "Changed files" mode (git): keep only files changed since HEAD, plus their ancestor dirs in the
+        // listing. Outside a git repo / no git on PATH the set is null → fall through to a normal dump.
+        HashSet<string>? changed = cfg.OnlyGitChanged ? GitChanges.ChangedFiles(targetPath) : null;
+        if (changed is not null)
+        {
+            candidates = candidates.Where(fi => changed.Contains(fi.FullName)).ToList();
+            var keepDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var fi in candidates)
+            {
+                string? d = Path.GetDirectoryName(fi.FullName);
+                while (!string.IsNullOrEmpty(d))
+                {
+                    keepDirs.Add(d!);
+                    if (string.Equals(d, root, StringComparison.OrdinalIgnoreCase)) break;
+                    d = Path.GetDirectoryName(d);
+                }
+            }
+            entries = entries.Where(e =>
+                e.IsDirectory ? keepDirs.Contains(e.FullName) : changed.Contains(e.FullName)).ToList();
+        }
+
         long budget = cfg.MaxTotalSizeBytes > 0 ? cfg.MaxTotalSizeBytes : long.MaxValue;
         List<DumpFile> files;
         string? skipped = null;
@@ -121,7 +142,8 @@ public sealed class DumpEngine
             files = new List<DumpFile>();
             if (IsLegible(fi, extSet, dotAllow)
                 && !matcher.IsExcluded(fi.FullName, rel, isDir: false)
-                && matcher.MatchesInclude(rel))
+                && matcher.MatchesInclude(rel)
+                && (changed is null || changed.Contains(fi.FullName)))
                 files.Add(ReadDumpFile(fi, root, cfg, ref budget));
             else
                 skipped = fi.FullName;
@@ -257,7 +279,10 @@ public sealed class DumpEngine
         catch { return "[unreadable]"; }
     }
 
-    /// <summary>Capped read of the first <paramref name="maxBytes"/> bytes, decoded as lenient UTF-8.</summary>
+    /// <summary>Capped read of the first <paramref name="maxBytes"/> bytes. Decodes BOM-aware (UTF-8/16/32),
+    /// mirroring <see cref="File.ReadAllText(string)"/> so truncated content decodes the same way the full
+    /// read would — a UTF-16/32 file no longer turns to mojibake when a size cap clips it. A multibyte
+    /// sequence split at the byte boundary degrades to a single replacement char (lenient decode).</summary>
     private static string SafeReadText(string path, long maxBytes)
     {
         try
@@ -268,8 +293,9 @@ public sealed class DumpEngine
             if (n == 0) return "";
             var buf = new byte[n];
             int read = fs.Read(buf, 0, n);
-            int start = (read >= 3 && buf[0] == 0xEF && buf[1] == 0xBB && buf[2] == 0xBF) ? 3 : 0;
-            return new UTF8Encoding(false, false).GetString(buf, start, read - start);
+            using var ms = new MemoryStream(buf, 0, read);
+            using var sr = new StreamReader(ms, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+            return sr.ReadToEnd();
         }
         catch { return "[unreadable]"; }
     }

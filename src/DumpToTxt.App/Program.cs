@@ -6,15 +6,16 @@ namespace DumpToTxt.App;
 internal static class Program
 {
     /// <summary>
-    /// Entry point. With no path argument, opens the settings GUI (legacy behavior).
-    /// With a path, dumps that file/folder and opens the result in Notepad.
+    /// Entry point. With no path argument, opens the settings GUI (legacy behavior). With a path,
+    /// dumps that file/folder. Optional flags: <c>--preset &lt;name&gt;</c> overlays a named preset,
+    /// <c>--changed</c> restricts to git-changed files. These back the right-click menu verbs.
     /// </summary>
     [STAThread]
     private static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
 
-        string? target = args.Length > 0 ? args[0] : null;
+        var (target, presetName, changed) = ParseArgs(args);
         if (string.IsNullOrWhiteSpace(target))
         {
             Application.Run(new SettingsForm());
@@ -23,8 +24,12 @@ internal static class Program
 
         try
         {
-            var cfg = ConfigStore.Load();
-            var result = new DumpEngine().Run(target, cfg);
+            // Resolve MERGES defaults → machine → user → per-folder .dumptotxt.json (nearest wins).
+            var cfg = ConfigStore.Resolve(target!);
+            if (presetName is not null) Presets.ByName(presetName)?.Apply(cfg);
+            if (changed) cfg.OnlyGitChanged = true;
+
+            var result = new DumpEngine().Run(target!, cfg);
 
             switch (cfg.OutputTarget)
             {
@@ -65,5 +70,28 @@ internal static class Program
         {
             MessageBox.Show(ex.Message, "DumpToTxt", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    /// <summary>Pulls the first non-flag argument as the target, plus <c>--preset &lt;name&gt;</c>
+    /// (or <c>--preset=name</c>) and <c>--changed</c>.</summary>
+    private static (string? target, string? preset, bool changed) ParseArgs(string[] args)
+    {
+        string? target = null, preset = null;
+        bool changed = false;
+        for (int i = 0; i < args.Length; i++)
+        {
+            string a = args[i];
+            if (string.Equals(a, "--changed", StringComparison.OrdinalIgnoreCase))
+                changed = true;
+            else if (string.Equals(a, "--preset", StringComparison.OrdinalIgnoreCase))
+            {
+                if (i + 1 < args.Length) preset = args[++i];
+            }
+            else if (a.StartsWith("--preset=", StringComparison.OrdinalIgnoreCase))
+                preset = a.Substring("--preset=".Length);
+            else if (!a.StartsWith("--", StringComparison.Ordinal) && target is null)
+                target = a;
+        }
+        return (target, preset, changed);
     }
 }

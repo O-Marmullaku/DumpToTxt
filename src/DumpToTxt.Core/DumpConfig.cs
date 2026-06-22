@@ -51,6 +51,11 @@ public sealed class DumpConfig
     /// <summary>Total content cap in bytes across the whole dump; 0 = unlimited.</summary>
     public long MaxTotalSizeBytes { get; set; }
 
+    /// <summary>Transient (NOT persisted to settings.json): when true the dump is restricted to files
+    /// changed since the last git commit. Set by the "Changed files" preset / <c>--changed</c>; if the
+    /// target is not inside a git repo the engine falls back to a normal dump.</summary>
+    public bool OnlyGitChanged { get; set; }
+
     public static DumpConfig CreateDefault() => new()
     {
         ExtSet = new()
@@ -87,5 +92,6 @@ public sealed class DumpConfig
         DetectBinary = DetectBinary,
         MaxFileSizeBytes = MaxFileSizeBytes,
         MaxTotalSizeBytes = MaxTotalSizeBytes,
+        OnlyGitChanged = OnlyGitChanged,
     };
 }

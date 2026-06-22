@@ -121,6 +121,49 @@ public class P3IgnoreEngineTests
     }
 
     [Fact]
+    public void Glob_BracketClass_MatchesCharSet()
+    {
+        var m = Matcher(exclude: new() { "[Dd]ebug/" });   // standard VisualStudio .gitignore pattern
+        Assert.True(m.IsExcluded("Debug", "Debug", isDir: true));
+        Assert.True(m.IsExcluded("debug", "debug", isDir: true));
+        Assert.False(m.IsExcluded("Xebug", "Xebug", isDir: true));
+    }
+
+    [Fact]
+    public void Glob_BracketClass_ExtAlternation()
+    {
+        var m = Matcher(exclude: new() { "*.[oa]" });
+        Assert.True(m.IsExcluded("x/f.o", "x/f.o", false));
+        Assert.True(m.IsExcluded("g.a", "g.a", false));
+        Assert.False(m.IsExcluded("h.c", "h.c", false));
+    }
+
+    [Fact]
+    public void Glob_BracketClass_Negated()
+    {
+        var m = Matcher(exclude: new() { "[!a]bc" });
+        Assert.True(m.IsExcluded("xbc", "xbc", false));
+        Assert.False(m.IsExcluded("abc", "abc", false));
+    }
+
+    [Fact]
+    public void Glob_UnterminatedBracket_IsLiteral()
+    {
+        var m = Matcher(exclude: new() { "a[b" });
+        Assert.True(m.IsExcluded("a[b", "a[b", false));
+        Assert.False(m.IsExcluded("ab", "ab", false));
+    }
+
+    [Fact]
+    public void Glob_InvalidBracketRange_IsDropped_NotThrown()
+    {
+        // "[z-a]" is a reversed range .NET regex rejects — the rule must be dropped, not crash the dump.
+        var m = Matcher(exclude: new() { "[z-a]bc", "keep.cs" });
+        Assert.False(m.IsExcluded("abc", "abc", false));        // bad rule silently dropped
+        Assert.True(m.IsExcluded("keep.cs", "keep.cs", false));  // sibling rules still compile + match
+    }
+
+    [Fact]
     public void Include_EmptyMeansAll_NonEmptyIsWhitelist()
     {
         var none = Matcher();
@@ -272,6 +315,28 @@ public class P3IgnoreEngineTests
             Assert.Equal(8, f1.GetProperty("content").GetString()!.Length);
             Assert.True(f2.GetProperty("truncated").GetBoolean());
             Assert.Equal(2, f2.GetProperty("content").GetString()!.Length);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void Utf16BomFile_CapTruncates_DecodesAsText_NotMojibake()
+    {
+        string root = NewTree();
+        try
+        {
+            // UTF-16 LE + BOM, 40 'a' (~82 bytes). IsBinary passes it (BOM = text); the cap then clips it.
+            byte[] bytes = Encoding.Unicode.GetPreamble()
+                .Concat(Encoding.Unicode.GetBytes(new string('a', 40))).ToArray();
+            WBytes(root, "u16.cs", bytes);
+            var cfg = DumpConfig.CreateDefault();
+            cfg.MaxFileSizeBytes = 20;   // clip mid-file
+            var f = PackedFile(RenderJson(root, cfg), "u16.cs");
+            string content = f.GetProperty("content").GetString()!;
+            Assert.True(f.GetProperty("truncated").GetBoolean());
+            // Must decode as readable 'a's — NOT NUL/replacement garbage from UTF-8-decoding UTF-16 bytes.
+            Assert.NotEqual(0, content.Length);
+            Assert.All(content, ch => Assert.Equal('a', ch));
         }
         finally { Directory.Delete(root, true); }
     }
