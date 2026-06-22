@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 
 namespace DumpToTxt.Core;
 
@@ -62,11 +63,23 @@ public static class GitChanges
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
+                // Pin UTF-8 so git's porcelain bytes (core.quotepath=false ⇒ literal UTF-8 paths) decode
+                // correctly regardless of the host console codepage. Without this, .NET decodes via
+                // Console.OutputEncoding — an OEM page (437/1252) on a stock Windows install — turning a
+                // non-ASCII name to mojibake so it never equals FileInfo.FullName and is silently dropped.
+                StandardOutputEncoding = new UTF8Encoding(false),
+                StandardErrorEncoding = new UTF8Encoding(false),
             });
             if (p is null) return null;
-            string output = p.StandardOutput.ReadToEnd();
-            p.StandardError.ReadToEnd();          // drain so the child never blocks on a full pipe
+            // Drain BOTH pipes asynchronously BEFORE waiting. A synchronous ReadToEnd on stdout has no
+            // timeout; if git fills its stderr buffer (~4 KB) before closing stdout the two pipes deadlock
+            // and the 5 s cap (which only guards WaitForExit) is never reached. Reading concurrently lets
+            // the timeout actually bound the read.
+            var outTask = p.StandardOutput.ReadToEndAsync();
+            var errTask = p.StandardError.ReadToEndAsync();
             if (!p.WaitForExit(5000)) { try { p.Kill(true); } catch { } return null; }
+            string output = outTask.GetAwaiter().GetResult();
+            errTask.GetAwaiter().GetResult();     // observe/drain stderr
             return p.ExitCode == 0 ? output : null;
         }
         catch { return null; }                    // git not installed / spawn failure

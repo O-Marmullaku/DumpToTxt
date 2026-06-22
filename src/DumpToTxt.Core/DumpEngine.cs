@@ -133,6 +133,7 @@ public sealed class DumpEngine
         long budget = cfg.MaxTotalSizeBytes > 0 ? cfg.MaxTotalSizeBytes : long.MaxValue;
         List<DumpFile> files;
         string? skipped = null;
+        bool skippedUnchanged = false;
 
         if (isFile)
         {
@@ -140,11 +141,16 @@ public sealed class DumpEngine
             var fi = new FileInfo(targetPath);
             string rel = Path.GetRelativePath(root, fi.FullName);
             files = new List<DumpFile>();
-            if (IsLegible(fi, extSet, dotAllow)
+            bool legible = IsLegible(fi, extSet, dotAllow)
                 && !matcher.IsExcluded(fi.FullName, rel, isDir: false)
-                && matcher.MatchesInclude(rel)
-                && (changed is null || changed.Contains(fi.FullName)))
+                && matcher.MatchesInclude(rel);
+            if (legible && (changed is null || changed.Contains(fi.FullName)))
                 files.Add(ReadDumpFile(fi, root, cfg, ref budget));
+            else if (legible)                       // filtered out only because it has no git changes
+            {
+                skipped = fi.FullName;
+                skippedUnchanged = true;
+            }
             else
                 skipped = fi.FullName;
         }
@@ -163,6 +169,7 @@ public sealed class DumpEngine
             Entries = entries,
             Files = files,
             SkippedSingleFile = skipped,
+            SingleFileSkippedUnchanged = skippedUnchanged,
         };
     }
 
@@ -287,12 +294,17 @@ public sealed class DumpEngine
     {
         try
         {
-            int cap = (int)Math.Min(maxBytes, int.MaxValue);
+            // Clamp to the max array length so a multi-GB cap can't request a >2 GB byte[] (deterministic
+            // OutOfMemoryException). File.ReadAllText (the uncapped path) has the same ~2 GB string ceiling.
+            int cap = (int)Math.Min(maxBytes, Array.MaxLength);
             using var fs = File.OpenRead(path);
             int n = (int)Math.Min(fs.Length, cap);
             if (n == 0) return "";
             var buf = new byte[n];
-            int read = fs.Read(buf, 0, n);
+            // Stream.Read may return fewer bytes than requested; loop until the buffer is full (or EOF) so
+            // the decoded content isn't silently short and the budget debit (by `allowed`) stays accurate.
+            int read = 0, r;
+            while (read < n && (r = fs.Read(buf, read, n - read)) > 0) read += r;
             using var ms = new MemoryStream(buf, 0, read);
             using var sr = new StreamReader(ms, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
             return sr.ReadToEnd();

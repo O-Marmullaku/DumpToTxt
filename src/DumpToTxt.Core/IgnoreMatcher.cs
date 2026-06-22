@@ -180,17 +180,27 @@ public sealed class IgnoreMatcher
     /// (e.g. <c>[Dd]ebug</c>, <c>*.[oa]</c>, <c>[!x]</c>). Ranges like <c>a-z</c> pass through unchanged.</summary>
     private static void AppendClass(StringBuilder sb, string p, int open, int end)
     {
-        sb.Append('[');
         int j = open + 1;
-        if (j <= end && p[j] == '!') { sb.Append('^'); j++; }   // gitignore '!' -> regex '^'
+        bool negate = false;
+        if (j <= end && p[j] == '!') { negate = true; j++; }    // gitignore '!' -> regex '^'
+
+        var inner = new StringBuilder();
         for (; j < end; j++)
         {
             char cc = p[j];
-            if (cc == '\\') sb.Append("\\\\");
-            else if (cc == ']') sb.Append("\\]");   // literal ']' member (.NET requires escaping inside a class)
-            else if (cc == '[') sb.Append("\\[");
-            else sb.Append(cc);                     // a-z ranges, digits, '-', '^' (non-leading) pass through
+            if (cc == '/') continue;                // a gitignore bracket never matches the '/' separator
+            if (cc == '\\') inner.Append("\\\\");
+            else if (cc == ']') inner.Append("\\]");   // literal ']' member (.NET requires escaping inside a class)
+            else if (cc == '[') inner.Append("\\[");
+            else inner.Append(cc);                  // a-z ranges, digits, '-', '^' (non-leading) pass through
         }
-        sb.Append(']');
+
+        if (negate)
+            // "[!set]" -> any char except the set; an empty set means "any non-separator char".
+            sb.Append("[^").Append(inner.Length == 0 ? "/" : inner.ToString()).Append(']');
+        else if (inner.Length == 0)
+            sb.Append("(?!)");                      // e.g. "[/]": matches no character -> the rule can't match
+        else
+            sb.Append('[').Append(inner).Append(']');
     }
 }

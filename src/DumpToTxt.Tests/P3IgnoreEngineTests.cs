@@ -147,6 +147,15 @@ public class P3IgnoreEngineTests
     }
 
     [Fact]
+    public void Glob_BracketClass_LiteralSlash_DoesNotMatchSeparator()
+    {
+        // A gitignore bracket expression never matches the '/' path separator, even when '/' is a member.
+        var m = Matcher(exclude: new() { "a[/]b" });
+        Assert.False(m.IsExcluded("a/b", "a/b", false));   // must NOT match across the separator
+        Assert.False(m.IsExcluded("aXb", "aXb", false));   // '/' is the only member -> matches nothing
+    }
+
+    [Fact]
     public void Glob_UnterminatedBracket_IsLiteral()
     {
         var m = Matcher(exclude: new() { "a[b" });

@@ -201,6 +201,53 @@ public class P4ConfigPresetTests
     }
 
     [Fact]
+    public void ChangedFiles_SingleUnchangedFile_EmitsNoChangesNote()
+    {
+        string root = NewTree();
+        try
+        {
+            W(root, "committed.cs", "class C {}\n");
+            if (!GitInit(root)) return;                        // git unavailable: skip
+            GitRun(root, "add committed.cs");
+            GitRun(root, "commit -q -m base");                 // file now unchanged since HEAD
+
+            var cfg = DumpConfig.CreateDefault();
+            cfg.OnlyGitChanged = true;
+            cfg.Style = OutputStyle.Classic;
+            cfg.OutputTarget = OutputTarget.Stdout;
+            // Target the single UNCHANGED file directly.
+            string text = new DumpEngine().Run(Path.Combine(root, "committed.cs"), cfg).Text;
+
+            Assert.Contains("[Skipped: file has no changes since HEAD]", text);
+            Assert.DoesNotContain("[Skipped: file not considered legible or is excluded]", text);
+        }
+        finally { TryDelete(root); }
+    }
+
+    [Fact]
+    public void ChangedFiles_NonAsciiFilename_IsIncluded()
+    {
+        string root = NewTree();
+        try
+        {
+            W(root, "committed.cs", "class C {}\n");
+            if (!GitInit(root)) return;                        // git unavailable: skip
+            GitRun(root, "add committed.cs");
+            GitRun(root, "commit -q -m base");
+
+            W(root, "café.cs", "class Cafe {}\n");             // non-ASCII, changed since commit
+            var cfg = DumpConfig.CreateDefault();
+            cfg.OnlyGitChanged = true;
+            var packed = PackedPaths(RenderJson(root, cfg));
+
+            // git porcelain (core.quotepath=false) + the UTF-8 StandardOutputEncoding pin keep the literal
+            // UTF-8 name, so it matches FileInfo.FullName and survives the changed-files filter.
+            Assert.Contains("café.cs", packed);
+        }
+        finally { TryDelete(root); }
+    }
+
+    [Fact]
     public void ChangedFiles_NotAGitRepo_FallsBackToFullDump()
     {
         string root = NewTree();

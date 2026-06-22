@@ -55,6 +55,17 @@ public sealed class SettingsForm : Form
 
     private readonly Label _status = new();
 
+    // Round-trip preservation: the GUI reconstructs ExcludeRegex from checkbox tokens and caps from KB,
+    // both lossy. To stop a plain open→Save from silently rewriting a custom regex or collapsing a sub-KB
+    // cap, we stash the loaded values and only regenerate from the controls the user actually edited.
+    private bool _loading;
+    private string? _loadedExcludeRegex;
+    private bool _excludeUiDirty;
+    private long _loadedMaxFileBytes;
+    private long _loadedMaxTotalBytes;
+    private bool _maxFileDirty;
+    private bool _maxTotalDirty;
+
     public SettingsForm()
     {
         Text = "DumpToTxt Settings";
@@ -90,6 +101,19 @@ public sealed class SettingsForm : Form
         Controls.Add(btnReset);
         Controls.Add(btnClose);
         Controls.Add(_status);
+
+        WireDirtyTracking();
+    }
+
+    /// <summary>Marks the exclude-folder UI / cap spinners dirty when the USER edits them (guarded against
+    /// the programmatic population in <see cref="LoadFromConfig"/>), so a save only regenerates the lossy
+    /// fields the user actually touched and otherwise preserves the loaded values verbatim.</summary>
+    private void WireDirtyTracking()
+    {
+        _clbExcl.ItemCheck += (_, _) => { if (!_loading) _excludeUiDirty = true; };
+        _tbExclCustom.TextChanged += (_, _) => { if (!_loading) _excludeUiDirty = true; };
+        _numMaxFile.ValueChanged += (_, _) => { if (!_loading) _maxFileDirty = true; };
+        _numMaxTotal.ValueChanged += (_, _) => { if (!_loading) _maxTotalDirty = true; };
     }
 
     private TabPage BuildFileTypesTab()
@@ -234,30 +258,44 @@ public sealed class SettingsForm : Form
 
     private void LoadFromConfig(DumpConfig cfg)
     {
-        var cur = new HashSet<string>(cfg.ExtSet.Select(e => e.ToLowerInvariant()));
-        for (int i = 0; i < _clbExt.Items.Count; i++)
-            _clbExt.SetItemChecked(i, cur.Contains(_clbExt.Items[i]!.ToString()!.ToLowerInvariant()));
-        // Surface custom (non-listed) extensions so a save round-trips them instead of dropping them.
-        _tbExtCustom.Text = string.Join(", ", cur.Where(e => !KnownExt.Contains(e)));
-
-        for (int i = 0; i < _clbExcl.Items.Count; i++)
+        _loading = true;
+        try
         {
-            var tok = _clbExcl.Items[i]!.ToString()!;
-            _clbExcl.SetItemChecked(i, cfg.ExcludeRegex.Contains(tok, StringComparison.Ordinal));
-        }
-        _tbExclCustom.Text = "";
+            var cur = new HashSet<string>(cfg.ExtSet.Select(e => e.ToLowerInvariant()));
+            for (int i = 0; i < _clbExt.Items.Count; i++)
+                _clbExt.SetItemChecked(i, cur.Contains(_clbExt.Items[i]!.ToString()!.ToLowerInvariant()));
+            // Surface custom (non-listed) extensions so a save round-trips them instead of dropping them.
+            _tbExtCustom.Text = string.Join(", ", cur.Where(e => !KnownExt.Contains(e)));
 
-        _tbDot.Text = string.Join(", ", cfg.DotFilesAllow);
-        _chkGitignore.Checked = cfg.RespectGitignore;
-        _chkDumpignore.Checked = cfg.UseDumpToTxtIgnore;
-        _tbInclude.Text = string.Join("\r\n", cfg.IncludeGlobs);
-        _tbExclude.Text = string.Join("\r\n", cfg.ExcludeGlobs);
-        _chkDetectBinary.Checked = cfg.DetectBinary;
-        _numMaxFile.Value = ClampKb(cfg.MaxFileSizeBytes);
-        _numMaxTotal.Value = ClampKb(cfg.MaxTotalSizeBytes);
-        _cmbStyle.SelectedItem = cfg.Style;
-        _cmbTarget.SelectedItem = cfg.OutputTarget;
-        _tbOutDir.Text = cfg.OutputDir ?? "";
+            for (int i = 0; i < _clbExcl.Items.Count; i++)
+            {
+                var tok = _clbExcl.Items[i]!.ToString()!;
+                _clbExcl.SetItemChecked(i, cfg.ExcludeRegex.Contains(tok, StringComparison.Ordinal));
+            }
+            _tbExclCustom.Text = "";
+
+            _tbDot.Text = string.Join(", ", cfg.DotFilesAllow);
+            _chkGitignore.Checked = cfg.RespectGitignore;
+            _chkDumpignore.Checked = cfg.UseDumpToTxtIgnore;
+            _tbInclude.Text = string.Join("\r\n", cfg.IncludeGlobs);
+            _tbExclude.Text = string.Join("\r\n", cfg.ExcludeGlobs);
+            _chkDetectBinary.Checked = cfg.DetectBinary;
+            _numMaxFile.Value = ClampKb(cfg.MaxFileSizeBytes);
+            _numMaxTotal.Value = ClampKb(cfg.MaxTotalSizeBytes);
+            _cmbStyle.SelectedItem = cfg.Style;
+            _cmbTarget.SelectedItem = cfg.OutputTarget;
+            _tbOutDir.Text = cfg.OutputDir ?? "";
+
+            // Stash the exact loaded values + reset dirty so an untouched save preserves them verbatim.
+            _loadedExcludeRegex = cfg.ExcludeRegex;
+            _loadedMaxFileBytes = cfg.MaxFileSizeBytes;
+            _loadedMaxTotalBytes = cfg.MaxTotalSizeBytes;
+        }
+        finally { _loading = false; }
+
+        _excludeUiDirty = false;
+        _maxFileDirty = false;
+        _maxTotalDirty = false;
     }
 
     /// <summary>Reads every control into a complete config (so a save never drops a field).</summary>
@@ -265,14 +303,18 @@ public sealed class SettingsForm : Form
     {
         ExtSet = BuildExtSet(),
         DotFilesAllow = SplitCsv(_tbDot.Text),
-        ExcludeRegex = BuildExcludeRegex(),
+        // Preserve the loaded regex unless the user actually edited the exclude-folder UI (otherwise a plain
+        // open→Save would replace any custom/non-token-shaped regex with the generated one).
+        ExcludeRegex = (!_excludeUiDirty && _loadedExcludeRegex is not null) ? _loadedExcludeRegex : BuildExcludeRegex(),
         RespectGitignore = _chkGitignore.Checked,
         UseDumpToTxtIgnore = _chkDumpignore.Checked,
         IncludeGlobs = SplitLines(_tbInclude.Text),
         ExcludeGlobs = SplitLines(_tbExclude.Text),
         DetectBinary = _chkDetectBinary.Checked,
-        MaxFileSizeBytes = (long)_numMaxFile.Value * 1024,
-        MaxTotalSizeBytes = (long)_numMaxTotal.Value * 1024,
+        // Preserve the exact loaded byte caps unless the user touched the (KB-granular) spinner — a sub-KB
+        // cap (e.g. 500) would otherwise truncate to 0 KB = unlimited, silently removing the cap.
+        MaxFileSizeBytes = _maxFileDirty ? (long)_numMaxFile.Value * 1024 : _loadedMaxFileBytes,
+        MaxTotalSizeBytes = _maxTotalDirty ? (long)_numMaxTotal.Value * 1024 : _loadedMaxTotalBytes,
         Style = _cmbStyle.SelectedItem is OutputStyle s ? s : OutputStyle.Classic,
         OutputTarget = _cmbTarget.SelectedItem is OutputTarget t ? t : OutputTarget.File,
         OutputDir = _tbOutDir.Text.Trim().Length == 0 ? null : _tbOutDir.Text.Trim(),
@@ -304,8 +346,10 @@ public sealed class SettingsForm : Form
 
     private static decimal ClampKb(long bytes)
     {
-        long kb = bytes / 1024;
-        if (kb < 0) kb = 0;
+        if (bytes <= 0) return 0;
+        // Round a non-zero byte cap UP so a sub-KB cap shows as ≥1 KB, never 0 (which reads as "unlimited").
+        // The exact byte value is preserved on save via the stash unless the user edits the spinner.
+        long kb = (long)Math.Ceiling(bytes / 1024.0);
         if (kb > 4_000_000) kb = 4_000_000;
         return kb;
     }

@@ -55,7 +55,11 @@ public static class ConfigStore
     {
         if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
         try { ParseDto(File.ReadAllText(path)).Apply(acc); }
-        catch { /* corrupt/locked layer: skip it, keep what we have so far */ }
+        catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
+        {
+            // Corrupt/locked layer: skip it, keep what we have so far. Narrowed to the expected IO/parse
+            // failures so an UNEXPECTED exception (a real bug) surfaces instead of being silently masked.
+        }
     }
 
     /// <summary>The <c>.dumptotxt.json</c> files from the volume root down to the target's own directory
@@ -146,7 +150,13 @@ public static class ConfigStore
         /// The other lists (DotFilesAllow/IncludeGlobs/ExcludeGlobs) DO clear to empty when present-empty.</para></summary>
         public DumpConfig Apply(DumpConfig acc)
         {
-            if (ExtSet is { Count: > 0 }) acc.ExtSet = ExtSet.Select(e => e.ToLowerInvariant()).ToList();
+            if (ExtSet is { Count: > 0 })
+            {
+                // Null-safe + null/blank-pruned so a stray null array element can't NRE (which the narrowed
+                // OverlayFile catch would no longer mask); an all-empty list still falls back to defaults.
+                var exts = ExtSet.Where(e => !string.IsNullOrEmpty(e)).Select(e => e.ToLowerInvariant()).ToList();
+                if (exts.Count > 0) acc.ExtSet = exts;
+            }
             if (DotFilesAllow is not null) acc.DotFilesAllow = DotFilesAllow;
             if (!string.IsNullOrWhiteSpace(ExcludeRegex)) acc.ExcludeRegex = ExcludeRegex;
             if (TryParseEnum(Style, out OutputStyle st)) acc.Style = st;

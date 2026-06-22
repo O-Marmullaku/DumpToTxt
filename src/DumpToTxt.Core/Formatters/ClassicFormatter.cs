@@ -33,7 +33,9 @@ public sealed class ClassicFormatter : IDumpFormatter
 
         if (model.SkippedSingleFile is { } skipped)
         {
-            sb.Append("\r\n[Skipped: file not considered legible or is excluded]\r\n");
+            sb.Append(model.SingleFileSkippedUnchanged
+                ? "\r\n[Skipped: file has no changes since HEAD]\r\n"
+                : "\r\n[Skipped: file not considered legible or is excluded]\r\n");
             sb.Append(skipped).Append("\r\n");
         }
         else

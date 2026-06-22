@@ -57,6 +57,10 @@ public sealed class DumpModel
     /// </summary>
     public string? SkippedSingleFile { get; init; }
 
+    /// <summary>True when <see cref="SkippedSingleFile"/> was skipped solely because it had no git
+    /// changes (OnlyGitChanged mode) rather than being illegible/excluded — selects the Classic note text.</summary>
+    public bool SingleFileSkippedUnchanged { get; init; }
+
     public long TotalSize
     {
         get
