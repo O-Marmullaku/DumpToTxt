@@ -1,6 +1,6 @@
 # DumpToTxt — Roadmap
 
-Cursor: **P3 (ignore/include engine) is next.** P0 + P1 + P2 are done.
+Cursor: **P4 (config & presets) is next.** P0 + P1 + P2 + P3 are done.
 
 > Note: P9 (build & distribution) **partially landed early** at the user's request (small downloads → 3 flavors). The repomix-parity *features* that define the product — **P2–P8** — are still the bulk of the work; packaging progress ≠ product progress.
 
@@ -26,13 +26,17 @@ Legend: ✅ done · 🚧 in progress · ⬜ todo
 - Directory **tree** + summary **header** for non-Classic styles (shared `DirectoryTree`).
 - Output targets: **clipboard** + stdout + file (`OutputTarget`); configurable output dir (`OutputDir`).
 - GUI Output group: style + target pickers + folder browse; persists + round-trips via `ConfigStore`.
-- 22/22 xUnit (golden + per-formatter validity + config round-trip). Classic = byte-identical to v2-P1, intentionally NOT to legacy (uniform CRLF + locale-independent order — see STATE Decisions).
+- 22/22 xUnit (golden + per-formatter validity + config round-trip). Classic FILE CONTENTS byte-identical to v2-P1; DIRECTORY LIST now sorted OrdinalIgnoreCase (P1 used enumeration order) — intentional determinism change (see STATE Decisions).
 - Deferred to an ISCC session: installer-side style/target pickers + installer hardening (`to-do-for-human.md`). GUI already lets users choose today.
 
-## ⬜ P3 — Ignore / include engine
-- `.gitignore` + `.dumptotxtignore` aware; include/exclude globs.
-- Per-file + total **size caps** (with `[truncated]`); binary detection.
-- Single-pass directory walk (today: lists, then re-walks for contents).
+## ✅ P3 — Ignore / include engine
+- `IgnoreMatcher`: root `.gitignore` + `.dumptotxtignore` (gitignore syntax — anchoring, `**`, dir-only, `!`negation), config include/exclude globs, and the legacy ExcludeRegex — **layered additively** (exclude wins; include is a content whitelist).
+- Per-file + total **size caps** with visible `[truncated]`; **binary detection** (NUL-byte sniff, UTF-16 BOM aware) → content skipped + marked. Caps **off by default** (settable); binary detection **on**.
+- **Single-pass pruning walk** (`DumpEngine.Walk`): one traversal feeds both the listing and the contents; ignored directories are pruned (never descended). Replaces the old double enumeration.
+- Non-Classic **directory tree = full scanned structure** (all non-ignored dirs+files, incl. empty dirs / non-legible / binary), built from `DumpModel.Entries`.
+- Markers across all 5 formatters: Classic/Plain/Markdown inline text; XML `binary`/`truncated`/`size` attrs; JSON `binary`/`truncated` fields.
+- 45/45 xUnit (ignore/glob/precedence/caps/binary/full-tree + config round-trip + back-compat); Classic golden still byte-identical. All three flavors build + launch.
+- Scope cut: ignore files read at **root only** (nested per-dir `.gitignore` → P4); GUI knobs for the new fields → P4 (config round-trips via `settings.json` today).
 
 ## ⬜ P4 — Config & presets
 - Richer config schema + per-folder `.dumptotxt.json`; precedence resolver.

@@ -28,6 +28,29 @@ public sealed class DumpConfig
     /// <summary>Directory for file output. Null = the Desktop (legacy behavior).</summary>
     public string? OutputDir { get; set; }
 
+    // ---- P3: ignore / include engine ----
+
+    /// <summary>Honor a root <c>.gitignore</c> when gathering (additive with the other layers).</summary>
+    public bool RespectGitignore { get; set; } = true;
+
+    /// <summary>Honor a root <c>.dumptotxtignore</c> when gathering (gitignore syntax).</summary>
+    public bool UseDumpToTxtIgnore { get; set; } = true;
+
+    /// <summary>Include globs (gitignore syntax). When non-empty, a file is packed only if it matches one.</summary>
+    public List<string> IncludeGlobs { get; set; } = new();
+
+    /// <summary>Exclude globs (gitignore syntax); layered on top of the other exclusion sources.</summary>
+    public List<string> ExcludeGlobs { get; set; } = new();
+
+    /// <summary>Detect binary files (NUL-byte sniff) and skip their content with a marker.</summary>
+    public bool DetectBinary { get; set; } = true;
+
+    /// <summary>Per-file content cap in bytes; content beyond it is truncated with a marker. 0 = unlimited.</summary>
+    public long MaxFileSizeBytes { get; set; }
+
+    /// <summary>Total content cap in bytes across the whole dump; 0 = unlimited.</summary>
+    public long MaxTotalSizeBytes { get; set; }
+
     public static DumpConfig CreateDefault() => new()
     {
         ExtSet = new()
@@ -40,6 +63,13 @@ public sealed class DumpConfig
         Style = OutputStyle.Classic,
         OutputTarget = OutputTarget.File,
         OutputDir = null,
+        RespectGitignore = true,
+        UseDumpToTxtIgnore = true,
+        IncludeGlobs = new(),
+        ExcludeGlobs = new(),
+        DetectBinary = true,
+        MaxFileSizeBytes = 0,
+        MaxTotalSizeBytes = 0,
     };
 
     public DumpConfig Clone() => new()
@@ -50,5 +80,12 @@ public sealed class DumpConfig
         Style = Style,
         OutputTarget = OutputTarget,
         OutputDir = OutputDir,
+        RespectGitignore = RespectGitignore,
+        UseDumpToTxtIgnore = UseDumpToTxtIgnore,
+        IncludeGlobs = new List<string>(IncludeGlobs),
+        ExcludeGlobs = new List<string>(ExcludeGlobs),
+        DetectBinary = DetectBinary,
+        MaxFileSizeBytes = MaxFileSizeBytes,
+        MaxTotalSizeBytes = MaxTotalSizeBytes,
     };
 }

@@ -19,14 +19,21 @@ public sealed class PlainFormatter : IDumpFormatter
         sb.Append("\r\n");
 
         sb.Append("----- Directory structure -----\r\n");
-        sb.Append(DirectoryTree.RenderOrNote(model.Files)).Append("\r\n\r\n");
+        sb.Append(DirectoryTree.RenderStructureOrNote(model.Entries)).Append("\r\n\r\n");
 
         sb.Append("----- Files -----\r\n");
         foreach (var f in model.Files)
         {
             sb.Append("\r\n================ File: ").Append(f.RelativePath).Append(" ================\r\n");
+            if (f.IsBinary)
+            {
+                sb.Append("[binary file — content skipped]\r\n");
+                continue;
+            }
             sb.Append(f.Content);
             if (!f.Content.EndsWith('\n')) sb.Append("\r\n");
+            if (f.IsTruncated)
+                sb.Append("[truncated: file is ").Append(DirectoryTree.FormatSize(f.Size)).Append("]\r\n");
         }
         return sb.ToString();
     }

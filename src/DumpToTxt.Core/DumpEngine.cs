@@ -13,19 +13,22 @@ public sealed class DumpResult
 }
 
 /// <summary>
-/// Core dumper. Walks the target once into a <see cref="DumpModel"/>, then hands it to the
-/// <see cref="IDumpFormatter"/> for the configured <see cref="OutputStyle"/>. The Classic
-/// style reproduces the legacy .txt layout; the others are repomix-inspired.
+/// Core dumper. Walks the target once into a <see cref="DumpModel"/> (a single pruning traversal
+/// that feeds both the directory listing and the file contents), then hands it to the
+/// <see cref="IDumpFormatter"/> for the configured <see cref="OutputStyle"/>. The Classic style
+/// reproduces the legacy .txt layout; the others are repomix-inspired.
 /// </summary>
 public sealed class DumpEngine
 {
-    // Recurse, include hidden/system, swallow access errors (matches the legacy -Recurse -Force).
-    private static readonly EnumerationOptions EnumOpts = new()
+    // Single-directory listing; recursion is driven manually so ignored directories are pruned.
+    private static readonly EnumerationOptions TopLevel = new()
     {
-        RecurseSubdirectories = true,
+        RecurseSubdirectories = false,
         IgnoreInaccessible = true,
         AttributesToSkip = 0,
     };
+
+    private const int BinarySniffBytes = 8000;
 
     private static readonly IReadOnlyDictionary<OutputStyle, IDumpFormatter> Formatters =
         new Dictionary<OutputStyle, IDumpFormatter>
@@ -91,39 +94,43 @@ public sealed class DumpEngine
 
     private static DumpModel Gather(string targetPath, bool isFile, string root, DumpConfig cfg, string outNameOnly)
     {
-        var rx = new Regex(cfg.ExcludeRegex, RegexOptions.IgnoreCase);
+        var matcher = IgnoreMatcher.Build(root, cfg);
         var extSet = new HashSet<string>(
             cfg.ExtSet.Select(e => e.ToLowerInvariant()), StringComparer.OrdinalIgnoreCase);
         var dotAllow = new HashSet<string>(cfg.DotFilesAllow, StringComparer.OrdinalIgnoreCase);
 
-        // DIRECTORY LIST: every non-excluded entry, sorted by full path for cross-machine determinism.
-        var listed = SafeEnumerate(root, filesOnly: false)
-            .Where(p => !rx.IsMatch(p))
-            .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var entries = new List<ListedEntry>();
+        var candidates = new List<FileInfo>();
 
-        var files = new List<DumpFile>();
+        // ONE traversal: ignored directories are pruned (never descended), and the same pass collects
+        // the full surviving structure (entries) and the content-eligible files (candidates).
+        Walk(root, matcher, extSet, dotAllow, outNameOnly, entries, candidates);
+
+        entries.Sort((a, b) => string.Compare(a.FullName, b.FullName, StringComparison.OrdinalIgnoreCase));
+        candidates.Sort((a, b) => string.Compare(a.FullName, b.FullName, StringComparison.OrdinalIgnoreCase));
+
+        long budget = cfg.MaxTotalSizeBytes > 0 ? cfg.MaxTotalSizeBytes : long.MaxValue;
+        List<DumpFile> files;
         string? skipped = null;
 
         if (isFile)
         {
+            // Single-file target: content is just that file (legacy parity — the .min filter is not applied here).
             var fi = new FileInfo(targetPath);
-            if (IsLegible(fi, extSet, dotAllow) && !rx.IsMatch(fi.FullName))
-                files.Add(ToDumpFile(fi, root));
+            string rel = Path.GetRelativePath(root, fi.FullName);
+            files = new List<DumpFile>();
+            if (IsLegible(fi, extSet, dotAllow)
+                && !matcher.IsExcluded(fi.FullName, rel, isDir: false)
+                && matcher.MatchesInclude(rel))
+                files.Add(ReadDumpFile(fi, root, cfg, ref budget));
             else
                 skipped = fi.FullName;
         }
         else
         {
-            files = SafeEnumerate(root, filesOnly: true)
-                .Select(p => new FileInfo(p))
-                .Where(f => !rx.IsMatch(f.FullName)
-                            && !Regex.IsMatch(f.Name, @"\.min\.", RegexOptions.IgnoreCase)
-                            && !string.Equals(f.Name, outNameOnly, StringComparison.OrdinalIgnoreCase)
-                            && IsLegible(f, extSet, dotAllow))
-                .OrderBy(f => f.FullName, StringComparer.OrdinalIgnoreCase)
-                .Select(f => ToDumpFile(f, root))
-                .ToList();
+            files = new List<DumpFile>(candidates.Count);
+            foreach (var fi in candidates)
+                files.Add(ReadDumpFile(fi, root, cfg, ref budget));
         }
 
         return new DumpModel
@@ -131,24 +138,78 @@ public sealed class DumpEngine
             Root = root,
             TargetPath = targetPath,
             IsSingleFile = isFile,
-            ListedEntries = listed,
+            Entries = entries,
             Files = files,
             SkippedSingleFile = skipped,
         };
     }
 
-    private static DumpFile ToDumpFile(FileInfo fi, string root)
+    /// <summary>Manual recursive walk that prunes ignored directories and collects entries + content candidates.</summary>
+    private static void Walk(string root, IgnoreMatcher matcher, HashSet<string> extSet,
+        HashSet<string> dotAllow, string outNameOnly, List<ListedEntry> entries, List<FileInfo> candidates)
     {
-        string content = SafeReadText(fi.FullName);
-        long size;
-        try { size = fi.Length; } catch { size = content.Length; }
-        return new DumpFile
+        var stack = new Stack<string>();
+        stack.Push(root);
+
+        while (stack.Count > 0)
         {
-            FullName = fi.FullName,
-            RelativePath = Path.GetRelativePath(root, fi.FullName),
-            Content = content,
-            Size = size,
-        };
+            string dir = stack.Pop();
+            IEnumerable<FileSystemInfo> children;
+            try { children = new DirectoryInfo(dir).EnumerateFileSystemInfos("*", TopLevel); }
+            catch { continue; } // inaccessible directory: skip
+
+            foreach (var info in children)
+            {
+                bool entryIsDir;
+                try { entryIsDir = (info.Attributes & FileAttributes.Directory) != 0; }
+                catch { continue; }
+
+                string full = info.FullName;
+                string rel = Path.GetRelativePath(root, full);
+
+                // Excluded: dropped from BOTH the listing and the content. A directory match prunes its subtree.
+                if (matcher.IsExcluded(full, rel, entryIsDir)) continue;
+
+                entries.Add(new ListedEntry { FullName = full, RelativePath = rel, IsDirectory = entryIsDir });
+
+                if (entryIsDir)
+                {
+                    stack.Push(full);
+                }
+                else if (info is FileInfo fi
+                         && IsLegible(fi, extSet, dotAllow)
+                         && !Regex.IsMatch(fi.Name, @"\.min\.", RegexOptions.IgnoreCase)
+                         && !string.Equals(fi.Name, outNameOnly, StringComparison.OrdinalIgnoreCase)
+                         && matcher.MatchesInclude(rel))
+                {
+                    candidates.Add(fi);
+                }
+            }
+        }
+    }
+
+    /// <summary>Reads a candidate file applying binary detection and per-file + total size caps.</summary>
+    private static DumpFile ReadDumpFile(FileInfo fi, string root, DumpConfig cfg, ref long totalBudget)
+    {
+        string rel = Path.GetRelativePath(root, fi.FullName);
+        long size;
+        try { size = fi.Length; } catch { size = 0; }
+
+        if (cfg.DetectBinary && IsBinary(fi.FullName))
+            return new DumpFile { FullName = fi.FullName, RelativePath = rel, Content = "", Size = size, IsBinary = true };
+
+        long perFile = cfg.MaxFileSizeBytes > 0 ? cfg.MaxFileSizeBytes : long.MaxValue;
+        long allowed = Math.Min(perFile, totalBudget);
+
+        if (allowed <= 0)
+            // Total cap already spent: list the file but skip its content.
+            return new DumpFile { FullName = fi.FullName, RelativePath = rel, Content = "", Size = size, IsTruncated = true };
+
+        bool truncated = size > allowed;
+        string content = truncated ? SafeReadText(fi.FullName, allowed) : SafeReadText(fi.FullName);
+        if (totalBudget != long.MaxValue) totalBudget -= truncated ? allowed : size;
+
+        return new DumpFile { FullName = fi.FullName, RelativePath = rel, Content = content, Size = size, IsTruncated = truncated };
     }
 
     private static string MakeOutputPath(string dir, string safeBase)
@@ -171,23 +232,45 @@ public sealed class DumpEngine
         return false;
     }
 
-    private static IEnumerable<string> SafeEnumerate(string root, bool filesOnly)
+    /// <summary>NUL-byte sniff over the file head. UTF-16/32 BOM ⇒ treat as text.</summary>
+    private static bool IsBinary(string path)
     {
         try
         {
-            return filesOnly
-                ? Directory.EnumerateFiles(root, "*", EnumOpts)
-                : Directory.EnumerateFileSystemEntries(root, "*", EnumOpts);
+            using var fs = File.OpenRead(path);
+            int n = (int)Math.Min(fs.Length, BinarySniffBytes);
+            if (n == 0) return false;
+            var buf = new byte[n];
+            int read = fs.Read(buf, 0, n);
+            if (read >= 2 && ((buf[0] == 0xFF && buf[1] == 0xFE) || (buf[0] == 0xFE && buf[1] == 0xFF)))
+                return false; // UTF-16 BOM — its NULs are expected
+            for (int i = 0; i < read; i++) if (buf[i] == 0) return true;
+            return false;
         }
-        catch
-        {
-            return Enumerable.Empty<string>();
-        }
+        catch { return false; } // unreadable: let SafeReadText surface it
     }
 
+    /// <summary>Full read, preserving the original encoding/BOM detection (byte-identical to v2-P1).</summary>
     private static string SafeReadText(string path)
     {
         try { return File.ReadAllText(path); }
+        catch { return "[unreadable]"; }
+    }
+
+    /// <summary>Capped read of the first <paramref name="maxBytes"/> bytes, decoded as lenient UTF-8.</summary>
+    private static string SafeReadText(string path, long maxBytes)
+    {
+        try
+        {
+            int cap = (int)Math.Min(maxBytes, int.MaxValue);
+            using var fs = File.OpenRead(path);
+            int n = (int)Math.Min(fs.Length, cap);
+            if (n == 0) return "";
+            var buf = new byte[n];
+            int read = fs.Read(buf, 0, n);
+            int start = (read >= 3 && buf[0] == 0xEF && buf[1] == 0xBB && buf[2] == 0xBF) ? 3 : 0;
+            return new UTF8Encoding(false, false).GetString(buf, start, read - start);
+        }
         catch { return "[unreadable]"; }
     }
 

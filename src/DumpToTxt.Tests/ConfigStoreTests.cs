@@ -89,6 +89,44 @@ public class ConfigStoreTests
     }
 
     [Fact]
+    public void P3Fields_RoundTrip()
+    {
+        var cfg = new DumpConfig
+        {
+            ExtSet = new() { ".cs" },
+            RespectGitignore = false,
+            UseDumpToTxtIgnore = false,
+            IncludeGlobs = new() { "src/**", "*.md" },
+            ExcludeGlobs = new() { "**/*.gen.cs" },
+            DetectBinary = false,
+            MaxFileSizeBytes = 1024,
+            MaxTotalSizeBytes = 5 * 1024 * 1024,
+        };
+        var back = ConfigStore.Parse(ConfigStore.Serialize(cfg));
+        Assert.False(back.RespectGitignore);
+        Assert.False(back.UseDumpToTxtIgnore);
+        Assert.Equal(new[] { "src/**", "*.md" }, back.IncludeGlobs);
+        Assert.Equal(new[] { "**/*.gen.cs" }, back.ExcludeGlobs);
+        Assert.False(back.DetectBinary);
+        Assert.Equal(1024, back.MaxFileSizeBytes);
+        Assert.Equal(5 * 1024 * 1024, back.MaxTotalSizeBytes);
+    }
+
+    [Fact]
+    public void OldConfig_MissingP3Fields_GetsDefaults()
+    {
+        // A legacy settings.json with none of the P3 fields must load with sane defaults (back-compat).
+        var cfg = ConfigStore.Parse(@"{ ""ExtSet"": ["".cs""] }");
+        Assert.True(cfg.RespectGitignore);
+        Assert.True(cfg.UseDumpToTxtIgnore);
+        Assert.True(cfg.DetectBinary);
+        Assert.Empty(cfg.IncludeGlobs);
+        Assert.Empty(cfg.ExcludeGlobs);
+        Assert.Equal(0, cfg.MaxFileSizeBytes);
+        Assert.Equal(0, cfg.MaxTotalSizeBytes);
+    }
+
+    [Fact]
     public void SaveTo_LoadFrom_RoundTrips()
     {
         string p = Path.Combine(Path.GetTempPath(), "dtt-cfg-" + Guid.NewGuid().ToString("N") + ".json");

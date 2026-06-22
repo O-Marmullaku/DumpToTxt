@@ -23,12 +23,14 @@ public sealed class JsonFormatter : IDumpFormatter
             Root = model.Root,
             Files = model.Files.Count,
             TotalSize = model.TotalSize,
-            DirectoryStructure = DirectoryTree.RenderOrNote(model.Files),
+            DirectoryStructure = DirectoryTree.RenderStructureOrNote(model.Entries),
             FileList = model.Files.Select(f => new FileJson
             {
                 Path = f.RelativePath,
                 Size = f.Size,
                 Content = f.Content,
+                Binary = f.IsBinary ? true : null,
+                Truncated = f.IsTruncated ? true : null,
             }).ToList(),
         };
         return JsonSerializer.Serialize(dto, Opts);
@@ -48,5 +50,13 @@ public sealed class JsonFormatter : IDumpFormatter
         [JsonPropertyName("path")] public required string Path { get; init; }
         [JsonPropertyName("size")] public long Size { get; init; }
         [JsonPropertyName("content")] public required string Content { get; init; }
+
+        [JsonPropertyName("binary")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public bool? Binary { get; init; }
+
+        [JsonPropertyName("truncated")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public bool? Truncated { get; init; }
     }
 }

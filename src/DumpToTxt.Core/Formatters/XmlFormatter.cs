@@ -31,7 +31,7 @@ public sealed class XmlFormatter : IDumpFormatter
             w.WriteAttributeString("totalSize", model.TotalSize.ToString());
 
             w.WriteStartElement("directoryStructure");
-            w.WriteString("\r\n" + Sanitize(DirectoryTree.RenderOrNote(model.Files)) + "\r\n");
+            w.WriteString("\r\n" + Sanitize(DirectoryTree.RenderStructureOrNote(model.Entries)) + "\r\n");
             w.WriteEndElement();
 
             w.WriteStartElement("files");
@@ -39,7 +39,13 @@ public sealed class XmlFormatter : IDumpFormatter
             {
                 w.WriteStartElement("file");
                 w.WriteAttributeString("path", f.RelativePath);
-                w.WriteString(Sanitize(f.Content));
+                if (f.IsBinary) w.WriteAttributeString("binary", "true");
+                if (f.IsTruncated)
+                {
+                    w.WriteAttributeString("truncated", "true");
+                    w.WriteAttributeString("size", f.Size.ToString());
+                }
+                if (!f.IsBinary) w.WriteString(Sanitize(f.Content));
                 w.WriteEndElement();
             }
             w.WriteEndElement(); // files

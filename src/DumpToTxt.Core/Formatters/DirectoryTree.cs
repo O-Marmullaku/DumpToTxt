@@ -4,7 +4,7 @@ namespace DumpToTxt.Core;
 
 /// <summary>
 /// Shared helpers for the repomix-style preamble used by the non-Classic formatters:
-/// an ASCII directory tree of the included files, plus small formatting utilities.
+/// an ASCII directory tree of the scanned (non-ignored) structure, plus small formatting utilities.
 /// </summary>
 public static class DirectoryTree
 {
@@ -12,23 +12,23 @@ public static class DirectoryTree
     {
         public SortedDictionary<string, Node> Children { get; } =
             new(StringComparer.OrdinalIgnoreCase);
-        public bool IsFile { get; set; }
+        public bool IsDir { get; set; }
     }
 
-    /// <summary>Tree of the included files, or an explicit note when nothing matched the filters.</summary>
-    public static string RenderOrNote(IReadOnlyList<DumpFile> files)
+    /// <summary>Full-structure tree of the surviving entries, or a note when nothing matched the filters.</summary>
+    public static string RenderStructureOrNote(IReadOnlyList<ListedEntry> entries)
     {
-        var t = Render(files);
+        var t = RenderStructure(entries);
         return t.Length == 0 ? "(no matching files)" : t;
     }
 
-    /// <summary>Renders an ASCII tree of the included files' relative paths. Empty string if none.</summary>
-    public static string Render(IReadOnlyList<DumpFile> files)
+    /// <summary>Renders an ASCII tree of the entries' relative paths (directories included). Empty string if none.</summary>
+    public static string RenderStructure(IReadOnlyList<ListedEntry> entries)
     {
         var root = new Node();
-        foreach (var f in files)
+        foreach (var e in entries)
         {
-            var parts = f.RelativePath.Split('\\', '/');
+            var parts = e.RelativePath.Split('\\', '/');
             var cur = root;
             for (int i = 0; i < parts.Length; i++)
             {
@@ -39,7 +39,8 @@ public static class DirectoryTree
                     child = new Node();
                     cur.Children[name] = child;
                 }
-                if (i == parts.Length - 1) child.IsFile = true;
+                // Intermediate path components are always directories; the leaf takes the entry's own type.
+                child.IsDir = (i < parts.Length - 1) || e.IsDirectory || child.IsDir;
                 cur = child;
             }
         }
@@ -55,7 +56,7 @@ public static class DirectoryTree
         var entries = new List<KeyValuePair<string, Node>>(node.Children);
         entries.Sort((a, b) =>
         {
-            bool ad = a.Value.Children.Count > 0, bd = b.Value.Children.Count > 0;
+            bool ad = a.Value.IsDir, bd = b.Value.IsDir;
             if (ad != bd) return ad ? -1 : 1;
             return string.Compare(a.Key, b.Key, StringComparison.OrdinalIgnoreCase);
         });
@@ -64,11 +65,10 @@ public static class DirectoryTree
         {
             bool last = i == entries.Count - 1;
             var (name, child) = (entries[i].Key, entries[i].Value);
-            bool isDir = child.Children.Count > 0;
             sb.Append(prefix).Append(last ? "└── " : "├── ").Append(name);
-            if (isDir) sb.Append('/');
+            if (child.IsDir) sb.Append('/');
             sb.Append("\r\n");
-            if (isDir)
+            if (child.Children.Count > 0)
                 RenderChildren(child, prefix + (last ? "    " : "│   "), sb);
         }
     }

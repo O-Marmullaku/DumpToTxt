@@ -15,18 +15,27 @@ public sealed class MarkdownFormatter : IDumpFormatter
         sb.Append("- **Files:** ").Append(model.Files.Count).Append("\r\n");
         sb.Append("- **Total size:** ").Append(DirectoryTree.FormatSize(model.TotalSize)).Append("\r\n\r\n");
 
+        string tree = DirectoryTree.RenderStructureOrNote(model.Entries);
+        string treeFence = Fence(tree);
         sb.Append("## Directory structure\r\n\r\n");
-        sb.Append("```\r\n").Append(DirectoryTree.RenderOrNote(model.Files)).Append("\r\n```\r\n\r\n");
+        sb.Append(treeFence).Append("\r\n").Append(tree).Append("\r\n").Append(treeFence).Append("\r\n\r\n");
 
         sb.Append("## Files\r\n");
         foreach (var f in model.Files)
         {
             sb.Append("\r\n### `").Append(f.RelativePath).Append("`\r\n\r\n");
+            if (f.IsBinary)
+            {
+                sb.Append("> [binary file — content skipped]\r\n");
+                continue;
+            }
             string fence = Fence(f.Content);
             sb.Append(fence).Append(DirectoryTree.LanguageFor(f.FullName)).Append("\r\n");
             sb.Append(f.Content);
             if (!f.Content.EndsWith('\n')) sb.Append("\r\n");
             sb.Append(fence).Append("\r\n");
+            if (f.IsTruncated)
+                sb.Append("\r\n> [truncated: file is ").Append(DirectoryTree.FormatSize(f.Size)).Append("]\r\n");
         }
         return sb.ToString();
     }

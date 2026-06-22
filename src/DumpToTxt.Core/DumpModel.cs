@@ -6,8 +6,23 @@ public sealed class DumpFile
     public required string FullName { get; init; }
     /// <summary>Path relative to <see cref="DumpModel.Root"/>, using the OS separator.</summary>
     public required string RelativePath { get; init; }
+    /// <summary>The text content to render. Empty for a binary file; truncated when <see cref="IsTruncated"/>.</summary>
     public required string Content { get; init; }
+    /// <summary>On-disk size in bytes.</summary>
     public long Size { get; init; }
+    /// <summary>True when the file was detected as binary; its content is skipped and marked.</summary>
+    public bool IsBinary { get; init; }
+    /// <summary>True when the content was cut to satisfy a per-file or total size cap.</summary>
+    public bool IsTruncated { get; init; }
+}
+
+/// <summary>A filesystem entry (file or directory) that survived the ignore filters.</summary>
+public sealed class ListedEntry
+{
+    public required string FullName { get; init; }
+    /// <summary>Path relative to <see cref="DumpModel.Root"/>, using the OS separator.</summary>
+    public required string RelativePath { get; init; }
+    public required bool IsDirectory { get; init; }
 }
 
 /// <summary>
@@ -27,13 +42,13 @@ public sealed class DumpModel
     public required bool IsSingleFile { get; init; }
 
     /// <summary>
-    /// Every non-excluded filesystem entry (files and folders) under the root, full paths,
-    /// sorted by full path (OrdinalIgnoreCase) for cross-machine determinism. Drives the
-    /// Classic "DIRECTORY LIST" section.
+    /// Every filesystem entry (files and folders) under the root that survived the ignore filters,
+    /// sorted by full path (OrdinalIgnoreCase) for cross-machine determinism. Drives the Classic
+    /// "DIRECTORY LIST" section (full paths) and the non-Classic full-structure directory tree.
     /// </summary>
-    public required IReadOnlyList<string> ListedEntries { get; init; }
+    public required IReadOnlyList<ListedEntry> Entries { get; init; }
 
-    /// <summary>The legible files whose full contents are included, in dump order.</summary>
+    /// <summary>The legible files whose contents are included, in dump order.</summary>
     public required IReadOnlyList<DumpFile> Files { get; init; }
 
     /// <summary>

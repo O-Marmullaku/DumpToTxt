@@ -75,6 +75,13 @@ public static class ConfigStore
         public string? Style { get; set; }
         public string? OutputTarget { get; set; }
         public string? OutputDir { get; set; }
+        public bool? RespectGitignore { get; set; }
+        public bool? UseDumpToTxtIgnore { get; set; }
+        public List<string>? IncludeGlobs { get; set; }
+        public List<string>? ExcludeGlobs { get; set; }
+        public bool? DetectBinary { get; set; }
+        public long? MaxFileSizeBytes { get; set; }
+        public long? MaxTotalSizeBytes { get; set; }
 
         public DumpConfig ToConfig()
         {
@@ -89,6 +96,13 @@ public static class ConfigStore
                 Style = ParseEnum(Style, OutputStyle.Classic),
                 OutputTarget = ParseEnum(OutputTarget, Core.OutputTarget.File),
                 OutputDir = string.IsNullOrWhiteSpace(OutputDir) ? null : OutputDir,
+                RespectGitignore = RespectGitignore ?? def.RespectGitignore,
+                UseDumpToTxtIgnore = UseDumpToTxtIgnore ?? def.UseDumpToTxtIgnore,
+                IncludeGlobs = IncludeGlobs ?? def.IncludeGlobs,
+                ExcludeGlobs = ExcludeGlobs ?? def.ExcludeGlobs,
+                DetectBinary = DetectBinary ?? def.DetectBinary,
+                MaxFileSizeBytes = MaxFileSizeBytes is { } mf && mf > 0 ? mf : 0,
+                MaxTotalSizeBytes = MaxTotalSizeBytes is { } mt && mt > 0 ? mt : 0,
             };
         }
 
@@ -104,6 +118,13 @@ public static class ConfigStore
             Style = c.Style.ToString(),
             OutputTarget = c.OutputTarget.ToString(),
             OutputDir = c.OutputDir,
+            RespectGitignore = c.RespectGitignore,
+            UseDumpToTxtIgnore = c.UseDumpToTxtIgnore,
+            IncludeGlobs = c.IncludeGlobs,
+            ExcludeGlobs = c.ExcludeGlobs,
+            DetectBinary = c.DetectBinary,
+            MaxFileSizeBytes = c.MaxFileSizeBytes,
+            MaxTotalSizeBytes = c.MaxTotalSizeBytes,
         };
     }
 }

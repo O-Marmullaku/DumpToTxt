@@ -100,15 +100,16 @@ public class FormatterTests
     [Fact]
     public void Xml_SanitizesInvalidChars_StillParses()
     {
-        // a NUL byte is illegal in XML 1.0; the formatter must strip it so the doc still parses.
-        string content = "x" + (char)0 + "y\n";
+        // 0x01 is illegal in XML 1.0 (but not a NUL, so it is NOT binary-detected); the formatter
+        // must strip it so the doc still parses while the file's content is still rendered.
+        string content = "x" + (char)1 + "y\n";
         string root = Make(r => File.WriteAllText(Path.Combine(r, "a.cs"), content, NoBom));
         try
         {
             string o = Render(root, OutputStyle.Xml);
             var doc = XDocument.Parse(o);
             var file = doc.Root!.Element("files")!.Element("file")!;
-            Assert.False(file.Value.Contains((char)0)); // ordinal: the NUL was stripped
+            Assert.False(file.Value.Contains((char)1)); // ordinal: the illegal char was stripped
             Assert.Contains("xy", file.Value);
         }
         finally { Directory.Delete(root, true); }
