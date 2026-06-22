@@ -1,6 +1,6 @@
 # DumpToTxt — Roadmap
 
-Cursor: **P6 (secret scan) is next.** P0 + P1 + P2 + P3 + P4 + P5 are done.
+Cursor: **P7 (GUI preview pane) is next.** P0–P6 + P9 (3-flavor build) committed (P6 = 8a4910d).
 
 > Note: P9 (build & distribution) **partially landed early** at the user's request (small downloads → 3 flavors). The repomix-parity *features* that define the product — **P2–P8** — are still the bulk of the work; packaging progress ≠ product progress.
 
@@ -70,11 +70,24 @@ Legend: ✅ done · 🚧 in progress · ⬜ todo
 - Footprint: lite unchanged · compact 1.07 → 4.43 MB (no single-file compression for framework-dependent) · full 68.8 → 70.46 MB.
 - Codex cross-review still owed (usage cap). Truncation-at-budget deliberately deferred to P8 (warn-only here).
 
-## ⬜ P6 — Secret scan
-- Embedded gitleaks-style regex ruleset; skip/warn on detected secrets.
+## ✅ P6 — Secret scan  _(committed 8a4910d)_
+- **Embedded curated ruleset** (`Core/SecretScanner.cs`): 14 high-precision rules (AWS/GCP/Google-OAuth/
+  GitHub token+fine-PAT/Slack token+webhook/Stripe/Anthropic/OpenAI/npm/SendGrid/PEM private-key/generic
+  key=value) as a constant + an **opt-in Shannon-entropy detector (off by default)**. 2s match-timeout (ReDoS guard).
+- **Action knob** `SecretScan` = Off / **Warn** (default) / Redact / Skip, threaded through `DumpConfig` →
+  `ConfigStore` (DTO/Apply/FromConfig) → resolver → GUI **Secrets tab**; plus `SecretScanEntropy` + a
+  `SecretAllowlist` regex list for false positives.
+- Engine scans **post-truncation** content into `DumpFile.Secrets`; non-Classic formatters render findings
+  (count + per-rule tally + per-file rule/line/**masked preview**) and warn / redact (`[REDACTED:rule]`) / skip
+  the body. Post-dump notice surfaces the count (+ a Classic-not-sanitized warning).
+- **Classic stays golden byte-identical** (never reads `Secrets`; redaction is render-time, non-Classic only) — no new golden.
+- 114/114 xUnit (per-rule fixtures, all 3 actions × all 4 non-Classic styles, headerless-PEM full-redact,
+  entropy off-by-default, allowlist, config round-trip+back-compat, Classic byte-stable). Self-reviewed (Claude
+  carryover + P6 passes); **Codex owed ×3** (capped). Carryover bracket-class `/` bug fixed + regression test.
+- Known limitation (follow-up): secrets in **filenames/paths** are not scanned (content-only).
 
 ## ⬜ P7 — GUI preview pane
-- Tree + live token count + preview of the pack before save/copy.
+- Tree + live token count + **secret findings** + preview of the pack before save/copy.
 
 ## ⬜ P8 — Power features
 - Code compression (Tree-sitter, signatures only); comment / empty-line removal; line numbers.
