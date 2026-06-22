@@ -54,6 +54,9 @@ Legend: ✅ done · 🚧 in progress · ⬜ todo
 - 68/68 xUnit (resolver precedence/merge/back-compat/both-present + presets + label + git changed-files + bracket classes
   + invalid-range guard + UTF-16 cap + earlier suites); build 0/0; Classic golden byte-identical; all 3 flavors build + launch;
   GUI screenshot-verified. Fresh-eyes review: solid, 1 fix-first (bracket-class regex-throw guard) found + fixed.
+- **Next-session review fixes (cddd7cd):** a 6-dimension adversarial Claude re-review found 9 more real issues (HIGH:
+  SettingsForm custom-ExcludeRegex overwrite; MED: GitChanges pipe-deadlock + missing UTF-8 encoding + sub-1KB cap→unlimited;
+  +5 low/nit) — all fixed, +3 regression tests (71/71), golden still byte-identical. **Codex cross-review still owed** (usage cap).
 
 ## ⬜ P5 — Token counting
 - `Microsoft.ML.Tokenizers` (o200k_base / cl100k_base): total, per-file, top-N, token-count tree, budget.
