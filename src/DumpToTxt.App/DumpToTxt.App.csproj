@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>DumpToTxt.App</RootNamespace>
+    <AssemblyName>DumpToTxt</AssemblyName>
+    <ApplicationIcon>..\..\assets\icons\DumpToTxt.ico</ApplicationIcon>
+    <Version>2.0.0</Version>
+    <FileVersion>2.0.0.0</FileVersion>
+    <AssemblyVersion>2.0.0.0</AssemblyVersion>
+    <Product>DumpToTxt</Product>
+    <Company>O-Marmullaku</Company>
+    <Description>Pack any folder or file into a single AI-friendly text dump, from the Windows right-click menu.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DumpToTxt.Core\DumpToTxt.Core.csproj" />
+  </ItemGroup>
+
+</Project>

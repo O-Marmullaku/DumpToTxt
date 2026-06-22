@@ -9,6 +9,11 @@ Output/
 # Local dump test files
 *-dump-*.txt
 
+# .NET build artifacts
+bin/
+obj/
+*.user
+
 # Windows cruft
 Thumbs.db
 Desktop.ini
