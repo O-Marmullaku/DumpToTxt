@@ -1,0 +1,15 @@
+# Build outputs
+/dist/
+*.exe
+
+# Inno Setup compiler output
+Output/
+*.iss.bak
+
+# Local dump test files
+*-dump-*.txt
+
+# Windows cruft
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
