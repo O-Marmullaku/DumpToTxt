@@ -53,6 +53,8 @@ function Build-Full {
 function Build-Compact {
     $out = Join-Path $dist "compact"
     Write-Host "==> [compact] .NET framework-dependent single-file..."
+    # NOTE: single-file compression is self-contained-only (NETSDK1176), so compact can't use it; the
+    # P5 tokenizer DLLs add ~2.6 MB uncompressed here. Acceptable — compact is still tiny vs full.
     dotnet publish $app -c $Configuration -r $Runtime --self-contained false `
         -p:PublishSingleFile=true -p:DebugType=none -p:DebugSymbols=false -o $out
     if ($LASTEXITCODE -ne 0) { throw "compact publish failed ($LASTEXITCODE)" }

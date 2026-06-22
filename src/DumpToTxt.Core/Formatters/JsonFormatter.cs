@@ -18,16 +18,26 @@ public sealed class JsonFormatter : IDumpFormatter
 
     public string Render(DumpModel model, DumpConfig cfg)
     {
+        var top = DirectoryTree.TopByTokens(model.Files, 10);
         var dto = new DumpJson
         {
             Root = model.Root,
             Files = model.Files.Count,
             TotalSize = model.TotalSize,
+            TotalTokens = model.TotalTokens,
+            TokenEncoding = TokenCounter.EncodingName(cfg.TokenEncoding),
+            MaxTokens = cfg.MaxTokens > 0 ? cfg.MaxTokens : null,
+            OverBudget = cfg.MaxTokens > 0 ? model.TotalTokens > cfg.MaxTokens : null,
             DirectoryStructure = DirectoryTree.RenderStructureOrNote(model.Entries),
+            TokenTree = top.Count > 0 ? DirectoryTree.RenderTokenTree(model.Files) : null,
+            TopFilesByTokens = top.Count > 0
+                ? top.Select(f => new TokenFileJson { Path = f.RelativePath, Tokens = f.TokenCount }).ToList()
+                : null,
             FileList = model.Files.Select(f => new FileJson
             {
                 Path = f.RelativePath,
                 Size = f.Size,
+                Tokens = f.TokenCount,
                 Content = f.Content,
                 Binary = f.IsBinary ? true : null,
                 Truncated = f.IsTruncated ? true : null,
@@ -41,14 +51,41 @@ public sealed class JsonFormatter : IDumpFormatter
         [JsonPropertyName("root")] public required string Root { get; init; }
         [JsonPropertyName("files")] public int Files { get; init; }
         [JsonPropertyName("totalSize")] public long TotalSize { get; init; }
+        [JsonPropertyName("totalTokens")] public long TotalTokens { get; init; }
+        [JsonPropertyName("tokenEncoding")] public required string TokenEncoding { get; init; }
+
+        [JsonPropertyName("maxTokens")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public long? MaxTokens { get; init; }
+
+        [JsonPropertyName("overBudget")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public bool? OverBudget { get; init; }
+
         [JsonPropertyName("directoryStructure")] public required string DirectoryStructure { get; init; }
+
+        [JsonPropertyName("tokenTree")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? TokenTree { get; init; }
+
+        [JsonPropertyName("topFilesByTokens")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<TokenFileJson>? TopFilesByTokens { get; init; }
+
         [JsonPropertyName("fileList")] public required List<FileJson> FileList { get; init; }
+    }
+
+    private sealed class TokenFileJson
+    {
+        [JsonPropertyName("path")] public required string Path { get; init; }
+        [JsonPropertyName("tokens")] public int Tokens { get; init; }
     }
 
     private sealed class FileJson
     {
         [JsonPropertyName("path")] public required string Path { get; init; }
         [JsonPropertyName("size")] public long Size { get; init; }
+        [JsonPropertyName("tokens")] public int Tokens { get; init; }
         [JsonPropertyName("content")] public required string Content { get; init; }
 
         [JsonPropertyName("binary")]

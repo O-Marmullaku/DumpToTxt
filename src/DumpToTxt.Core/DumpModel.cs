@@ -14,6 +14,10 @@ public sealed class DumpFile
     public bool IsBinary { get; init; }
     /// <summary>True when the content was cut to satisfy a per-file or total size cap.</summary>
     public bool IsTruncated { get; init; }
+
+    /// <summary>BPE token count of <see cref="Content"/> (0 for binary/skipped, or when token counting was
+    /// not run — the Classic style with no budget skips it for speed).</summary>
+    public int TokenCount { get; init; }
 }
 
 /// <summary>A filesystem entry (file or directory) that survived the ignore filters.</summary>
@@ -67,6 +71,17 @@ public sealed class DumpModel
         {
             long t = 0;
             foreach (var f in Files) t += f.Size;
+            return t;
+        }
+    }
+
+    /// <summary>Sum of per-file token counts (0 when token counting was not run for this dump).</summary>
+    public long TotalTokens
+    {
+        get
+        {
+            long t = 0;
+            foreach (var f in Files) t += f.TokenCount;
             return t;
         }
     }

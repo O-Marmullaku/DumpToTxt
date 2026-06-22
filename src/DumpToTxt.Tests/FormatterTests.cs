@@ -43,7 +43,7 @@ public class FormatterTests
             Assert.Contains("DumpToTxt — Plain output", o);
             Assert.Contains("----- Directory structure -----", o);
             Assert.Contains("a.cs", o);
-            Assert.Contains("================ File: a.cs ================", o);
+            Assert.Contains("================ File: a.cs (", o);   // header now carries "(N tokens)"
             Assert.Contains("class A {}", o);
             Assert.Contains("File: sub" + Path.DirectorySeparatorChar + "b.py", o);
         }

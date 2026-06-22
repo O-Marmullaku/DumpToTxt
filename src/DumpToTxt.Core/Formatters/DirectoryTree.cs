@@ -73,6 +73,73 @@ public static class DirectoryTree
         }
     }
 
+    private sealed class TokNode
+    {
+        public SortedDictionary<string, TokNode> Children { get; } =
+            new(StringComparer.OrdinalIgnoreCase);
+        public long Tokens { get; set; }
+        public bool IsDir { get; set; }
+    }
+
+    /// <summary>The top <paramref name="n"/> packed files by token count (desc; ties broken by path).</summary>
+    public static IReadOnlyList<DumpFile> TopByTokens(IReadOnlyList<DumpFile> files, int n) =>
+        files.Where(f => f.TokenCount > 0)
+            .OrderByDescending(f => f.TokenCount)
+            .ThenBy(f => f.RelativePath, StringComparer.OrdinalIgnoreCase)
+            .Take(n).ToList();
+
+    /// <summary>ASCII tree of the PACKED files annotated with token counts (directory nodes show the sum of
+    /// their descendants). Empty string when no files carry tokens.</summary>
+    public static string RenderTokenTree(IReadOnlyList<DumpFile> files)
+    {
+        var root = new TokNode();
+        // Token-bearing files only, so the token tree agrees with the top-N list (both omit 0-token
+        // binary/empty files — those still appear in the full directory-structure tree).
+        foreach (var f in files.Where(f => f.TokenCount > 0))
+        {
+            var parts = f.RelativePath.Split('\\', '/');
+            var cur = root;
+            for (int i = 0; i < parts.Length; i++)
+            {
+                var name = parts[i];
+                if (name.Length == 0) continue;
+                if (!cur.Children.TryGetValue(name, out var child))
+                {
+                    child = new TokNode();
+                    cur.Children[name] = child;
+                }
+                child.IsDir = i < parts.Length - 1;
+                child.Tokens += f.TokenCount;   // accumulate up every ancestor + the leaf
+                cur = child;
+            }
+        }
+        var sb = new StringBuilder();
+        RenderTokenChildren(root, "", sb);
+        return sb.ToString().TrimEnd('\r', '\n');
+    }
+
+    private static void RenderTokenChildren(TokNode node, string prefix, StringBuilder sb)
+    {
+        var entries = new List<KeyValuePair<string, TokNode>>(node.Children);
+        entries.Sort((a, b) =>
+        {
+            bool ad = a.Value.IsDir, bd = b.Value.IsDir;
+            if (ad != bd) return ad ? -1 : 1;
+            return string.Compare(a.Key, b.Key, StringComparison.OrdinalIgnoreCase);
+        });
+
+        for (int i = 0; i < entries.Count; i++)
+        {
+            bool last = i == entries.Count - 1;
+            var (name, child) = (entries[i].Key, entries[i].Value);
+            sb.Append(prefix).Append(last ? "└── " : "├── ").Append(name);
+            if (child.IsDir) sb.Append('/');
+            sb.Append("  (").Append(child.Tokens.ToString("N0")).Append(" tokens)").Append("\r\n");
+            if (child.Children.Count > 0)
+                RenderTokenChildren(child, prefix + (last ? "    " : "│   "), sb);
+        }
+    }
+
     /// <summary>Human-readable byte size, e.g. "12.3 KB".</summary>
     public static string FormatSize(long bytes)
     {

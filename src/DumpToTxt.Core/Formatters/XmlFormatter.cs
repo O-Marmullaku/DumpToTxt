@@ -29,16 +29,31 @@ public sealed class XmlFormatter : IDumpFormatter
             w.WriteAttributeString("root", model.Root);
             w.WriteAttributeString("files", model.Files.Count.ToString());
             w.WriteAttributeString("totalSize", model.TotalSize.ToString());
+            w.WriteAttributeString("totalTokens", model.TotalTokens.ToString());
+            w.WriteAttributeString("tokenEncoding", TokenCounter.EncodingName(cfg.TokenEncoding));
+            if (cfg.MaxTokens > 0)
+            {
+                w.WriteAttributeString("maxTokens", cfg.MaxTokens.ToString());
+                w.WriteAttributeString("overBudget", model.TotalTokens > cfg.MaxTokens ? "true" : "false");
+            }
 
             w.WriteStartElement("directoryStructure");
             w.WriteString("\r\n" + Sanitize(DirectoryTree.RenderStructureOrNote(model.Entries)) + "\r\n");
             w.WriteEndElement();
+
+            if (DirectoryTree.TopByTokens(model.Files, 1).Count > 0)
+            {
+                w.WriteStartElement("tokenTree");
+                w.WriteString("\r\n" + Sanitize(DirectoryTree.RenderTokenTree(model.Files)) + "\r\n");
+                w.WriteEndElement();
+            }
 
             w.WriteStartElement("files");
             foreach (var f in model.Files)
             {
                 w.WriteStartElement("file");
                 w.WriteAttributeString("path", f.RelativePath);
+                w.WriteAttributeString("tokens", f.TokenCount.ToString());
                 if (f.IsBinary) w.WriteAttributeString("binary", "true");
                 if (f.IsTruncated)
                 {

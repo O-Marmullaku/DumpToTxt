@@ -51,6 +51,15 @@ public sealed class DumpConfig
     /// <summary>Total content cap in bytes across the whole dump; 0 = unlimited.</summary>
     public long MaxTotalSizeBytes { get; set; }
 
+    // ---- P5: token counting ----
+
+    /// <summary>BPE encoding for token counts. Defaults to <see cref="TokenEncoding.O200kBase"/> (current era).</summary>
+    public TokenEncoding TokenEncoding { get; set; } = TokenEncoding.O200kBase;
+
+    /// <summary>Token budget; when &gt; 0 the dump is flagged/marked once the total exceeds it (warn-only,
+    /// no content dropped). 0 = no budget.</summary>
+    public long MaxTokens { get; set; }
+
     /// <summary>Transient (NOT persisted to settings.json): when true the dump is restricted to files
     /// changed since the last git commit. Set by the "Changed files" preset / <c>--changed</c>; if the
     /// target is not inside a git repo the engine falls back to a normal dump.</summary>
@@ -75,6 +84,8 @@ public sealed class DumpConfig
         DetectBinary = true,
         MaxFileSizeBytes = 0,
         MaxTotalSizeBytes = 0,
+        TokenEncoding = TokenEncoding.O200kBase,
+        MaxTokens = 0,
     };
 
     public DumpConfig Clone() => new()
@@ -92,6 +103,8 @@ public sealed class DumpConfig
         DetectBinary = DetectBinary,
         MaxFileSizeBytes = MaxFileSizeBytes,
         MaxTotalSizeBytes = MaxTotalSizeBytes,
+        TokenEncoding = TokenEncoding,
+        MaxTokens = MaxTokens,
         OnlyGitChanged = OnlyGitChanged,
     };
 }

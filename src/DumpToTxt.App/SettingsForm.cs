@@ -49,6 +49,10 @@ public sealed class SettingsForm : Form
     private readonly ComboBox _cmbTarget = new() { DropDownStyle = ComboBoxStyle.DropDownList };
     private readonly TextBox _tbOutDir = new();
 
+    // Tokens
+    private readonly ComboBox _cmbTokenEnc = new() { DropDownStyle = ComboBoxStyle.DropDownList };
+    private readonly NumericUpDown _numMaxTokens = new() { Maximum = 2_000_000_000, ThousandsSeparator = true, Increment = 1000 };
+
     // Presets
     private readonly ComboBox _cmbPreset = new() { DropDownStyle = ComboBoxStyle.DropDownList, DisplayMember = "Name" };
     private readonly Label _lblPresetDesc = new();
@@ -65,6 +69,8 @@ public sealed class SettingsForm : Form
     private long _loadedMaxTotalBytes;
     private bool _maxFileDirty;
     private bool _maxTotalDirty;
+    private long _loadedMaxTokens;
+    private bool _maxTokensDirty;
 
     public SettingsForm()
     {
@@ -86,6 +92,7 @@ public sealed class SettingsForm : Form
         tabs.TabPages.Add(BuildIgnoreTab());
         tabs.TabPages.Add(BuildCapsTab());
         tabs.TabPages.Add(BuildOutputTab());
+        tabs.TabPages.Add(BuildTokensTab());
         tabs.TabPages.Add(BuildPresetsTab());
 
         var btnSave = new Button { Text = "Save", Left = 12, Top = 595, Width = 120 };
@@ -114,6 +121,7 @@ public sealed class SettingsForm : Form
         _tbExclCustom.TextChanged += (_, _) => { if (!_loading) _excludeUiDirty = true; };
         _numMaxFile.ValueChanged += (_, _) => { if (!_loading) _maxFileDirty = true; };
         _numMaxTotal.ValueChanged += (_, _) => { if (!_loading) _maxTotalDirty = true; };
+        _numMaxTokens.ValueChanged += (_, _) => { if (!_loading) _maxTokensDirty = true; };
     }
 
     private TabPage BuildFileTypesTab()
@@ -231,6 +239,36 @@ public sealed class SettingsForm : Form
         return tab;
     }
 
+    private TabPage BuildTokensTab()
+    {
+        var tab = new TabPage("Tokens");
+        var lblEnc = new Label { Text = "Token encoding:", Left = 12, Top = 18, Width = 110 };
+        foreach (TokenEncoding e in Enum.GetValues<TokenEncoding>()) _cmbTokenEnc.Items.Add(e);
+        _cmbTokenEnc.SetBounds(128, 15, 200, 23);
+        var lblEncHint = new Label
+        {
+            Text = "o200k_base = GPT-4o / o-series / current era (recommended). cl100k_base = legacy gpt-4 / 3.5-turbo.",
+            Left = 12, Top = 46, Width = 700, Height = 40,
+        };
+
+        var lblMax = new Label { Text = "Token budget (0 = none):", Left = 12, Top = 96, Width = 280 };
+        _numMaxTokens.SetBounds(300, 94, 160, 23);
+        var lblMaxHint = new Label
+        {
+            Text = "When > 0, the dump is flagged once its total exceeds this — warn-only, no content is dropped. "
+                 + "Token counts appear in the non-Classic output styles; Classic output is unchanged.",
+            Left = 12, Top = 124, Width = 700, Height = 60,
+        };
+
+        tab.Controls.Add(lblEnc);
+        tab.Controls.Add(_cmbTokenEnc);
+        tab.Controls.Add(lblEncHint);
+        tab.Controls.Add(lblMax);
+        tab.Controls.Add(_numMaxTokens);
+        tab.Controls.Add(lblMaxHint);
+        return tab;
+    }
+
     private TabPage BuildPresetsTab()
     {
         var tab = new TabPage("Presets");
@@ -285,17 +323,21 @@ public sealed class SettingsForm : Form
             _cmbStyle.SelectedItem = cfg.Style;
             _cmbTarget.SelectedItem = cfg.OutputTarget;
             _tbOutDir.Text = cfg.OutputDir ?? "";
+            _cmbTokenEnc.SelectedItem = cfg.TokenEncoding;
+            _numMaxTokens.Value = ClampTokens(cfg.MaxTokens);
 
             // Stash the exact loaded values + reset dirty so an untouched save preserves them verbatim.
             _loadedExcludeRegex = cfg.ExcludeRegex;
             _loadedMaxFileBytes = cfg.MaxFileSizeBytes;
             _loadedMaxTotalBytes = cfg.MaxTotalSizeBytes;
+            _loadedMaxTokens = cfg.MaxTokens;
         }
         finally { _loading = false; }
 
         _excludeUiDirty = false;
         _maxFileDirty = false;
         _maxTotalDirty = false;
+        _maxTokensDirty = false;
     }
 
     /// <summary>Reads every control into a complete config (so a save never drops a field).</summary>
@@ -318,6 +360,10 @@ public sealed class SettingsForm : Form
         Style = _cmbStyle.SelectedItem is OutputStyle s ? s : OutputStyle.Classic,
         OutputTarget = _cmbTarget.SelectedItem is OutputTarget t ? t : OutputTarget.File,
         OutputDir = _tbOutDir.Text.Trim().Length == 0 ? null : _tbOutDir.Text.Trim(),
+        TokenEncoding = _cmbTokenEnc.SelectedItem is TokenEncoding te ? te : TokenEncoding.O200kBase,
+        // Preserve the exact loaded budget unless the user touched the spinner, so a value above the
+        // spinner's display ceiling isn't silently clamped on an untouched save (mirrors the byte caps).
+        MaxTokens = _maxTokensDirty ? (long)_numMaxTokens.Value : _loadedMaxTokens,
     };
 
     private List<string> BuildExtSet()
@@ -353,6 +399,8 @@ public sealed class SettingsForm : Form
         if (kb > 4_000_000) kb = 4_000_000;
         return kb;
     }
+
+    private static decimal ClampTokens(long v) => v < 0 ? 0 : (v > 2_000_000_000 ? 2_000_000_000 : v);
 
     private void OnBrowse()
     {

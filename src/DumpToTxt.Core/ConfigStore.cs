@@ -139,6 +139,8 @@ public static class ConfigStore
         public bool? DetectBinary { get; set; }
         public long? MaxFileSizeBytes { get; set; }
         public long? MaxTotalSizeBytes { get; set; }
+        public string? TokenEncoding { get; set; }
+        public long? MaxTokens { get; set; }
 
         public DumpConfig ToConfig() => Apply(DumpConfig.CreateDefault());
 
@@ -169,6 +171,8 @@ public static class ConfigStore
             if (DetectBinary is { } db) acc.DetectBinary = db;
             if (MaxFileSizeBytes is { } mf) acc.MaxFileSizeBytes = mf > 0 ? mf : 0;
             if (MaxTotalSizeBytes is { } mt) acc.MaxTotalSizeBytes = mt > 0 ? mt : 0;
+            if (TryParseEnum(TokenEncoding, out Core.TokenEncoding te)) acc.TokenEncoding = te;
+            if (MaxTokens is { } mx) acc.MaxTokens = mx > 0 ? mx : 0;
             return acc;
         }
 
@@ -195,6 +199,8 @@ public static class ConfigStore
             DetectBinary = c.DetectBinary,
             MaxFileSizeBytes = c.MaxFileSizeBytes,
             MaxTotalSizeBytes = c.MaxTotalSizeBytes,
+            TokenEncoding = c.TokenEncoding.ToString(),
+            MaxTokens = c.MaxTokens,
         };
     }
 }

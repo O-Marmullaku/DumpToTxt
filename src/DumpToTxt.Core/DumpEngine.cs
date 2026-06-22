@@ -238,7 +238,12 @@ public sealed class DumpEngine
         string content = truncated ? SafeReadText(fi.FullName, allowed) : SafeReadText(fi.FullName);
         if (totalBudget != long.MaxValue) totalBudget -= truncated ? allowed : size;
 
-        return new DumpFile { FullName = fi.FullName, RelativePath = rel, Content = content, Size = size, IsTruncated = truncated };
+        // Token count reflects what's actually dumped (post-truncation). Skipped for the Classic style with
+        // no budget — Classic never renders counts, so tokenizing every file there would be pure waste.
+        int tokens = (cfg.Style != OutputStyle.Classic || cfg.MaxTokens > 0)
+            ? TokenCounter.Count(content, cfg.TokenEncoding) : 0;
+
+        return new DumpFile { FullName = fi.FullName, RelativePath = rel, Content = content, Size = size, IsTruncated = truncated, TokenCount = tokens };
     }
 
     private static string MakeOutputPath(string dir, string safeBase)
