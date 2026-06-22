@@ -47,12 +47,18 @@ Legend: ✅ done · 🚧 in progress · ⬜ todo
 - Code compression (Tree-sitter, signatures only); comment / empty-line removal; line numbers.
 - Git diff + recent-log inclusion; split-output.
 
-## ⬜ P9 — Distribution
-- Rebuild installer with new exe; GitHub Release + (optional) Actions CI on tag.
-- LICENSE. Decide self-contained (~69 MB) vs framework-dependent (small, needs .NET runtime).
-- Optional: MCP server mode.
+## 🚧 P9 — Distribution
+- ✅ Multi-flavor build pipeline (`build.ps1 -Flavor full|compact|lite|all`):
+  - **full** — .NET self-contained single-file, 68.8 MB, no deps.
+  - **compact** — .NET framework-dependent single-file, 1.07 MB, needs .NET 8 Desktop Runtime.
+  - **lite** — PowerShell via ps2exe, 0.49 MB, Classic-only, zero-install.
+- ✅ Flavor-parameterized installer (`ISCC /DFlavor=...` → `DumpToTxt-Setup-<flavor>.exe`), compact flavor checks for the runtime and points the user to the download.
+- ⬜ Actually build the installers (needs Inno Setup / ISCC) and test compact on a machine without .NET 8.
+- ⬜ Auto-download the .NET runtime in the compact installer (currently guided-manual).
+- ⬜ LICENSE · GitHub Release with all three flavors · (optional) Actions CI on tag.
+- ⬜ Optional: MCP server mode.
 
 ## Known open decisions
-- **Exe size:** self-contained single-file is 68.8 MB (compressed). Alternative: framework-dependent (~1–2 MB, requires .NET 8 Desktop Runtime). Revisit at P9.
+- **Exe size:** RESOLVED — ship all three flavors so users choose (lite 0.49 MB / compact 1.07 MB / full 68.8 MB).
 - **Default output target:** Notepad (legacy) vs clipboard (LLM-first). Decide at P2.
 - **Default style for new users:** Classic vs Markdown/XML. Decide at P2.

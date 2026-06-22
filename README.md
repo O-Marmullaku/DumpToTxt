@@ -27,9 +27,17 @@ The engine is built around multiple output styles; **Classic** (the original Dum
 
 Token counting, `.gitignore`-aware ignores, secret scanning, code compression, presets, and a GUI preview pane are on the [roadmap](docs/ROADMAP.md).
 
-## Install
+## Download
 
-Download `DumpToTxt-Setup.exe` from [Releases](https://github.com/O-Marmullaku/DumpToTxt/releases) and run it (requires admin — it writes the context-menu registry keys). Or [build it yourself](#building-from-source).
+Pick a flavor from [Releases](https://github.com/O-Marmullaku/DumpToTxt/releases) and run the installer (requires admin — it writes the context-menu registry keys):
+
+| Flavor | Download | Needs installed? | Features | Pick this if… |
+|---|---|---|---|---|
+| **Compact** | ~1 MB | .NET 8 Desktop Runtime (installer prompts if missing) | full v2 | you want small **and** full-featured |
+| **Lite** | ~0.5 MB | nothing (uses built-in Windows PowerShell) | **Classic output only** | you just want the original, smallest possible |
+| **Full** | ~40 MB installer / 69 MB exe | nothing | full v2 | you want zero-hassle, runtime bundled |
+
+Compact and Full are the same app; Lite is the frozen PowerShell tool (Classic only — it doesn't gain new features). Or [build any flavor yourself](#building-from-source).
 
 ## Settings
 
@@ -67,17 +75,19 @@ DumpToTxt/
 
 ## Building from source
 
-Requires the [.NET SDK 8+](https://dotnet.microsoft.com/download) (and [Inno Setup 6](https://jrsoftware.org/isdl.php) for the installer).
+Requires the [.NET SDK 8+](https://dotnet.microsoft.com/download). The Lite flavor needs `ps2exe`
+(`Install-Module ps2exe -Scope CurrentUser`); installers need [Inno Setup 6](https://jrsoftware.org/isdl.php).
 
 ```powershell
 # Develop / test
 dotnet build src\DumpToTxt.sln
 dotnet test  src\DumpToTxt.sln
 
-# Release a self-contained single-file exe -> dist\DumpToTxt.exe  (~69 MB, zero-dependency)
-.\build.ps1
+# Build flavors -> dist\<flavor>\DumpToTxt.exe
+.\build.ps1                  # all three (full, compact, lite)
+.\build.ps1 -Flavor compact  # just one
 
-# ...and the installer -> dist\DumpToTxt-Setup.exe
+# ...plus installers -> dist\DumpToTxt-Setup-<flavor>.exe  (needs Inno Setup 6)
 .\build.ps1 -Installer
 ```
 

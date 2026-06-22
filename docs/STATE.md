@@ -13,13 +13,13 @@ _Where the project stands NOW. Facts only — verify against code/git before act
 - `ConfigStore` reads/writes legacy `settings.json` shape (`ExtSet`/`DotFilesAllow`/`ExcludeRegex`) + new `Style`; precedence user(%APPDATA%) → machine(%PROGRAMDATA%) → defaults.
 - `SettingsForm` ported from the legacy GUI (ext checklist, exclude checklist, dotfiles, Save/Reset/Close).
 - Legacy script preserved at `legacy/DumpToTxt.ps1`.
-- `build.ps1` publishes self-contained single-file exe to `dist/`; installer version bumped to 2.0.0, points at `..\dist\DumpToTxt.exe`.
+- `build.ps1 -Flavor full|compact|lite|all` builds three download flavors to `dist/<flavor>/DumpToTxt.exe`; installer (v2.0.0) is flavor-parameterized via `ISCC /DFlavor=...`.
 
 ## Verification done this run
 - `dotnet build src/DumpToTxt.sln` → **0 warnings, 0 errors**.
 - `dotnet test` → **4/4 passing** (SafeName, defaults, classic include/exclude, missing-path throws).
 - Rendered a real Classic dump via a throwaway harness → structure matches legacy (dir listing incl. folders, `node_modules` excluded, `====` separators, only legible files in contents, 3/3 included).
-- `build.ps1` → `dist/DumpToTxt.exe` = **68.8 MB** (self-contained, compressed single-file).
+- `build.ps1 -Flavor all` → **full 68.8 MB · compact 1.07 MB · lite 0.49 MB**; all three launch and show the settings GUI.
 
 ## Not done / caveats
 - **No full installer build** — Inno Setup (ISCC) not installed here; `.iss` path/version verified by inspection only. `dist/DumpToTxt-Setup.exe` is the STALE legacy 1.1.7 installer.
@@ -32,6 +32,7 @@ _Where the project stands NOW. Facts only — verify against code/git before act
 - GUI: **WinForms**. Transition: **big-bang** (installer → C# exe now; Classic parity keeps it functional).
 - Ambition: **full repomix parity**, with **Classic** kept as a first-class user-selectable style.
 - Binaries gitignored; distribute via Releases. Publish = self-contained single-file + compression.
+- Ship + maintain **all three flavors** (lite/compact/full) so users choose by size vs dependency.
 
 ## Next step
 Start **P2**: introduce `IDumpFormatter`, implement Plain/Markdown/XML/JSON + directory tree + header, add clipboard output and a style picker in the GUI.

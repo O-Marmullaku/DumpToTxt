@@ -3,6 +3,22 @@
 #define AppExeName "DumpToTxt.exe"
 #define AppIcoName "DumpToTxt.ico"
 
+; Build flavor: "full" (self-contained, no deps), "compact" (.NET 8 runtime needed), "lite" (PowerShell).
+; Pass on the command line, e.g.: ISCC /DFlavor=compact installer\DumpToTxt.iss
+#ifndef Flavor
+  #define Flavor "full"
+#endif
+
+#if Flavor == "full"
+  #define ExeSource "..\dist\full\DumpToTxt.exe"
+#elif Flavor == "compact"
+  #define ExeSource "..\dist\compact\DumpToTxt.exe"
+#elif Flavor == "lite"
+  #define ExeSource "..\dist\lite\DumpToTxt.exe"
+#else
+  #error Unknown Flavor (use full, compact, or lite)
+#endif
+
   ;Set to 0 for free edition (shows a promo text instead of the full cat image)
   ;Set to 1 for Cute Cats (paid/donation) edition (shows full-screen cat page)
 #define CuteCatsEdition 0
@@ -13,7 +29,7 @@ AppName={#AppName}
 AppVersion={#AppVersion}
 DefaultDirName={pf}\{#AppName}
 OutputDir=..\dist
-OutputBaseFilename=DumpToTxt-Setup
+OutputBaseFilename=DumpToTxt-Setup-{#Flavor}
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=admin
@@ -28,7 +44,7 @@ WizardSmallImageFile=..\assets\installer-images\DumpToTxtWizard.bmp
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "..\dist\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#ExeSource}"; DestDir: "{app}"; DestName: "{#AppExeName}"; Flags: ignoreversion
 Source: "..\assets\icons\{#AppIcoName}"; DestDir: "{app}"; Flags: ignoreversion
 
 ; welcome cat (small)
@@ -80,6 +96,33 @@ var
   ExclCount: Integer;
 
   KeepSettingsOnUninstall: Boolean;
+
+#if Flavor == "compact"
+function IsDotNet8DesktopInstalled(): Boolean;
+var
+  fr: TFindRec;
+begin
+  Result := False;
+  if FindFirst(ExpandConstant('{commonpf64}\dotnet\shared\Microsoft.WindowsDesktop.App\8.*'), fr) then
+  begin
+    Result := True;
+    FindClose(fr);
+  end;
+end;
+
+function InitializeSetup(): Boolean;
+var
+  ErrorCode: Integer;
+begin
+  Result := True;
+  if not IsDotNet8DesktopInstalled() then
+  begin
+    if MsgBox('DumpToTxt (Compact) needs the .NET 8 Desktop Runtime (x64), which was not found.'#13#10#13#10'Open the download page now? Install the runtime, then run this setup again.', mbConfirmation, MB_YESNO) = IDYES then
+      ShellExec('open', 'https://dotnet.microsoft.com/download/dotnet/8.0', '', '', SW_SHOW, ewNoWait, ErrorCode);
+    Result := False;
+  end;
+end;
+#endif
 
 function GetMachineSettingsDir(): string;
 begin
