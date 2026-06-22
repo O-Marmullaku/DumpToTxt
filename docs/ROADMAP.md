@@ -1,6 +1,6 @@
 # DumpToTxt — Roadmap
 
-Cursor: **P5 (token counting) is next.** P0 + P1 + P2 + P3 + P4 are done.
+Cursor: **P6 (secret scan) is next.** P0 + P1 + P2 + P3 + P4 + P5 are done.
 
 > Note: P9 (build & distribution) **partially landed early** at the user's request (small downloads → 3 flavors). The repomix-parity *features* that define the product — **P2–P8** — are still the bulk of the work; packaging progress ≠ product progress.
 
@@ -58,8 +58,17 @@ Legend: ✅ done · 🚧 in progress · ⬜ todo
   SettingsForm custom-ExcludeRegex overwrite; MED: GitChanges pipe-deadlock + missing UTF-8 encoding + sub-1KB cap→unlimited;
   +5 low/nit) — all fixed, +3 regression tests (71/71), golden still byte-identical. **Codex cross-review still owed** (usage cap).
 
-## ⬜ P5 — Token counting
-- `Microsoft.ML.Tokenizers` (o200k_base / cl100k_base): total, per-file, top-N, token-count tree, budget.
+## ✅ P5 — Token counting
+- **First real NuGet dep:** `Microsoft.ML.Tokenizers` 2.0.0 + `Data.O200kBase` + `Data.Cl100kBase` (embedded vocab,
+  offline). `Core/TokenCounter.cs` caches a `TiktokenTokenizer` per encoding.
+- Engine computes per-file `TokenCount` into `DumpModel` (skipped for Classic-with-no-budget for speed). Non-Classic
+  formatters render **total + encoding + per-file + top-10 + a token tree + an over-budget warning**.
+- Config: `TokenEncoding` (default o200k_base) + `MaxTokens` (0=off, **warn-only**) threaded through the resolver + a
+  new GUI **"Tokens" tab**. **Classic stays golden byte-identical** (counts are GUI-only for Classic).
+- 81/81 xUnit (+10 P5); build 0/0; Classic golden byte-identical. Fresh-eyes review: 9 raw → 2 fixed → 7 rejected.
+  End-to-end proven on the shipped `dist\full` single-file exe (embedded vocab loads from the bundle).
+- Footprint: lite unchanged · compact 1.07 → 4.43 MB (no single-file compression for framework-dependent) · full 68.8 → 70.46 MB.
+- Codex cross-review still owed (usage cap). Truncation-at-budget deliberately deferred to P8 (warn-only here).
 
 ## ⬜ P6 — Secret scan
 - Embedded gitleaks-style regex ruleset; skip/warn on detected secrets.
