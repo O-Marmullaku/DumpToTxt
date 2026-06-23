@@ -1,9 +1,10 @@
 # DumpToTxt — Roadmap
 
 Cursor: **P7 (GUI preview pane) is next.** P0–P6 + P9 (3-flavor build) committed (P6 = 8a4910d, P6 review
-fixes = ab96bef). The P6 fresh-eyes review fixes (A/B/C/D + E/F/G docs + 2 bugs the review itself caught,
-+12 tests → 126/126, build 0/0) are **committed and pushed**. P7 is **decision-heavy — decide with the
-user first** (see the P7 section's open decisions).
+fixes = ab96bef, **P6 re-review fix = 883f5f4**). A further fresh-eyes re-review of ab96bef found 2 HIGH
+bugs in the new END-less PEM fallback (Redact-only key LEAK on a trailing-WS header + unbounded colon/YAML
+prose OVER-EAT) — fixed in 883f5f4, +6 tests → **132/132, build 0/0**, gate-tested. P7 is **decision-heavy
+— decide with the user first** (see the P7 section's open decisions).
 
 > Note: P9 (build & distribution) **partially landed early** at the user's request (small downloads → 3 flavors). The repomix-parity *features* that define the product — **P2–P8** — are still the bulk of the work; packaging progress ≠ product progress.
 
@@ -100,9 +101,18 @@ Legend: ✅ done · 🚧 in progress · ⬜ todo
   - **D** the P6 bracket fix itself regressed `[!-a]` (`[^/-a]` = range) → escape a leading `-`.
   - **E/F/G** documented: allowlist matches the secret VALUE not the key; truncation-straddle under-detection;
     filenames/paths not scanned (content-only).
-- Codex cross-review still owed ×2 (P4-fix cddd7cd, P5 7ebb825) — only P6 was re-run.
+- **Re-review fix (committed 883f5f4):** a 3rd fresh-eyes pass (Codex + a 4-agent refute-workflow) on ab96bef
+  confirmed vendor-overlap/B/C/D solid but found 2 HIGH bugs in the new END-less PEM fallback, both Redact-only:
+  a key **LEAK** when the BEGIN-header line has trailing whitespace (or lone-CR endings), and an unbounded prose
+  **OVER-EAT** where the colon alternative ate any `Word:` line (YAML/changelog). Fixed: `[ \t]*` after the
+  header, CR/CRLF/LF-aware line-stepping, colon branch restricted to `Proc-Type:`/`DEK-Info:`. WITH-END
+  byte-identical; ReDoS-safe; +6 tests (126→132). Pre-existing low note (NOT from this fix): XML's `Sanitize()`
+  drops XML-illegal chars after token counting, so XML token counts can slightly over-count the emitted body.
+- Codex cross-review still owed ×2 (P4-fix cddd7cd, P5 7ebb825) — re-attempted, hit the usage cap (resets Jun 25).
 - Known limitation (follow-up): secrets in **filenames/paths** are not scanned (content-only); a bare PEM-header
   *mention* (no body) is a high-confidence finding, so under Skip it drops the file — possible refinement.
+  Residuals in the END-less Redact fallback (low realism, documented in the rule): a lone base64-word line right
+  after the header is over-redacted (bounded); a body line with an internal space leaks.
 
 ## ⬜ P7 — GUI preview pane
 - Tree + live token count + **secret findings** + preview of the pack before save/copy.
