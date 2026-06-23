@@ -175,6 +175,99 @@ public class P6SecretTests
     }
 
     [Fact]
+    public void Scan_PemHeader_TrailingWhitespace_NoEnd_RedactsBody()
+    {
+        // Regression (P6-review fix #2, found by Codex): a header line with TRAILING WHITESPACE before its
+        // newline used to abort the END-less fallback (it required \n to immediately follow the exact header
+        // text), so only the 27-char header was redacted and the whole base64 body LEAKED under Redact.
+        string body = "MIIBOgIBAAJBAKj34GkxFhD90vcNLYLInFEX6Ppy1tPf9Cnzj4p4WGeKLs1Pt8Qu";
+        foreach (string ws in new[] { "  ", "\t", " " })   // trailing spaces, tab, single space
+        {
+            string content = $"{PemKey}{ws}\n{body}\n";   // trailing WS on the header line, NO -----END-----
+            var findings = SecretScanner.Scan(content, entropy: false);
+            Assert.Contains(findings, f => f.RuleId == "private-key");
+            string redacted = SecretScanner.Redact(content, findings);
+            Assert.DoesNotContain(body, redacted);                         // body scrubbed, not leaked
+            Assert.Contains("[REDACTED:private-key]", redacted);
+        }
+    }
+
+    [Fact]
+    public void Scan_PemBody_LoneCrEndings_NoEnd_RedactsBody()
+    {
+        // Regression (P6-review fix #2): a classic-Mac key body with LONE-CR line endings used to leak entirely
+        // — the fallback stepped lines with \r?\n (needs \n), never advanced, and redacted only the header.
+        // Line-stepping is now CR/CRLF/LF-aware so the body is scrubbed.
+        string body = "MIIBOgIBAAJBAKj34GkxFhD90vcNLYLInFEX6Ppy1tPf9Cnzj4p4WGeKLs1Pt8Qu";
+        string content = $"{PemKey}\r{body}\rkQETz8lOzNvDQ==\r";          // lone-CR endings, NO -----END-----
+        var findings = SecretScanner.Scan(content, entropy: false);
+        Assert.Contains(findings, f => f.RuleId == "private-key");
+        string redacted = SecretScanner.Redact(content, findings);
+        Assert.DoesNotContain(body, redacted);
+        Assert.DoesNotContain("kQETz8lOzNvDQ==", redacted);
+        Assert.Contains("[REDACTED:private-key]", redacted);
+    }
+
+    [Fact]
+    public void Scan_PemHeaderInProse_ColonProseLine_NotEaten()
+    {
+        // Regression (P6-review fix #1): the END-less fallback's encrypted-header alternative used to match ANY
+        // "Word: value" line, so a benign doc mentioning the header then continuing with colon/YAML prose had
+        // that prose silently DELETED under Redact (the chained match walked downward). The alternative is now
+        // restricted to the real PEM headers Proc-Type:/DEK-Info:, so arbitrary colon prose survives.
+        string content = $"{PemKey}\r\nNote: paste your key here\r\nKeep this readme text.\r\n";
+        var findings = SecretScanner.Scan(content, entropy: false);
+        Assert.Contains(findings, f => f.RuleId == "private-key");          // header still flagged
+        string redacted = SecretScanner.Redact(content, findings);
+        Assert.Contains("[REDACTED:private-key]", redacted);                // header itself redacted
+        Assert.Contains("Note: paste your key here", redacted);             // colon prose NOT eaten
+        Assert.Contains("Keep this readme text.", redacted);
+    }
+
+    [Fact]
+    public void Scan_EncryptedPemHeaders_NoEnd_RedactsHeadersAndBody()
+    {
+        // The END-less fallback must STILL consume a truncated encrypted PEM's Proc-Type:/DEK-Info: headers,
+        // the blank separator line, and the base64 body — these are the only colon lines it keeps eating.
+        string body = "MIIBOgIBAAJBAKj34GkxFhD90vcNLYLInFEX6Ppy1tPf9Cnzj4p4WGeKLs1Pt8Qu";
+        string content = $"{PemKey}\nProc-Type: 4,ENCRYPTED\nDEK-Info: AES-128-CBC,1234567890ABCDEF\n\n{body}\n";
+        var findings = SecretScanner.Scan(content, entropy: false);
+        Assert.Contains(findings, f => f.RuleId == "private-key");
+        string redacted = SecretScanner.Redact(content, findings);
+        Assert.DoesNotContain("DEK-Info", redacted);                        // encrypted-key headers consumed
+        Assert.DoesNotContain(body, redacted);                             // and the body
+        Assert.Contains("[REDACTED:private-key]", redacted);
+    }
+
+    [Fact]
+    public void Scan_PemWithEnd_LeavesTrailingContentIntact()
+    {
+        // Invariant: when an -----END----- marker IS present the match is bounded at END (lazy), and content
+        // AFTER the END marker survives byte-for-byte — the END-less fallback never engages while END exists.
+        string body = "MIIBOgIBAAJBAKj34GkxFhD90vcNLYLInFEX6Ppy1tPf9Cnzj4p4WGeKLs1Pt8Qu";
+        string content = $"{PemKey}\n{body}\n-----END RSA PRIVATE KEY-----\nSEE_ME_AFTER_END\n";
+        var findings = SecretScanner.Scan(content, entropy: false);
+        Assert.Single(findings.Where(f => f.RuleId == "private-key"));
+        string redacted = SecretScanner.Redact(content, findings);
+        Assert.DoesNotContain(body, redacted);                             // key material gone
+        Assert.Contains("SEE_ME_AFTER_END", redacted);                     // text after END untouched
+    }
+
+    [Fact]
+    public void Scan_EntropyAndVendor_SameSpan_VendorWins()
+    {
+        // Coverage for the other half of the confidence-first tiebreak (HighFalsePositiveRules also holds the
+        // entropy rule). A genuinely high-entropy vendor token matches BOTH github-token and high-entropy-string
+        // on the IDENTICAL span; the vendor (high-confidence) rule must win so attribution + the Skip whole-file
+        // decision are correct, not the high-FP entropy rule. (Existing fixtures are low-entropy so never hit this.)
+        string token = "ghp_0123456789abcdefghijklmnopqrstuvwxyz";        // 40 chars, all-distinct -> Shannon > 4.5
+        string content = $"var t = {token};\n";
+        var findings = SecretScanner.Scan(content, entropy: true);
+        Assert.Contains(findings, f => f.RuleId == "github-token");
+        Assert.DoesNotContain(findings, f => f.RuleId == "high-entropy-string");   // entropy dropped as overlap
+    }
+
+    [Fact]
     public void Scan_CleanContent_HasNoFindings()
     {
         var findings = SecretScanner.Scan("public class A { public int X = 5; }\n// just code\n", entropy: false);

@@ -92,13 +92,18 @@ public static class SecretScanner
             // When the END marker is missing (a key truncated by a size cap, or a headerless example), DON'T
             // consume to EOF — that destroys benign docs that merely mention the header (e.g. a README with a
             // "-----BEGIN PRIVATE KEY-----" / "<your key here>" placeholder). Instead bound the END-less
-            // fallback to the PEM body that actually follows: whole-line base64 runs (ANY length + optional
-            // trailing whitespace, so a short final remnant or a stray trailing space can't leak key bytes),
-            // encrypted-key headers (Proc-Type:/DEK-Info:), and blank lines, stopping at the first prose line.
-            // Redacts real key bytes while leaving surrounding prose intact.
-            Rx = R(@"-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----" +
+            // fallback to the PEM body that actually follows: optional trailing whitespace ON the header line
+            // ([ \t]* — else a stray space/tab after the dashes aborts the fallback and the body leaks), then
+            // whole-line base64 runs (ANY length + optional trailing whitespace, so a short remnant or a stray
+            // trailing space can't leak), ONLY the encrypted-key headers Proc-Type:/DEK-Info: (NOT any "Word:" —
+            // that ate real colon/YAML prose), and blank lines, stopping at the first prose line. Line-stepping
+            // is CR/CRLF/LF-aware ((?:\r\n?|\n)) so a lone-CR (classic-Mac) body can't leak. Residuals (Redact
+            // only; Skip drops the whole file): a lone base64-charset WORD line right after the header is
+            // over-redacted (bounded — stops at the first multi-word/non-base64 line); a body line with an
+            // INTERNAL space leaks (real PEM bodies have none). Redacts key bytes, leaves prose intact.
+            Rx = R(@"-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----[ \t]*" +
                    @"(?:[\s\S]*?-----END (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----" +
-                   @"|(?:\r?\n[ \t]*(?:[A-Za-z0-9+/=]+[ \t]*(?=\r?\n|$)|[A-Za-z][\w-]*:[ \t]*\S.*)?)*)") },
+                   @"|(?:(?:\r\n?|\n)[ \t]*(?:[A-Za-z0-9+/=]+[ \t]*(?=\r\n?|\n|$)|(?:Proc-Type|DEK-Info):[ \t]*\S.*)?)*)") },
         // Generic "key/secret/token/password = <value>" assignment. Higher false-positive risk than the
         // vendor rules, so it's deliberately tight: a known keyword, an assignment, then a quoted 16+ char
         // value. Group 1 (the value) is what gets reported/redacted. Allowlist any false positives.
