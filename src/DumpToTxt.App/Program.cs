@@ -42,6 +42,9 @@ internal static class Program
                   + (classicUnsanitized
                       ? "\nClassic style does NOT redact/skip — the output contains the raw secrets. Pick a non-Classic style to sanitize."
                       : "")
+                  + (result.FilesContentOmitted > 0
+                      ? $"\n{result.FilesContentOmitted} file(s) had their ENTIRE content omitted (Skip)."
+                      : "")
                 : "";
 
             switch (cfg.OutputTarget)

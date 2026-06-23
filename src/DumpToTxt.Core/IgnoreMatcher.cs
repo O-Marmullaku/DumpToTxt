@@ -196,10 +196,16 @@ public sealed class IgnoreMatcher
         }
 
         if (negate)
+        {
             // "[!set]" -> any char except the set; ALWAYS also exclude '/' (a gitignore bracket never
             // matches the separator). Folding '/' into the negation fixes the non-empty case, which a plain
             // "[^set]" would otherwise let match '/'; an empty set degrades to "[^/]" = any non-separator char.
-            sb.Append("[^/").Append(inner).Append(']');
+            // A LEADING literal '-' in the set would otherwise form a range with the prepended '/' ("[^/-a]"
+            // = range 0x2F..0x61), so escape it so it stays a literal member.
+            sb.Append("[^/");
+            if (inner.Length > 0 && inner[0] == '-') sb.Append('\\');
+            sb.Append(inner).Append(']');
+        }
         else if (inner.Length == 0)
             sb.Append("(?!)");                      // e.g. "[/]": matches no character -> the rule can't match
         else

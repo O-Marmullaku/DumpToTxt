@@ -110,6 +110,71 @@ public class P6SecretTests
     }
 
     [Fact]
+    public void Scan_PemHeaderInProse_NoEnd_DoesNotEatTrailingProse()
+    {
+        // A README that merely MENTIONS the PEM header (placeholder, no -----END-----) must NOT have the rest
+        // of the document wiped under Redact. Regression for the END-less fallback that consumed to EOF: the
+        // bounded fallback now redacts only the header + any base64 body lines, stopping at the first prose.
+        string content =
+            "# Setup\r\n" +
+            "Put your key after the header:\r\n" +
+            "-----BEGIN PRIVATE KEY-----\r\n" +
+            "<your key here>\r\n" +
+            "\r\n" +
+            "## Usage\r\n" +
+            "Run the installer, then enjoy the rest of this long readme body.\r\n";
+        var findings = SecretScanner.Scan(content, entropy: false);
+        Assert.Contains(findings, f => f.RuleId == "private-key");          // the header is still flagged
+        string redacted = SecretScanner.Redact(content, findings);
+        Assert.DoesNotContain("-----BEGIN PRIVATE KEY-----", redacted);     // header itself redacted
+        Assert.Contains("## Usage", redacted);                             // prose AFTER the header survives
+        Assert.Contains("Run the installer", redacted);
+    }
+
+    [Fact]
+    public void Scan_RealPemBody_NoEnd_RedactsKeyMaterial()
+    {
+        // A genuinely truncated key (header + base64 body, END clipped by a size cap) must STILL fully redact
+        // its base64 material — the bounded fallback consumes whole-line base64 runs to EOF here.
+        string body = "MIIBOgIBAAJBAKj34GkxFhD90vcNLYLInFEX6Ppy1tPf9Cnzj4p4WGeKLs1Pt8Qu";
+        string content = $"{PemKey}\n{body}\n";   // NO -----END-----
+        var findings = SecretScanner.Scan(content, entropy: false);
+        Assert.Contains(findings, f => f.RuleId == "private-key");
+        string redacted = SecretScanner.Redact(content, findings);
+        Assert.DoesNotContain(body, redacted);                             // key material gone
+        Assert.Contains("[REDACTED:private-key]", redacted);
+    }
+
+    [Fact]
+    public void Scan_PemBody_TrailingWhitespace_NoEnd_RedactsKeyMaterial()
+    {
+        // Regression: a truncated key whose base64 body line carries TRAILING WHITESPACE (END clipped) must
+        // still redact fully. The END-less fallback's end-of-line lookahead used to require base64 to abut the
+        // newline, so a stray trailing space failed it and the whole body line (and everything below) leaked.
+        string body = "MIIBOgIBAAJBAKj34GkxFhD90vcNLYLInFEX6Ppy1tPf9Cnzj4p4WGeKLs1Pt8Qu";
+        string content = $"{PemKey}\n{body}   \nmoreKeyBytesAAAABBBBCCCCDDDD\n";   // trailing spaces, NO END
+        var findings = SecretScanner.Scan(content, entropy: false);
+        Assert.Contains(findings, f => f.RuleId == "private-key");
+        string redacted = SecretScanner.Redact(content, findings);
+        Assert.DoesNotContain(body, redacted);                             // body line gone despite trailing WS
+        Assert.DoesNotContain("moreKeyBytesAAAABBBBCCCCDDDD", redacted);   // and the line after it (no cascade leak)
+        Assert.Contains("[REDACTED:private-key]", redacted);
+    }
+
+    [Fact]
+    public void Scan_PemBody_ShortFinalLine_NoEnd_RedactsKeyMaterial()
+    {
+        // Regression: a truncated key whose FINAL base64 remnant line is short (< 16 chars — an arbitrary
+        // mid-body size-cap clip) must still redact fully. The old {16,} floor let that short tail survive.
+        string content = $"{PemKey}\nMIIBOgIBAAJBAKj34GkxFhD90vcNLY\nwEAAQ==\n";   // 7-char final line, NO END
+        var findings = SecretScanner.Scan(content, entropy: false);
+        Assert.Contains(findings, f => f.RuleId == "private-key");
+        string redacted = SecretScanner.Redact(content, findings);
+        Assert.DoesNotContain("wEAAQ==", redacted);                        // short remnant line redacted, not leaked
+        Assert.Contains("[REDACTED:private-key]", redacted);
+    }
+
+    [Fact]
     public void Scan_CleanContent_HasNoFindings()
     {
         var findings = SecretScanner.Scan("public class A { public int X = 5; }\n// just code\n", entropy: false);
@@ -136,6 +201,19 @@ public class P6SecretTests
         Assert.NotEmpty(SecretScanner.Scan(content, entropy: false));
         var allow = SecretScanner.CompileAllowlist(new[] { "EXAMPLE" });   // matched text contains EXAMPLE
         Assert.Empty(SecretScanner.Scan(content, entropy: false, allow));
+    }
+
+    [Fact]
+    public void Scan_Allowlist_MatchesValueNotKeyName()
+    {
+        // The allowlist is matched against the detected secret VALUE (group 1 for key=value rules), NOT the key
+        // name or surrounding line. "password" (the key name) must NOT suppress; a value substring does.
+        string content = "password = \"supersecretvalue123\"\n";
+        Assert.NotEmpty(SecretScanner.Scan(content, entropy: false));                          // baseline finding
+        var byKeyName = SecretScanner.CompileAllowlist(new[] { "password" });
+        Assert.NotEmpty(SecretScanner.Scan(content, entropy: false, byKeyName));               // key name ≠ value
+        var byValue = SecretScanner.CompileAllowlist(new[] { "supersecret" });
+        Assert.Empty(SecretScanner.Scan(content, entropy: false, byValue));                    // value substring matches
     }
 
     // ---------- actions surfaced in JSON ----------
@@ -245,6 +323,140 @@ public class P6SecretTests
 
             Assert.False(r.TryGetProperty("secretScan", out _));
             Assert.False(r.GetProperty("fileList")[0].TryGetProperty("secrets", out _));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    // ---------- Skip: high-FP generic/entropy hits redact instead of dropping the whole file ----------
+
+    [Fact]
+    public void Skip_GenericPlaceholderOnly_RedactsSpan_KeepsFile()
+    {
+        // A .env.example whose only hit is a generic-rule placeholder must NOT have its whole content dropped
+        // under Skip — the high-FP generic/entropy detectors redact their span instead, so legitimate lines
+        // survive. Regression: previously one placeholder FP silently nuked the entire file.
+        string root = NewTree();
+        try
+        {
+            W(root, ".env.example", "DEBUG=true\nPORT=3000\nAPI_KEY=\"REPLACE_WITH_YOUR_KEY_HERE\"\nNAME=app\n");
+            var cfg = DumpConfig.CreateDefault();
+            cfg.SecretScan = SecretScanMode.Skip;
+            var file = RenderJson(root, cfg).GetProperty("fileList")[0];
+            string content = file.GetProperty("content").GetString()!;
+            Assert.Contains("DEBUG=true", content);                       // file NOT dropped
+            Assert.Contains("PORT=3000", content);
+            Assert.DoesNotContain("REPLACE_WITH_YOUR_KEY_HERE", content); // the FP value redacted span-wise
+            Assert.False(file.TryGetProperty("secretsSkipped", out var sk) && sk.GetBoolean());
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void Skip_VendorSecret_OmitsWholeFile_EvenWithOtherContent()
+    {
+        // A high-confidence vendor secret still drops the WHOLE file under Skip (the safe default for a real key).
+        string root = NewTree();
+        try
+        {
+            W(root, "c.cs", $"int keep = 1;\nvar k = {AwsKey};\nint alsoKeep = 2;\n");
+            var cfg = DumpConfig.CreateDefault();
+            cfg.SecretScan = SecretScanMode.Skip;
+            var file = RenderJson(root, cfg).GetProperty("fileList")[0];
+            Assert.Equal("", file.GetProperty("content").GetString());    // whole content omitted
+            Assert.True(file.GetProperty("secretsSkipped").GetBoolean());
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void Skip_VendorAndGenericInSameFile_OmitsWholeFile()
+    {
+        // Vendor precedence: a file carrying BOTH a high-confidence vendor key AND a high-FP generic placeholder
+        // is still dropped WHOLE under Skip (the vendor finding wins) — not merely span-redacted-and-kept.
+        string root = NewTree();
+        try
+        {
+            W(root, "mix.cs", $"var k = {AwsKey};\nAPI_KEY=\"REPLACE_WITH_YOUR_KEY_HERE\"\n");
+            var cfg = DumpConfig.CreateDefault();
+            cfg.SecretScan = SecretScanMode.Skip;
+            var file = RenderJson(root, cfg).GetProperty("fileList")[0];
+            Assert.Equal("", file.GetProperty("content").GetString());    // vendor hit forces whole-file omit
+            Assert.True(file.GetProperty("secretsSkipped").GetBoolean());
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void Skip_VendorTokenInAssignment_OmitsWholeFile()
+    {
+        // A vendor token written as `keyword = "value"` matches BOTH the vendor rule and generic-secret-assign
+        // on the SAME value span. The vendor (high-confidence) rule must win the overlap so the file is dropped
+        // WHOLE under Skip — not span-redacted-and-kept as a generic-only false positive would be.
+        string root = NewTree();
+        try
+        {
+            W(root, "auth.cs", $"int keep = 1;\ntoken = \"{GithubTok}\";\nint alsoKeep = 2;\n");
+            var cfg = DumpConfig.CreateDefault();
+            cfg.SecretScan = SecretScanMode.Skip;
+            var file = RenderJson(root, cfg).GetProperty("fileList")[0];
+            Assert.Equal("", file.GetProperty("content").GetString());    // vendor wins overlap -> whole-file omit
+            Assert.True(file.GetProperty("secretsSkipped").GetBoolean());
+            bool hasVendor = false, hasGeneric = false;
+            foreach (var s in file.GetProperty("secrets").EnumerateArray())
+            {
+                string rule = s.GetProperty("rule").GetString()!;
+                if (rule == "github-token") hasVendor = true;
+                if (rule == "generic-secret-assign") hasGeneric = true;
+            }
+            Assert.True(hasVendor);                                       // attributed to the specific vendor rule
+            Assert.False(hasGeneric);                                     // not the overlapping generic assignment
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void DumpResult_FilesContentOmitted_CountsWholeFileSkips()
+    {
+        // The aggregate the GUI notice surfaces: under Skip, count only files dropped WHOLE (a vendor/PEM hit).
+        // A generic-placeholder-only file is span-redacted + kept (not counted); a clean file is never counted.
+        string root = NewTree();
+        try
+        {
+            W(root, "vendor.cs", $"var k = {AwsKey};\n");
+            W(root, ".env.example", "API_KEY=\"REPLACE_WITH_YOUR_KEY_HERE\"\n");
+            W(root, "clean.cs", "public class Clean { }\n");
+            var cfg = DumpConfig.CreateDefault();
+            cfg.OutputTarget = OutputTarget.Stdout;
+            cfg.Style = OutputStyle.Plain;
+            cfg.SecretScan = SecretScanMode.Skip;
+            Assert.Equal(1, new DumpEngine().Run(root, cfg).FilesContentOmitted);   // only vendor.cs dropped whole
+
+            cfg.SecretScan = SecretScanMode.Warn;
+            Assert.Equal(0, new DumpEngine().Run(root, cfg).FilesContentOmitted);   // Warn never omits content
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    // ---------- token counts describe the EMITTED (sanitized) body ----------
+
+    [Fact]
+    public void TokenCount_SkippedFile_IsZero_OffIsPositive()
+    {
+        // Under Skip the emitted body is empty, so the reported per-file token count must be 0 (not the
+        // original content's count) — the token summary describes what the dump actually contains.
+        string root = NewTree();
+        try
+        {
+            W(root, "secret.cs", $"var k = {AwsKey};\n" + new string('y', 300) + "\n");
+            var skip = DumpConfig.CreateDefault();
+            skip.SecretScan = SecretScanMode.Skip;
+            int tokSkip = RenderJson(root, skip).GetProperty("fileList")[0].GetProperty("tokens").GetInt32();
+            Assert.Equal(0, tokSkip);
+
+            var off = DumpConfig.CreateDefault();
+            off.SecretScan = SecretScanMode.Off;
+            int tokOff = RenderJson(root, off).GetProperty("fileList")[0].GetProperty("tokens").GetInt32();
+            Assert.True(tokOff > 0);
         }
         finally { Directory.Delete(root, true); }
     }

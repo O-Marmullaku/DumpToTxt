@@ -89,10 +89,16 @@ public static class SecretScanner
             Rx = R(@"\bSG\.[0-9A-Za-z\-_]{22}\.[0-9A-Za-z\-_]{43}\b") },
         new() { Id = "private-key", Name = "Private key (PEM)",
             // Match the WHOLE block (header..END) so redaction removes the key MATERIAL, not just the header.
-            // When the END marker is missing (a key truncated by a size cap, or a headerless fragment), fall
-            // back to consuming the rest of the content — redacting to EOF errs safe (never leaks key bytes).
+            // When the END marker is missing (a key truncated by a size cap, or a headerless example), DON'T
+            // consume to EOF — that destroys benign docs that merely mention the header (e.g. a README with a
+            // "-----BEGIN PRIVATE KEY-----" / "<your key here>" placeholder). Instead bound the END-less
+            // fallback to the PEM body that actually follows: whole-line base64 runs (ANY length + optional
+            // trailing whitespace, so a short final remnant or a stray trailing space can't leak key bytes),
+            // encrypted-key headers (Proc-Type:/DEK-Info:), and blank lines, stopping at the first prose line.
+            // Redacts real key bytes while leaving surrounding prose intact.
             Rx = R(@"-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----" +
-                   @"(?:[\s\S]*?-----END (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----|[\s\S]*)") },
+                   @"(?:[\s\S]*?-----END (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----" +
+                   @"|(?:\r?\n[ \t]*(?:[A-Za-z0-9+/=]+[ \t]*(?=\r?\n|$)|[A-Za-z][\w-]*:[ \t]*\S.*)?)*)") },
         // Generic "key/secret/token/password = <value>" assignment. Higher false-positive risk than the
         // vendor rules, so it's deliberately tight: a known keyword, an assignment, then a quoted 16+ char
         // value. Group 1 (the value) is what gets reported/redacted. Allowlist any false positives.
@@ -112,7 +118,8 @@ public static class SecretScanner
 
     /// <summary>Scans <paramref name="content"/> and returns the detected secrets (sorted by position,
     /// non-overlapping, longest-match-wins). <paramref name="entropy"/> enables the generic high-entropy
-    /// detector; <paramref name="allowlist"/> regexes suppress any finding whose matched text matches one.</summary>
+    /// detector; <paramref name="allowlist"/> regexes suppress a finding whose detected secret VALUE matches
+    /// one (for key=value rules that is the narrowed value span, NOT the key name or the surrounding line).</summary>
     public static IReadOnlyList<SecretFinding> Scan(string content, bool entropy, IReadOnlyList<Regex>? allowlist = null)
     {
         if (string.IsNullOrEmpty(content)) return Array.Empty<SecretFinding>();
@@ -133,6 +140,15 @@ public static class SecretScanner
         {
             if (a.Start != b.Start) return a.Start.CompareTo(b.Start);
             if (a.Length != b.Length) return b.Length.CompareTo(a.Length);
+            // Same span, different rules: keep the higher-confidence (vendor/PEM) rule over a high-FP generic/
+            // entropy one. A vendor token in an assignment (e.g. token = "ghp_…") matches BOTH the vendor rule
+            // and generic-secret-assign on the identical value span; the loser is dropped as an overlap, so the
+            // winner determines both attribution (the [REDACTED:rule] marker) and the Skip whole-file decision
+            // (OmitsWholeFile keys on the rule's confidence). Vendor must win or a real key in `key = "…"` form
+            // would be misclassified generic-only and kept under Skip instead of dropped.
+            bool aHigh = !HighFalsePositiveRules.Contains(a.Id);
+            bool bHigh = !HighFalsePositiveRules.Contains(b.Id);
+            if (aHigh != bHigh) return aHigh ? -1 : 1;
             return string.CompareOrdinal(a.Id, b.Id);
         });
 
@@ -252,15 +268,45 @@ public static class SecretScanner
         return $"{prefix}…({secret.Length} chars)";
     }
 
+    // Detectors with a materially higher false-positive rate. Under Skip we redact only THEIR spans rather
+    // than dropping the whole file, so a placeholder/example FP (e.g. API_KEY="REPLACE_ME" in a .env.example)
+    // can't silently delete a legitimate file's entire content. Vendor/PEM findings still skip the whole file.
+    private static readonly HashSet<string> HighFalsePositiveRules =
+        new(StringComparer.Ordinal) { "generic-secret-assign", EntropyRuleId };
+
+    private static bool HasHighConfidenceFinding(IReadOnlyList<SecretFinding> secrets)
+    {
+        foreach (var s in secrets) if (!HighFalsePositiveRules.Contains(s.RuleId)) return true;
+        return false;
+    }
+
+    /// <summary>True when <paramref name="f"/>'s content is fully omitted under Skip: Skip mode + at least one
+    /// high-confidence (vendor/PEM) finding. A file whose only findings come from the high-FP generic/entropy
+    /// detectors is redacted span-wise instead, so a placeholder FP never drops a whole legitimate file.</summary>
+    public static bool OmitsWholeFile(DumpFile f, SecretScanMode mode) =>
+        mode == SecretScanMode.Skip && HasHighConfidenceFinding(f.Secrets);
+
     /// <summary>The content to actually emit for a file under <paramref name="mode"/>: the original (Off/Warn),
-    /// a redacted copy (Redact), or empty with <paramref name="skipped"/>=true (Skip + file has secrets).
+    /// a redacted copy (Redact), or empty with <paramref name="skipped"/>=true (Skip + a high-confidence secret).
     /// Classic never calls this — its bytes stay pristine.</summary>
-    public static string ContentForOutput(DumpFile f, SecretScanMode mode, out bool skipped)
+    public static string ContentForOutput(DumpFile f, SecretScanMode mode, out bool skipped) =>
+        ContentForOutput(f.Content, f.Secrets, mode, out skipped);
+
+    /// <summary>Content-based core of <see cref="ContentForOutput(DumpFile, SecretScanMode, out bool)"/>; the
+    /// engine reuses it to count tokens on the EMITTED body. Skip omits the whole file (<paramref name="skipped"/>
+    /// =true) only when a high-confidence secret is present — otherwise (generic/entropy FPs only) it redacts the
+    /// spans and keeps the file.</summary>
+    public static string ContentForOutput(string content, IReadOnlyList<SecretFinding> secrets,
+        SecretScanMode mode, out bool skipped)
     {
         skipped = false;
-        if (f.Secrets.Count == 0 || mode is SecretScanMode.Off or SecretScanMode.Warn) return f.Content;
-        if (mode == SecretScanMode.Skip) { skipped = true; return ""; }
-        return Redact(f.Content, f.Secrets);
+        if (secrets.Count == 0 || mode is SecretScanMode.Off or SecretScanMode.Warn) return content;
+        if (mode == SecretScanMode.Skip)
+        {
+            if (HasHighConfidenceFinding(secrets)) { skipped = true; return ""; }
+            return Redact(content, secrets);   // only high-FP generic/entropy hits -> redact spans, keep the file
+        }
+        return Redact(content, secrets);
     }
 
     /// <summary>Returns <paramref name="content"/> with each finding's span replaced by a

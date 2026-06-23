@@ -158,6 +158,20 @@ public class P3IgnoreEngineTests
     }
 
     [Fact]
+    public void Glob_NegatedBracketClass_LeadingHyphen_NotTreatedAsRange()
+    {
+        // Regression: prepending '/' to a negated set must not turn a LEADING literal '-' into a range
+        // operator. "[!-a]" = "any char except '-' and 'a' (and never '/')"; the buggy "[^/-a]" parsed
+        // '/-a' as the range 0x2F..0x61, wrongly excluding digits and uppercase letters.
+        var m = Matcher(exclude: new() { "x[!-a]y" });
+        Assert.True(m.IsExcluded("xZy", "xZy", false));    // 'Z' (0x5A) is inside /..a but must still match
+        Assert.True(m.IsExcluded("x5y", "x5y", false));    // a digit too
+        Assert.False(m.IsExcluded("xay", "xay", false));   // excluded member 'a'
+        Assert.False(m.IsExcluded("x-y", "x-y", false));   // excluded member '-'
+        Assert.False(m.IsExcluded("x/y", "x/y", false));   // separator never matches
+    }
+
+    [Fact]
     public void Glob_BracketClass_LiteralSlash_DoesNotMatchSeparator()
     {
         // A gitignore bracket expression never matches the '/' path separator, even when '/' is a member.

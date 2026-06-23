@@ -14,6 +14,9 @@ public sealed class DumpResult
     public int SecretFindingCount { get; init; }
     /// <summary>Number of files that carried at least one secret finding.</summary>
     public int FilesWithSecrets { get; init; }
+    /// <summary>Number of files whose ENTIRE content was omitted from the output under Skip mode (a
+    /// high-confidence secret was present). 0 for Classic and for the other modes.</summary>
+    public int FilesContentOmitted { get; init; }
 }
 
 /// <summary>
@@ -90,6 +93,13 @@ public sealed class DumpEngine
         if (outPath != null)
             File.WriteAllText(outPath, text, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
 
+        // How many files had their whole content omitted (Skip + a high-confidence secret) — surfaced in the
+        // post-dump notice so the loss isn't silent. Never happens for Classic (it doesn't sanitize).
+        int filesContentOmitted = 0;
+        if (cfg.Style != OutputStyle.Classic && cfg.SecretScan == SecretScanMode.Skip)
+            foreach (var f in model.Files)
+                if (SecretScanner.OmitsWholeFile(f, cfg.SecretScan)) filesContentOmitted++;
+
         return new DumpResult
         {
             OutputPath = outPath,
@@ -97,6 +107,7 @@ public sealed class DumpEngine
             FilesIncluded = model.Files.Count,
             SecretFindingCount = model.SecretFindingCount,
             FilesWithSecrets = model.FilesWithSecrets,
+            FilesContentOmitted = filesContentOmitted,
         };
     }
 
@@ -253,17 +264,25 @@ public sealed class DumpEngine
         string content = truncated ? SafeReadText(fi.FullName, allowed) : SafeReadText(fi.FullName);
         if (totalBudget != long.MaxValue) totalBudget -= truncated ? allowed : size;
 
-        // Token count reflects what's actually dumped (post-truncation). Skipped for the Classic style with
-        // no budget — Classic never renders counts, so tokenizing every file there would be pure waste.
-        int tokens = (cfg.Style != OutputStyle.Classic || cfg.MaxTokens > 0)
-            ? TokenCounter.Count(content, cfg.TokenEncoding) : 0;
-
         // Scan the dumped (post-truncation) content for secrets. Runs regardless of style when enabled so the
         // count surfaces in the post-dump notice even for Classic; Classic output itself is never altered
         // (redact/skip is a render-time transform the non-Classic formatters apply — see SecretScanner).
+        // Post-truncation scanning under-detects a secret straddling the cap boundary (its clipped prefix can
+        // survive Redact) — accepted: a partial token is unusable and PEM keys redact via the END-less fallback.
         var secrets = cfg.SecretScan != SecretScanMode.Off
             ? SecretScanner.Scan(content, cfg.SecretScanEntropy, secretAllowlist)
             : Array.Empty<SecretFinding>();
+
+        // Token count must describe what's actually EMITTED. For non-Classic Redact/Skip the emitted body
+        // differs from the source (spans redacted, or the whole file omitted), so count the sanitized body —
+        // otherwise the per-file/total/over-budget figures would describe content the dump never contains.
+        // Classic never sanitizes; Off/Warn emit as-is. Skipped for Classic-with-no-budget (counts unused there).
+        string emitted = (secrets.Count > 0 && cfg.Style != OutputStyle.Classic
+            && cfg.SecretScan is SecretScanMode.Redact or SecretScanMode.Skip)
+            ? SecretScanner.ContentForOutput(content, secrets, cfg.SecretScan, out _)
+            : content;
+        int tokens = (cfg.Style != OutputStyle.Classic || cfg.MaxTokens > 0)
+            ? TokenCounter.Count(emitted, cfg.TokenEncoding) : 0;
 
         return new DumpFile { FullName = fi.FullName, RelativePath = rel, Content = content, Size = size, IsTruncated = truncated, TokenCount = tokens, Secrets = secrets };
     }

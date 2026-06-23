@@ -284,15 +284,17 @@ public sealed class SettingsForm : Form
         var lblModeHint = new Label
         {
             Text = "Off = no scan. Warn = flag + count, content untouched. Redact = replace each secret with "
-                 + "[REDACTED]. Skip = drop the whole file's content. Redact/Skip apply to the non-Classic "
-                 + "styles only — Classic output stays byte-identical; findings still appear in the post-dump notice.",
-            Left = 12, Top = 46, Width = 720, Height = 60,
+                 + "[REDACTED]. Skip = drop the file's content (a file whose only hits are from the generic/"
+                 + "entropy detectors is redacted instead of dropped). Redact/Skip apply to the non-Classic "
+                 + "styles only — Classic output stays byte-identical; findings still appear in the post-dump "
+                 + "notice. Only file CONTENT is scanned — secrets in file/directory NAMES are not detected.",
+            Left = 12, Top = 46, Width = 720, Height = 76,
         };
 
-        _chkSecretEntropy.SetBounds(12, 116, 500, 24);
+        _chkSecretEntropy.SetBounds(12, 130, 500, 24);
 
-        var lblAllow = new Label { Text = "Allowlist — one regex per line (a finding whose match text matches is dropped):", Left = 12, Top = 150, Width = 720 };
-        _tbSecretAllow.SetBounds(12, 173, 720, 170);
+        var lblAllow = new Label { Text = "Allowlist — one regex per line (matches the detected secret VALUE, not the key name or line):", Left = 12, Top = 164, Width = 720 };
+        _tbSecretAllow.SetBounds(12, 187, 720, 156);
 
         tab.Controls.Add(lblMode);
         tab.Controls.Add(_cmbSecretScan);

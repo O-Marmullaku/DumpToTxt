@@ -71,8 +71,9 @@ public sealed class DumpConfig
     /// Off by default — it is the noisy detector (hashes / base64 assets can trip it).</summary>
     public bool SecretScanEntropy { get; set; }
 
-    /// <summary>Regex patterns that suppress a finding whose matched text matches one (false-positive
-    /// allowlist). Empty by default.</summary>
+    /// <summary>Regex patterns that suppress a finding whose detected secret VALUE matches one (for key=value
+    /// rules that is the narrowed value span, not the key name or surrounding line). False-positive allowlist;
+    /// empty by default.</summary>
     public List<string> SecretAllowlist { get; set; } = new();
 
     /// <summary>Transient (NOT persisted to settings.json): when true the dump is restricted to files
