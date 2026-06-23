@@ -1,6 +1,9 @@
 # DumpToTxt — Roadmap
 
-Cursor: **P7 (GUI preview pane) is next.** P0–P6 + P9 (3-flavor build) committed (P6 = 8a4910d).
+Cursor: **P7 (GUI preview pane) is next.** P0–P6 + P9 (3-flavor build) committed (P6 = 8a4910d, P6 review
+fixes = ab96bef). The P6 fresh-eyes review fixes (A/B/C/D + E/F/G docs + 2 bugs the review itself caught,
++12 tests → 126/126, build 0/0) are **committed and pushed**. P7 is **decision-heavy — decide with the
+user first** (see the P7 section's open decisions).
 
 > Note: P9 (build & distribution) **partially landed early** at the user's request (small downloads → 3 flavors). The repomix-parity *features* that define the product — **P2–P8** — are still the bulk of the work; packaging progress ≠ product progress.
 
@@ -83,8 +86,23 @@ Legend: ✅ done · 🚧 in progress · ⬜ todo
 - **Classic stays golden byte-identical** (never reads `Secrets`; redaction is render-time, non-Classic only) — no new golden.
 - 114/114 xUnit (per-rule fixtures, all 3 actions × all 4 non-Classic styles, headerless-PEM full-redact,
   entropy off-by-default, allowlist, config round-trip+back-compat, Classic byte-stable). Self-reviewed (Claude
-  carryover + P6 passes); **Codex owed ×3** (capped). Carryover bracket-class `/` bug fixed + regression test.
-- Known limitation (follow-up): secrets in **filenames/paths** are not scanned (content-only).
+  carryover + P6 passes); Carryover bracket-class `/` bug fixed + regression test.
+- **Fresh-eyes review fixes (committed ab96bef):** two reviews across two sessions — Codex (gpt-5.5, not
+  capped) + a Claude adversarial workflow — fixed 6 real issues + documented 3, **114 → 126 tests**, build 0/0:
+  - **A** PEM END-less fallback over-redacted benign docs to EOF → bounded to a base64/PEM-line anchor; the
+    review then found the bounded form *leaked* key bytes under Redact (a `<16` final remnant / a trailing
+    space) → final form redacts any-length base64 + trailing WS, no leak (ReDoS-safe).
+  - **B** Skip dropped a whole file on one generic-rule FP (`.env.example` placeholder) → Skip now redacts
+    spans for generic/entropy-only hits; whole-file omit reserved for vendor/PEM (+ omitted-count in the notice).
+    The review also found a same-span vendor+generic overlap defeated this (`key = "ghp_…"` kept under Skip) →
+    confidence-aware tiebreak makes the vendor rule win.
+  - **C** token counts described the pre-sanitization source → now counted on the emitted (redacted/skipped) body.
+  - **D** the P6 bracket fix itself regressed `[!-a]` (`[^/-a]` = range) → escape a leading `-`.
+  - **E/F/G** documented: allowlist matches the secret VALUE not the key; truncation-straddle under-detection;
+    filenames/paths not scanned (content-only).
+- Codex cross-review still owed ×2 (P4-fix cddd7cd, P5 7ebb825) — only P6 was re-run.
+- Known limitation (follow-up): secrets in **filenames/paths** are not scanned (content-only); a bare PEM-header
+  *mention* (no body) is a high-confidence finding, so under Skip it drops the file — possible refinement.
 
 ## ⬜ P7 — GUI preview pane
 - Tree + live token count + **secret findings** + preview of the pack before save/copy.
