@@ -13,7 +13,7 @@ Legend: ✅ done · 🚧 in progress · ⬜ todo
 ---
 
 ## ✅ P0 — Spec & scaffold
-- North Star + Roadmap + State docs.
+- North Star + Roadmap + Context docs.
 - .NET 8 solution: `DumpToTxt.Core` (engine, GUI-agnostic) · `DumpToTxt.App` (WinForms) · `DumpToTxt.Tests` (xUnit).
 - Legacy `DumpToTxt.ps1` preserved under `legacy/`.
 - `build.ps1` (self-contained single-file publish + optional installer).
@@ -30,7 +30,7 @@ Legend: ✅ done · 🚧 in progress · ⬜ todo
 - Directory **tree** + summary **header** for non-Classic styles (shared `DirectoryTree`).
 - Output targets: **clipboard** + stdout + file (`OutputTarget`); configurable output dir (`OutputDir`).
 - GUI Output group: style + target pickers + folder browse; persists + round-trips via `ConfigStore`.
-- 22/22 xUnit (golden + per-formatter validity + config round-trip). Classic FILE CONTENTS byte-identical to v2-P1; DIRECTORY LIST now sorted OrdinalIgnoreCase (P1 used enumeration order) — intentional determinism change (see STATE Decisions).
+- 22/22 xUnit (golden + per-formatter validity + config round-trip). Classic FILE CONTENTS byte-identical to v2-P1; DIRECTORY LIST now sorted OrdinalIgnoreCase (P1 used enumeration order) — intentional determinism change (see CONTEXT Decisions).
 - Deferred to an ISCC session: installer-side style/target pickers + installer hardening (`to-do-for-human.md`). GUI already lets users choose today.
 
 ## ✅ P3 — Ignore / include engine

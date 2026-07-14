@@ -1,5 +1,5 @@
-# STATE.md — DumpToTxt
-_Updated: 2026-06-23 · Phase: P6 RE-review fix COMMITTED (883f5f4) · next P7 · Baseline: build 0/0, tests 132/132 · HEAD: 883f5f4 (`fix: P6 re-review` — PEM Redact leak + over-eat) + this docs wrap_
+# CONTEXT — DumpToTxt
+> **Frozen context — bug analysis, fixes & decisions, not a live status file.** Live state = `git log` + `docs/ROADMAP.md`. (Renamed from STATE.md, 2026-07-15.)
 
 ## We are here
 v2 is a C#/.NET 8 (WinForms) rewrite of the old PowerShell tool, on GitHub (`main`). P0–P6 + P9 (3-flavor build) are **committed**. The engine walks a target once into a `DumpModel` and dispatches to an `IDumpFormatter` per `OutputStyle` (Classic golden-pinned; Plain/Markdown/XML/JSON). P3 ignore, P4 resolver/presets, P5 token counting, P6 secret scan all in.

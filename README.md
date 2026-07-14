@@ -68,7 +68,7 @@ DumpToTxt/
 ├── installer/                # Inno Setup script
 ├── assets/                   # icons, installer-images, screenshots
 ├── dist/                     # build outputs (gitignored)
-├── docs/                     # north star, roadmap, state
+├── docs/                     # north star, roadmap, context
 ├── build.ps1                 # publish + (optional) installer
 └── README.md
 ```
