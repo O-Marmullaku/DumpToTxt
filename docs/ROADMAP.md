@@ -1,6 +1,7 @@
 # DumpToTxt — Roadmap
 
-Cursor: **P7 (GUI preview pane) is next.** P0–P6 + P9 (3-flavor build) committed (P6 = 8a4910d, P6 review
+Cursor: **P7 (review workspace) is implemented in the working tree.** The live text-size contribution tree, run-only path exclusions,
+and on-demand output preview are present. P0–P6 + P9 (3-flavor build) committed (P6 = 8a4910d, P6 review
 fixes = ab96bef, **P6 re-review fix = 883f5f4**). A further fresh-eyes re-review of ab96bef found 2 HIGH
 bugs in the new END-less PEM fallback (Redact-only key LEAK on a trailing-WS header + unbounded colon/YAML
 prose OVER-EAT) — fixed in 883f5f4, +6 tests → **132/132, build 0/0**, gate-tested. P7 is **decision-heavy
@@ -114,8 +115,12 @@ Legend: ✅ done · 🚧 in progress · ⬜ todo
   Residuals in the END-less Redact fallback (low realism, documented in the rule): a lone base64-word line right
   after the header is over-redacted (bounded); a body line with an internal space leaks.
 
-## ⬜ P7 — GUI preview pane
-- Tree + live token count + **secret findings** + preview of the pack before save/copy.
+## ✅ P7 — Review workspace
+- ✅ Explorer target invocations open a responsive pre-dump window with a progressive contribution tree.
+- ✅ Essential / All text / Map only; tri-state per-file/folder inclusion; largest-first text contribution.
+- ✅ Bounded real-content preview; separate format/layout choice; clipboard or selected-folder destination.
+- ✅ Last run choices persist; run-only path exclusions do not. Shift forces review when the screen is skipped.
+- ✅ Clean text, Markdown (including AI-friendly), JSON, XML, and navigable `.docx` output.
 
 ## ⬜ P8 — Power features
 - Code compression (Tree-sitter, signatures only); comment / empty-line removal; line numbers.
@@ -127,7 +132,9 @@ Legend: ✅ done · 🚧 in progress · ⬜ todo
   - **compact** — .NET framework-dependent single-file, 1.07 MB, needs .NET 8 Desktop Runtime.
   - **lite** — PowerShell via ps2exe, 0.49 MB, Classic-only, zero-install.
 - ✅ Flavor-parameterized installer (`ISCC /DFlavor=...` → `DumpToTxt-Setup-<flavor>.exe`), compact flavor checks for the runtime and points the user to the download.
-- ⬜ Actually build the installers (needs Inno Setup / ISCC) and test compact on a machine without .NET 8.
+- ✅ Simplified maintenance installer compiles with Inno Setup 6.7.3 as `dist\DumpToTxt-Setup-full.exe`.
+- ⬜ On a disposable VM, test update/reinstall, uninstall, and both settings retention/removal choices.
+- ⬜ Build/test the compact and lite installers; test compact on a machine without .NET 8.
 - ⬜ Auto-download the .NET runtime in the compact installer (currently guided-manual).
 - ⬜ LICENSE · GitHub Release with all three flavors · (optional) Actions CI on tag.
 - ⬜ Optional: MCP server mode.

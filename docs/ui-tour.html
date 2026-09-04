@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0b1420">
+  <link rel="icon" href="../assets/icons/DumpToTxt.ico">
+  <title>DumpToTxt UI tour</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #0b1420;
+      --nav: #101d2c;
+      --surface: #152336;
+      --surface-raised: #1a2b40;
+      --line: #2c4058;
+      --text: #f4f7fb;
+      --muted: #aebed2;
+      --accent: #68a8ff;
+      --accent-strong: #0b62c9;
+      --focus: #91c2ff;
+      --shadow: 0 18px 55px rgba(0, 0, 0, .34);
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { min-width: 320px; background: var(--page); }
+    body { margin: 0; min-height: 100vh; color: var(--text); background: var(--page); }
+    button, a { font: inherit; touch-action: manipulation; -webkit-tap-highlight-color: rgba(104, 168, 255, .24); }
+    button { color: inherit; }
+    ::selection { color: #07111e; background: #9fcaff; }
+    :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+
+    .skip-link {
+      position: fixed;
+      z-index: 20;
+      top: 12px;
+      left: 12px;
+      padding: 9px 12px;
+      color: #07111e;
+      background: #fff;
+      border-radius: 5px;
+      transform: translateY(-150%);
+    }
+    .skip-link:focus { transform: none; }
+
+    .tour-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 258px minmax(0, 1fr);
+    }
+
+    .tour-nav {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 18px 18px;
+      overflow: auto;
+      background: var(--nav);
+      border-right: 1px solid var(--line);
+    }
+
+    .tour-brand { display: flex; align-items: center; gap: 11px; }
+    .tour-brand img { width: 34px; height: 34px; object-fit: contain; }
+    .tour-brand strong { display: block; font-size: 16px; }
+    .tour-brand span { display: block; margin-top: 1px; color: var(--muted); font-size: 12px; }
+    .tour-intro { margin: 22px 2px 17px; color: #c6d2e1; font-size: 13px; line-height: 1.55; }
+
+    .step-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+    .step-jump {
+      width: 100%;
+      min-height: 46px;
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      align-items: center;
+      gap: 9px;
+      padding: 7px 9px;
+      color: #c5d1df;
+      text-align: left;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .step-jump:hover { color: #fff; background: #192a3e; }
+    .step-jump[aria-current="step"] { color: #fff; background: #203650; border-color: #3c5877; }
+    .step-number {
+      width: 25px;
+      height: 25px;
+      display: grid;
+      place-items: center;
+      color: #c6d7eb;
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      border: 1px solid #48627d;
+      border-radius: 50%;
+    }
+    .step-jump[aria-current="step"] .step-number { color: #07111e; background: var(--accent); border-color: var(--accent); }
+    .step-name { overflow: hidden; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+    .tour-nav-footer { margin: auto 2px 0; padding-top: 20px; color: #90a4bd; font-size: 11px; line-height: 1.55; }
+
+    .tour-main { min-width: 0; display: flex; flex-direction: column; }
+    .guide-bar {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 30px;
+      min-height: 154px;
+      padding: 25px clamp(22px, 4vw, 54px) 21px;
+      background: #101d2c;
+      border-bottom: 1px solid var(--line);
+    }
+    .guide-copy { max-width: 720px; }
+    .guide-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; color: var(--muted); font-size: 12px; }
+    .guide-meta strong { color: var(--accent); font-variant-numeric: tabular-nums; }
+    .guide-meta span::before { content: ""; display: inline-block; width: 18px; margin: 0 10px 3px 0; border-top: 1px solid #56718f; }
+    h1 { margin: 0; font-size: clamp(23px, 3vw, 35px); line-height: 1.12; letter-spacing: -.025em; text-wrap: balance; }
+    .guide-copy p { max-width: 70ch; margin: 8px 0 0; color: #c5d2e1; font-size: 14px; line-height: 1.55; }
+
+    .guide-actions { flex: 0 0 auto; display: flex; gap: 8px; }
+    .button {
+      min-height: 44px;
+      padding: 7px 14px;
+      color: #eaf1f9;
+      background: var(--surface-raised);
+      border: 1px solid #48617e;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .button:hover { background: #233952; border-color: #617d9c; }
+    .button:active { transform: translateY(1px); }
+    .button:disabled { color: #708399; background: #172536; border-color: #30445a; cursor: not-allowed; transform: none; }
+    .button.primary { background: var(--accent-strong); border-color: #2f86ec; font-weight: 700; }
+    .button.primary:hover { background: #0a55b3; }
+
+    .stage {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      padding: clamp(14px, 2vw, 16px);
+      background: radial-gradient(circle at 50% 0%, rgba(62, 105, 153, .13), transparent 45%), var(--page);
+    }
+
+    .capture-card { width: min(100%, 920px); margin: 0; }
+    .capture-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .capture-toolbar strong { color: #dbe7f4; font-weight: 600; }
+    .capture-links { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px 16px; }
+    .capture-link { color: #b9d8ff; text-underline-offset: 3px; }
+    .capture-link:hover { color: #fff; }
+
+    .capture-viewport {
+      position: relative;
+      overflow: auto;
+      background: #0a1018;
+      border: 1px solid #3b5068;
+      border-radius: 7px;
+      box-shadow: var(--shadow);
+      scrollbar-color: #506b88 #152336;
+      overscroll-behavior: contain;
+    }
+    .capture-stage { position: relative; width: 100%; min-width: 720px; line-height: 0; }
+    .program-capture { display: block; width: 100%; height: auto; user-select: none; }
+    .capture-hotspot {
+      position: absolute;
+      z-index: 2;
+      border: 3px solid #1681f5;
+      border-radius: 5px;
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, .95), 0 7px 24px rgba(0, 0, 0, .28);
+      pointer-events: none;
+    }
+    .capture-hotspot::after {
+      content: attr(data-label);
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      max-width: min(330px, 70vw);
+      padding: 7px 10px;
+      color: #fff;
+      font: 600 12px/1.35 "Segoe UI", system-ui, sans-serif;
+      white-space: nowrap;
+      background: #0c2138;
+      border: 1px solid #5f86ae;
+      border-radius: 4px;
+      box-shadow: 0 7px 20px rgba(0, 0, 0, .32);
+    }
+    .capture-hotspot.label-above::after { top: auto; bottom: calc(100% + 8px); }
+    .capture-hotspot.label-inside::after { top: 8px; left: 8px; bottom: auto; }
+    .capture-caption { margin: 12px 2px 0; color: #aebed2; font-size: 12px; line-height: 1.5; }
+    .capture-caption strong { color: #e5edf7; }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 920px) {
+      .tour-shell { display: block; }
+      .tour-nav { position: static; height: auto; padding: 12px 14px; border-right: 0; border-bottom: 1px solid var(--line); }
+      .tour-brand img { width: 30px; height: 30px; }
+      .tour-intro, .tour-nav-footer { display: none; }
+      .step-list { display: flex; margin-top: 11px; overflow-x: auto; scrollbar-width: thin; }
+      .step-list li { flex: 0 0 auto; }
+      .step-jump { width: auto; min-height: 44px; grid-template-columns: 23px auto; padding: 7px 9px; }
+      .step-number { width: 22px; height: 22px; }
+      .guide-bar { min-height: 0; align-items: start; padding: 20px; }
+      .guide-copy p { font-size: 13px; }
+      .stage { display: block; padding: 18px; }
+    }
+
+    @media (max-width: 620px) {
+      .guide-bar { display: grid; gap: 17px; }
+      .guide-actions { width: 100%; }
+      .guide-actions .button { flex: 1; }
+      .capture-stage { min-width: 690px; }
+      .capture-hotspot::after { min-width: 210px; white-space: normal; }
+      .capture-toolbar { align-items: start; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .001ms !important; animation-duration: .001ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <!--
+  THESIS: Teach the current product through executable evidence; refuse a browser-made imitation of the WinForms interface.
+  OWN-WORLD: Dark documentation chrome recedes around untouched native Windows captures, with one precise blue inspection frame.
+  STORY: See the real scan, remove noise, choose the artifact, inspect output, then understand settings and advanced controls.
+  FIRST VIEWPORT: Six workflow steps sit beside one large current-program capture; the active product region is visibly framed.
+  FORM: Screenshot-led product tour approved after the native build; seed DTT-TOUR-ACTUAL-PROGRAM.
+  FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+  -->
+  <a class="skip-link" href="#tour-main">Skip to tour content</a>
+  <div class="tour-shell">
+    <nav class="tour-nav" aria-label="Tour steps">
+      <div class="tour-brand">
+        <img src="../assets/icons/DumpToTxt.ico" alt="" width="34" height="34" fetchpriority="high">
+        <div><strong>DumpToTxt</strong><span>Actual program tour</span></div>
+      </div>
+      <p class="tour-intro">A concise walkthrough recorded directly from the current Windows application while it scans this repository.</p>
+      <ol class="step-list" id="step-list"></ol>
+      <p class="tour-nav-footer">Recorded from DumpToTxt 2.0.0. The highlighted regions are tour annotations; the interface beneath them is the real application.</p>
+    </nav>
+
+    <main class="tour-main" id="tour-main">
+      <header class="guide-bar">
+        <div class="guide-copy">
+          <div class="guide-meta"><strong id="tour-status">1 of 6</strong><span id="tour-context">Review before creating</span></div>
+          <h1 id="tour-title">See what will enter the dump</h1>
+          <p id="tour-description">The review window scans the selected folder and ranks readable content by text size before anything is generated.</p>
+        </div>
+        <div class="guide-actions" aria-label="Tour controls">
+          <button class="button" id="previous-button" type="button">Previous</button>
+          <button class="button primary" id="next-button" type="button">Next</button>
+        </div>
+      </header>
+
+      <section class="stage" aria-label="Current DumpToTxt program captures">
+        <figure class="capture-card">
+          <div class="capture-toolbar">
+            <strong>Recorded from DumpToTxt 2.0.0</strong>
+            <span class="capture-links">
+              <a class="capture-link" id="open-capture" href="assets/ui-tour/review-map.png" target="_blank" rel="noreferrer">Open capture full size</a>
+              <a class="capture-link" href="assets/ui-tour/actual-vs-earlier-mockup.png" target="_blank" rel="noreferrer">Compare with earlier mockup</a>
+            </span>
+          </div>
+          <div class="capture-viewport" id="capture-viewport" tabindex="0" aria-label="Scrollable application screenshot">
+            <div class="capture-stage">
+              <img class="program-capture" id="program-capture" src="assets/ui-tour/review-map.png" alt="DumpToTxt review window showing a completed scan of the DumpToTXT repository" width="936" height="659" fetchpriority="high" decoding="async">
+              <div class="capture-hotspot" id="capture-hotspot" data-label="Contribution map" aria-hidden="true"></div>
+            </div>
+          </div>
+          <figcaption class="capture-caption" id="capture-caption"><strong>Actual state:</strong> scan complete, 2.4&nbsp;MB selected from the DumpToTXT repository.</figcaption>
+        </figure>
+      </section>
+    </main>
+  </div>
+
+  <div class="sr-only" id="live-update" aria-live="polite"></div>
+
+  <script>
+    const tourSteps = [
+      { id: 'scan', label: 'Review the scan', context: 'Review before creating', title: 'See what will enter the dump', description: 'The review window scans the selected folder and ranks readable content by text size before anything is generated.', capture: 'assets/ui-tour/review-map.png', dimensions: [936, 659], alt: 'DumpToTxt review window showing a completed scan of the DumpToTXT repository', caption: 'scan complete, 2.4&nbsp;MB selected from the DumpToTXT repository.', hotspot: [31, 15, 66, 76], callout: 'Contribution map', calloutPosition: 'inside' },
+      { id: 'tree', label: 'Remove noise', context: 'Make one-off exclusions', title: 'Deselect a file or an entire folder', description: 'The leftmost state control removes content from this run while keeping the excluded row visible and its contribution understandable.', capture: 'assets/ui-tour/review-exclusion.png', dimensions: [936, 659], alt: 'DumpToTxt contribution map with repomix-output.xml excluded from the current dump', caption: 'repomix-output.xml is excluded and the selected total drops from 2.4&nbsp;MB to 2.1&nbsp;MB.', hotspot: [31.5, 59.8, 65.2, 5.2], callout: 'Excluded from this run', above: true },
+      { id: 'choices', label: 'Shape and send', context: 'Choose the artifact', title: 'Choose format, layout, and destination', description: 'Format and layout are separate choices. Send the result to a file or copy it directly to the clipboard.', capture: 'assets/ui-tour/review-choices.png', dimensions: [936, 659], alt: 'DumpToTxt review window configured for Markdown readable-document output copied to the clipboard', caption: 'Markdown, Readable document, and Copy to clipboard are selected in the real review window.', hotspot: [2.4, 22, 27.7, 36], callout: 'Output choices', calloutPosition: 'inside' },
+      { id: 'preview', label: 'Inspect output', context: 'Preview on demand', title: 'Read the generated form before creating it', description: 'Preview replaces the contribution map only when requested. Back to content map returns to the unchanged selection.', capture: 'assets/ui-tour/review-preview.png', dimensions: [936, 659], alt: 'DumpToTxt Markdown output preview with Back to content map control', caption: 'the real Markdown preview is rendered from the repository scan and current inclusion choices.', hotspot: [31, 6.5, 66, 84], callout: 'Real output preview', calloutPosition: 'inside' },
+      { id: 'settings', label: 'Set defaults', context: 'Common choices first', title: 'Set everyday defaults without a long form', description: 'General keeps output, review behavior, and starting-point presets together. Saving applies the choices and closes the window in one action.', capture: 'assets/ui-tour/settings.png', dimensions: [880, 720], alt: 'DumpToTxt General settings tab with output, review, and starting-point sections', caption: 'the flat General tab and its single Save and close action in the current application.', hotspot: [3.4, 16.5, 93, 70], callout: 'Everyday defaults', calloutPosition: 'inside' },
+      { id: 'advanced', label: 'Tune content rules', context: 'Focused settings tabs', title: 'Keep detailed content rules organized', description: 'Content has its own tab for file endings, folders, inclusion patterns, and exclusions. Safety and size remains a separate third tab.', capture: 'assets/ui-tour/settings-content.png', dimensions: [880, 720], alt: 'DumpToTxt Content settings tab with file endings, folder rules, and path-pattern fields', caption: 'the Content tab separates four related rule groups without cards, accordion controls, or a long scrolling page.', hotspot: [3.4, 16.5, 93, 69], callout: 'Content rules', calloutPosition: 'inside' }
+    ];
+
+    const state = { step: 0 };
+    const $ = selector => document.querySelector(selector);
+    const $$ = selector => [...document.querySelectorAll(selector)];
+
+    function renderStepList() {
+      $('#step-list').innerHTML = tourSteps.map((step, index) => `
+        <li><button class="step-jump" type="button" data-step="${index}" aria-label="Go to tour step ${index + 1}: ${step.label}">
+          <span class="step-number">${index + 1}</span><span class="step-name">${step.label}</span>
+        </button></li>`).join('');
+      $$('.step-jump').forEach(button => button.addEventListener('click', () => goToStep(Number(button.dataset.step), true)));
+    }
+
+    function applyStep(step) {
+      $('#tour-status').textContent = `${state.step + 1} of ${tourSteps.length}`;
+      $('#tour-context').textContent = step.context;
+      $('#tour-title').textContent = step.title;
+      $('#tour-description').textContent = step.description;
+      const capture = $('#program-capture');
+      capture.width = step.dimensions[0];
+      capture.height = step.dimensions[1];
+      capture.src = step.capture;
+      capture.alt = step.alt;
+      $('#open-capture').href = step.capture;
+      $('#capture-caption').innerHTML = `<strong>Actual state:</strong> ${step.caption}`;
+
+      const hotspot = $('#capture-hotspot');
+      const [left, top, width, height] = step.hotspot;
+      Object.assign(hotspot.style, { left: `${left}%`, top: `${top}%`, width: `${width}%`, height: `${height}%` });
+      hotspot.dataset.label = step.callout;
+      hotspot.classList.toggle('label-above', step.above === true);
+      hotspot.classList.toggle('label-inside', step.calloutPosition === 'inside');
+
+      $$('.step-jump').forEach((button, index) => {
+        if (index === state.step) button.setAttribute('aria-current', 'step');
+        else button.removeAttribute('aria-current');
+      });
+      $('#previous-button').disabled = state.step === 0;
+      $('#next-button').textContent = state.step === tourSteps.length - 1 ? 'Restart tour' : 'Next';
+      $('#live-update').textContent = `Tour step ${state.step + 1} of ${tourSteps.length}: ${step.title}`;
+    }
+
+    function goToStep(index, moveFocus = false) {
+      state.step = Math.max(0, Math.min(tourSteps.length - 1, index));
+      const step = tourSteps[state.step];
+      applyStep(step);
+      if (location.hash !== `#${step.id}`) history.replaceState(null, '', `#${step.id}`);
+      if (moveFocus) $('#tour-title').setAttribute('tabindex', '-1');
+      if (moveFocus) $('#tour-title').focus({ preventScroll: true });
+    }
+
+    $('#previous-button').addEventListener('click', () => goToStep(state.step - 1));
+    $('#next-button').addEventListener('click', () => goToStep(state.step === tourSteps.length - 1 ? 0 : state.step + 1));
+    window.addEventListener('hashchange', () => {
+      const requested = tourSteps.findIndex(step => `#${step.id}` === location.hash);
+      if (requested >= 0) goToStep(requested);
+    });
+
+    renderStepList();
+    if (location.hash === '#metrics') history.replaceState(null, '', '#tree');
+    const requested = tourSteps.findIndex(step => `#${step.id}` === location.hash);
+    goToStep(requested >= 0 ? requested : 0);
+  </script>
+</body>
+</html>

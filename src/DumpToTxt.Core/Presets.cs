@@ -20,7 +20,7 @@ public static class Presets
     public static readonly Preset Classic = new()
     {
         Name = "Classic",
-        Description = "The original .txt layout with strict legacy file selection (no .gitignore / binary skipping).",
+        Description = "Original text output without ignore files or binary checks.",
         Apply = c =>
         {
             c.Style = OutputStyle.Classic;
@@ -36,7 +36,7 @@ public static class Presets
     public static readonly Preset Frontend = new()
     {
         Name = "Frontend",
-        Description = "Web/UI source only: js, jsx, ts, tsx, vue, svelte, css, scss, html, json.",
+        Description = "Web files: .js, .jsx, .ts, .tsx, .vue, .svelte, .css, .scss, .html, .json.",
         Apply = c =>
         {
             c.ExtSet = new() { ".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte", ".css", ".scss", ".html", ".json" };
@@ -48,7 +48,7 @@ public static class Presets
     public static readonly Preset DocsOnly = new()
     {
         Name = "Docs only",
-        Description = "Documentation only: md, mdx, txt, rst, adoc.",
+        Description = "Document files: .md, .mdx, .txt, .rst, .adoc.",
         Apply = c =>
         {
             c.ExtSet = new() { ".md", ".mdx", ".txt", ".rst", ".adoc" };
@@ -60,7 +60,7 @@ public static class Presets
     public static readonly Preset ChangedFiles = new()
     {
         Name = "Changed files",
-        Description = "Only files changed since the last git commit (normal dump when not in a git repo).",
+        Description = "Files changed since the last Git commit. Uses a normal dump outside a Git repository.",
         Apply = c => c.OnlyGitChanged = true,
     };
 

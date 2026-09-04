@@ -19,12 +19,15 @@ public sealed class IgnoreMatcher
     private readonly List<GlobRule> _ignore;
     private readonly List<GlobRule> _include;
     private readonly Regex? _excludeRegex;
+    private readonly bool _defaultExcludeRegex;
 
-    private IgnoreMatcher(List<GlobRule> ignore, List<GlobRule> include, Regex? excludeRegex)
+    private IgnoreMatcher(List<GlobRule> ignore, List<GlobRule> include, Regex? excludeRegex,
+        bool defaultExcludeRegex)
     {
         _ignore = ignore;
         _include = include;
         _excludeRegex = excludeRegex;
+        _defaultExcludeRegex = defaultExcludeRegex;
     }
 
     /// <summary>True when include globs are configured, so content is whitelisted to matching files.</summary>
@@ -50,7 +53,8 @@ public sealed class IgnoreMatcher
             catch { rx = null; } // invalid regex: drop the legacy layer rather than throw
         }
 
-        return new IgnoreMatcher(ignore, include, rx);
+        return new IgnoreMatcher(ignore, include, rx,
+            string.Equals(cfg.ExcludeRegex, DumpConfig.DefaultExcludeRegex, StringComparison.Ordinal));
     }
 
     /// <summary>Builds a matcher with no ignore files read (config + regex only). Used in tests / single sources.</summary>
@@ -70,7 +74,16 @@ public sealed class IgnoreMatcher
         }
 
         // Legacy ExcludeRegex is a hard layer (full path, backslashes); not subject to gitignore negation.
-        if (_excludeRegex is not null && _excludeRegex.IsMatch(fullPath)) ignored = true;
+        if (_excludeRegex is not null)
+        {
+            // The built-in folder-name rule is root-relative: choosing a folder literally named
+            // "dist", "build", "bin", or "obj" must not make all of its children self-exclude.
+            // Preserve legacy full-path semantics for user-authored regular expressions.
+            string candidate = _defaultExcludeRegex
+                ? "\\" + rel.Replace('/', '\\')
+                : fullPath;
+            if (_excludeRegex.IsMatch(candidate)) ignored = true;
+        }
 
         return ignored;
     }

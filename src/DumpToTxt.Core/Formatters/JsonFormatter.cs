@@ -8,13 +8,16 @@ namespace DumpToTxt.Core;
 /// escaping is correct and the output always parses.</summary>
 public sealed class JsonFormatter : IDumpFormatter
 {
-    public OutputStyle Style => OutputStyle.Json;
+    public OutputStyle Style { get; }
+    private readonly bool _compact;
 
-    private static readonly JsonSerializerOptions Opts = new()
+    public JsonFormatter(OutputStyle style = OutputStyle.Json)
     {
-        WriteIndented = true,
-        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-    };
+        if (style is not (OutputStyle.Json or OutputStyle.JsonCompact))
+            throw new ArgumentOutOfRangeException(nameof(style));
+        Style = style;
+        _compact = style == OutputStyle.JsonCompact;
+    }
 
     public string Render(DumpModel model, DumpConfig cfg)
     {
@@ -59,7 +62,11 @@ public sealed class JsonFormatter : IDumpFormatter
                 };
             }).ToList(),
         };
-        return JsonSerializer.Serialize(dto, Opts);
+        return JsonSerializer.Serialize(dto, new JsonSerializerOptions
+        {
+            WriteIndented = !_compact,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        });
     }
 
     private sealed class DumpJson

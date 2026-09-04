@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DumpToTxt.Core\DumpToTxt.Core.csproj" />
+    <EmbeddedResource Include="..\..\assets\sounds\dumped.wav" LogicalName="DumpToTxt.App.dumped.wav" />
   </ItemGroup>
 
 </Project>

@@ -28,6 +28,12 @@ public sealed class DumpConfig
     /// <summary>Directory for file output. Null = the Desktop (legacy behavior).</summary>
     public string? OutputDir { get; set; }
 
+    /// <summary>Show the review workspace before target-path dumps. Shift always forces review.</summary>
+    public bool ShowReviewBeforeDump { get; set; } = true;
+
+    /// <summary>The remembered starting selection for the next review or skipped-review run.</summary>
+    public DumpSelectionMode LastSelectionMode { get; set; } = DumpSelectionMode.Basic;
+
     // ---- P3: ignore / include engine ----
 
     /// <summary>Honor a root <c>.gitignore</c> when gathering (additive with the other layers).</summary>
@@ -93,6 +99,8 @@ public sealed class DumpConfig
         Style = OutputStyle.Classic,
         OutputTarget = OutputTarget.File,
         OutputDir = null,
+        ShowReviewBeforeDump = true,
+        LastSelectionMode = DumpSelectionMode.Basic,
         RespectGitignore = true,
         UseDumpToTxtIgnore = true,
         IncludeGlobs = new(),
@@ -115,6 +123,8 @@ public sealed class DumpConfig
         Style = Style,
         OutputTarget = OutputTarget,
         OutputDir = OutputDir,
+        ShowReviewBeforeDump = ShowReviewBeforeDump,
+        LastSelectionMode = LastSelectionMode,
         RespectGitignore = RespectGitignore,
         UseDumpToTxtIgnore = UseDumpToTxtIgnore,
         IncludeGlobs = new List<string>(IncludeGlobs),
@@ -129,4 +139,14 @@ public sealed class DumpConfig
         SecretAllowlist = new List<string>(SecretAllowlist),
         OnlyGitChanged = OnlyGitChanged,
     };
+
+    /// <summary>Copies only choices made in the run workspace, leaving all content/safety settings intact.</summary>
+    public void CopyRunPreferencesFrom(DumpConfig source)
+    {
+        Style = source.Style;
+        OutputTarget = source.OutputTarget;
+        OutputDir = source.OutputDir;
+        ShowReviewBeforeDump = source.ShowReviewBeforeDump;
+        LastSelectionMode = source.LastSelectionMode;
+    }
 }

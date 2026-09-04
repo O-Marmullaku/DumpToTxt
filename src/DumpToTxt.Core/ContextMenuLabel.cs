@@ -18,12 +18,6 @@ public static class ContextMenuLabel
     {
         OutputTarget.Clipboard => "Clipboard",
         OutputTarget.Stdout => "Console",
-        _ => cfg.Style switch          // File target: name it by the file kind the style produces
-        {
-            OutputStyle.Markdown => ".md",
-            OutputStyle.Json => ".json",
-            OutputStyle.Xml => ".xml",
-            _ => ".txt",
-        },
+        _ => OutputStyleCatalog.Extension(cfg.Style),
     };
 }

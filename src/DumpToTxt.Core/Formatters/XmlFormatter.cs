@@ -8,13 +8,22 @@ namespace DumpToTxt.Core;
 /// stripped of characters that are illegal in XML 1.0 so the output always parses.</summary>
 public sealed class XmlFormatter : IDumpFormatter
 {
-    public OutputStyle Style => OutputStyle.Xml;
+    public OutputStyle Style { get; }
+    private readonly bool _compact;
+
+    public XmlFormatter(OutputStyle style = OutputStyle.Xml)
+    {
+        if (style is not (OutputStyle.Xml or OutputStyle.XmlCompact))
+            throw new ArgumentOutOfRangeException(nameof(style));
+        Style = style;
+        _compact = style == OutputStyle.XmlCompact;
+    }
 
     public string Render(DumpModel model, DumpConfig cfg)
     {
         var settings = new XmlWriterSettings
         {
-            Indent = true,
+            Indent = !_compact,
             IndentChars = "  ",
             NewLineChars = "\r\n",
             NewLineHandling = NewLineHandling.None, // don't rewrite line-endings inside file content

@@ -8,13 +8,17 @@ A native Windows right-click utility that packs a folder (or a single file) into
 
 ## How it works
 
-After install you get a **"Dump Into a txt"** entry in the Windows context menu:
+After install you get one **“Create dump with DumpToTxt”** action in the Windows context menu. It opens a live review workspace before the dump runs:
 
-- **Right-click a file** → dumps just that file.
-- **Right-click a folder** → writes a directory listing + the contents of every "legible" file inside.
-- **Right-click empty space in a folder** → same as above for the current folder.
+- **Right-click a file** → review that file and choose its output.
+- **Right-click a folder** → watch text files appear in a largest-first contribution tree, then expand or exclude individual folders and files.
+- **Right-click empty space in a folder** → the same selection flow for the current folder.
 
-The result is written to your **Desktop** as `<name>-dump-<HH-mm>.txt` and opened in Notepad.
+Choose clean text (`.txt`), Markdown (`.md`), structured data (`.json`), XML (`.xml`), or a navigable Word document (`.docx`). Each format has its own relevant layouts, including AI-friendly Markdown. Send text formats to the clipboard or save them to a chosen folder; Word is saved as a file and opens in the associated document app.
+
+**Essential**, **All text**, and **Map only** replace the old technical selection names. Format, layout, destination, folder, and content starting point are remembered after every completed review. Enable **Skip this screen next time** to reuse them automatically; hold Shift while invoking DumpToTxt to force the review workspace back open. File/folder exclusions in the contribution tree remain specific to that run.
+
+A short embedded completion sound plays after a file is written or content is copied to the clipboard. Sound playback is best-effort and never changes whether the dump succeeds.
 
 ## Output styles
 
@@ -22,10 +26,12 @@ The engine is built around multiple output styles; **Classic** (the original Dum
 
 | Style | Status |
 |---|---|
-| **Classic** — original `DIRECTORY LIST` + `FILE CONTENTS` layout | ✅ available |
-| Plain / Markdown / XML / JSON (repomix-style) | 🚧 planned (P2) |
+| **Clean** text and legacy **Classic** text | ✅ available |
+| Markdown — readable, AI-friendly, compact | ✅ available |
+| JSON / XML — readable or compact | ✅ available |
+| Word `.docx` — clickable index, bookmarked file sections, back links | ✅ available |
 
-Token counting, `.gitignore`-aware ignores, secret scanning, code compression, presets, and a GUI preview pane are on the [roadmap](docs/ROADMAP.md).
+The live workspace also shows file count, text size, and estimated AI-token contribution. `.gitignore`-aware filtering, secret handling, size limits, and detailed file rules remain available under **Advanced settings**.
 
 ## Download
 
@@ -41,16 +47,17 @@ Compact and Full are the same app; Lite is the frozen PowerShell tool (Classic o
 
 ## Settings
 
-Open **DumpToTxt.exe** with no arguments (or enable the optional "DumpToTxt Settings" context-menu entry during install) to launch the settings GUI. You control:
+Open **DumpToTxt.exe** with no arguments (or use the Start menu shortcut) to launch the settings GUI. It uses one task-oriented page:
 
-- **Legible file types** — extensions whose full contents get printed.
-- **Excluded folders** — folders skipped entirely (defaults: `.git .vs node_modules dist build bin obj`).
-- **Allowed dotfiles** — dotfiles printed despite no extension (e.g. `.gitignore`, `.env.example`).
+- **Output defaults** — format, layout, destination, and save folder.
+- **Review workspace** — Essential / All text / Map only and whether review is shown.
+- **Sensitive information** — warn, redact, skip, or turn detection off.
+- **Advanced settings** — detailed file endings, exclusions, limits, token estimates, and exceptions.
 
-Settings are JSON, read first-found-wins:
+Settings are JSON. A run resolves defaults, machine settings, user settings, then the nearest per-folder override:
 
 1. **User** — `%APPDATA%\DumpToTxt\settings.json` (written by the GUI)
-2. **Machine** — `%PROGRAMDATA%\DumpToTxt\settings.json` (written by the installer)
+2. **Machine** — `%PROGRAMDATA%\DumpToTxt\settings.json` (optional administrator policy)
 
 The v2 format is backward-compatible with the legacy `settings.json`.
 
@@ -90,13 +97,6 @@ dotnet test  src\DumpToTxt.sln
 # ...plus installers -> dist\DumpToTxt-Setup-<flavor>.exe  (needs Inno Setup 6)
 .\build.ps1 -Installer
 ```
-
-## Editions
-
-The installer has a `CuteCatsEdition` define in `installer/DumpToTxt.iss`:
-
-- `0` — free edition (default): fully functional, shows a promo text on the bonus page.
-- `1` — donationware edition: shows a full-screen cute-cat bonus page.
 
 ## Version
 

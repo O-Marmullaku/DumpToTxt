@@ -30,6 +30,46 @@ public class ConfigStoreTests
     }
 
     [Fact]
+    public void RoundTrip_PreservesReviewDefaults()
+    {
+        var cfg = DumpConfig.CreateDefault();
+        cfg.Style = OutputStyle.MarkdownAi;
+        cfg.ShowReviewBeforeDump = false;
+        cfg.LastSelectionMode = DumpSelectionMode.Thorough;
+
+        var back = ConfigStore.Parse(ConfigStore.Serialize(cfg));
+
+        Assert.Equal(OutputStyle.MarkdownAi, back.Style);
+        Assert.False(back.ShowReviewBeforeDump);
+        Assert.Equal(DumpSelectionMode.Thorough, back.LastSelectionMode);
+    }
+
+    [Fact]
+    public void CopyRunPreferencesFrom_ChangesOnlyRunChoices()
+    {
+        var saved = DumpConfig.CreateDefault();
+        saved.ExtSet = new() { ".cs" };
+        saved.ExcludeGlobs = new() { "generated/**" };
+        var used = DumpConfig.CreateDefault();
+        used.ExtSet = new() { ".md" };
+        used.ExcludeGlobs = new() { "other/**" };
+        used.Style = OutputStyle.Docx;
+        used.OutputTarget = OutputTarget.File;
+        used.OutputDir = @"C:\exports";
+        used.ShowReviewBeforeDump = false;
+        used.LastSelectionMode = DumpSelectionMode.None;
+
+        saved.CopyRunPreferencesFrom(used);
+
+        Assert.Equal(new[] { ".cs" }, saved.ExtSet);
+        Assert.Equal(new[] { "generated/**" }, saved.ExcludeGlobs);
+        Assert.Equal(OutputStyle.Docx, saved.Style);
+        Assert.Equal(@"C:\exports", saved.OutputDir);
+        Assert.False(saved.ShowReviewBeforeDump);
+        Assert.Equal(DumpSelectionMode.None, saved.LastSelectionMode);
+    }
+
+    [Fact]
     public void InstallerDoubleEscapedExcludeRegex_RoundTrips()
     {
         // Exactly what the Inno installer hand-writes: every backslash doubled for JSON.

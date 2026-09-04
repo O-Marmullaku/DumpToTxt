@@ -5,10 +5,20 @@ namespace DumpToTxt.Core;
 /// <summary>Markdown pack: summary header, fenced directory tree, then per-file fenced code blocks.</summary>
 public sealed class MarkdownFormatter : IDumpFormatter
 {
-    public OutputStyle Style => OutputStyle.Markdown;
+    public OutputStyle Style { get; }
+
+    public MarkdownFormatter(OutputStyle style = OutputStyle.Markdown)
+    {
+        if (style is not (OutputStyle.Markdown or OutputStyle.MarkdownAi or OutputStyle.MarkdownCompact))
+            throw new ArgumentOutOfRangeException(nameof(style));
+        Style = style;
+    }
 
     public string Render(DumpModel model, DumpConfig cfg)
     {
+        if (Style == OutputStyle.MarkdownAi) return RenderAi(model, cfg);
+        if (Style == OutputStyle.MarkdownCompact) return RenderCompact(model, cfg);
+
         var sb = new StringBuilder();
         sb.Append("# DumpToTxt\r\n\r\n");
         sb.Append("- **Root:** `").Append(model.Root).Append("`\r\n");
@@ -88,6 +98,59 @@ public sealed class MarkdownFormatter : IDumpFormatter
             sb.Append(fence).Append("\r\n");
             if (f.IsTruncated)
                 sb.Append("\r\n> [truncated: file is ").Append(DirectoryTree.FormatSize(f.Size)).Append("]\r\n");
+        }
+        return sb.ToString();
+    }
+
+    private static string RenderAi(DumpModel model, DumpConfig cfg)
+    {
+        var sb = new StringBuilder();
+        sb.Append("# DumpToTxt — AI-friendly Markdown\r\n\r\n");
+        sb.Append("Root: `").Append(model.Root).Append("`  \r\n");
+        sb.Append("Files: ").Append(model.Files.Count).Append("  \r\n");
+        sb.Append("Estimated tokens: ").Append(model.TotalTokens.ToString("N0")).Append("\r\n\r\n");
+        sb.Append("## Directory structure\r\n\r\n```text\r\n")
+            .Append(DirectoryTree.RenderStructureOrNote(model.Entries)).Append("\r\n```\r\n");
+        foreach (var f in model.Files)
+        {
+            string path = f.RelativePath.Replace("--", "—", StringComparison.Ordinal);
+            sb.Append("\r\n<!-- file:start path=\"").Append(path).Append("\" -->\r\n")
+              .Append("## File: `").Append(f.RelativePath).Append("`\r\n\r\n");
+            if (f.IsBinary)
+            {
+                sb.Append("[binary file — content skipped]\r\n");
+            }
+            else
+            {
+                string body = SecretScanner.ContentForOutput(f, cfg.SecretScan, out bool skipped);
+                if (skipped) sb.Append("[content skipped: sensitive information detected]\r\n");
+                else
+                {
+                    string fence = Fence(body);
+                    sb.Append(fence).Append(DirectoryTree.LanguageFor(f.FullName)).Append("\r\n")
+                      .Append(body);
+                    if (!body.EndsWith('\n')) sb.Append("\r\n");
+                    sb.Append(fence).Append("\r\n");
+                }
+            }
+            sb.Append("<!-- file:end path=\"").Append(path).Append("\" -->\r\n");
+        }
+        return sb.ToString();
+    }
+
+    private static string RenderCompact(DumpModel model, DumpConfig cfg)
+    {
+        var sb = new StringBuilder("# Files\r\n");
+        foreach (var f in model.Files)
+        {
+            sb.Append("\r\n## `").Append(f.RelativePath).Append("`\r\n");
+            if (f.IsBinary) { sb.Append("[binary file — content skipped]\r\n"); continue; }
+            string body = SecretScanner.ContentForOutput(f, cfg.SecretScan, out bool skipped);
+            if (skipped) { sb.Append("[content skipped: sensitive information detected]\r\n"); continue; }
+            string fence = Fence(body);
+            sb.Append(fence).Append(DirectoryTree.LanguageFor(f.FullName)).Append("\r\n").Append(body);
+            if (!body.EndsWith('\n')) sb.Append("\r\n");
+            sb.Append(fence).Append("\r\n");
         }
         return sb.ToString();
     }

@@ -106,6 +106,14 @@ public static class ConfigStore
 
     public static void Save(DumpConfig cfg) => SaveTo(UserPath, cfg);
 
+    /// <summary>Persists only the choices made in the review workspace.</summary>
+    public static void SaveRunPreferences(DumpConfig used)
+    {
+        var saved = File.Exists(UserPath) ? LoadFrom(UserPath) : DumpConfig.CreateDefault();
+        saved.CopyRunPreferencesFrom(used);
+        Save(saved);
+    }
+
     /// <summary>Saves to a specific path. Testable seam used by <see cref="Save"/>.</summary>
     public static void SaveTo(string path, DumpConfig cfg)
     {
@@ -132,6 +140,8 @@ public static class ConfigStore
         public string? Style { get; set; }
         public string? OutputTarget { get; set; }
         public string? OutputDir { get; set; }
+        public bool? ShowReviewBeforeDump { get; set; }
+        public string? LastSelectionMode { get; set; }
         public bool? RespectGitignore { get; set; }
         public bool? UseDumpToTxtIgnore { get; set; }
         public List<string>? IncludeGlobs { get; set; }
@@ -167,6 +177,8 @@ public static class ConfigStore
             if (TryParseEnum(Style, out OutputStyle st)) acc.Style = st;
             if (TryParseEnum(OutputTarget, out Core.OutputTarget tg)) acc.OutputTarget = tg;
             if (!string.IsNullOrWhiteSpace(OutputDir)) acc.OutputDir = OutputDir;
+            if (ShowReviewBeforeDump is { } review) acc.ShowReviewBeforeDump = review;
+            if (TryParseEnum(LastSelectionMode, out DumpSelectionMode mode)) acc.LastSelectionMode = mode;
             if (RespectGitignore is { } rg) acc.RespectGitignore = rg;
             if (UseDumpToTxtIgnore is { } ud) acc.UseDumpToTxtIgnore = ud;
             if (IncludeGlobs is not null) acc.IncludeGlobs = IncludeGlobs;
@@ -198,6 +210,8 @@ public static class ConfigStore
             Style = c.Style.ToString(),
             OutputTarget = c.OutputTarget.ToString(),
             OutputDir = c.OutputDir,
+            ShowReviewBeforeDump = c.ShowReviewBeforeDump,
+            LastSelectionMode = c.LastSelectionMode.ToString(),
             RespectGitignore = c.RespectGitignore,
             UseDumpToTxtIgnore = c.UseDumpToTxtIgnore,
             IncludeGlobs = c.IncludeGlobs,

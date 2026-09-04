@@ -13,4 +13,14 @@ public enum OutputStyle
     Markdown,
     Xml,
     Json,
+    /// <summary>Markdown with stable file boundaries and minimal decoration for AI ingestion.</summary>
+    MarkdownAi,
+    /// <summary>Markdown with summary sections omitted.</summary>
+    MarkdownCompact,
+    /// <summary>JSON without presentation whitespace.</summary>
+    JsonCompact,
+    /// <summary>XML without presentation whitespace.</summary>
+    XmlCompact,
+    /// <summary>Navigable Microsoft Word Open XML document.</summary>
+    Docx,
 }

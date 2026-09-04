@@ -11,22 +11,25 @@ namespace DumpToTxt.Core;
 public static class GitChanges
 {
     /// <summary>Absolute paths changed since HEAD, or null when not a git repo / git missing.</summary>
-    public static HashSet<string>? ChangedFiles(string targetPathOrDir)
+    public static HashSet<string>? ChangedFiles(string targetPathOrDir,
+        CancellationToken cancellationToken = default)
     {
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             string dir = File.Exists(targetPathOrDir)
                 ? Path.GetDirectoryName(Path.GetFullPath(targetPathOrDir))!
                 : Path.GetFullPath(targetPathOrDir);
 
-            string? top = Run(dir, "rev-parse --show-toplevel");
+            string? top = Run(dir, "rev-parse --show-toplevel", cancellationToken);
             if (string.IsNullOrWhiteSpace(top)) return null;     // not a git repo, or git not on PATH
             top = top.Trim();
 
             // Porcelain v1: 2 status chars + space + path, stable across git versions and locales.
             // core.quotepath=false keeps non-ASCII paths literal (UTF-8) instead of C-quoted/escaped,
             // so they still match FileInfo.FullName.
-            string? status = Run(dir, "-c core.quotepath=false status --porcelain --untracked-files=all");
+            string? status = Run(dir, "-c core.quotepath=false status --porcelain --untracked-files=all",
+                cancellationToken);
             if (status is null) return null;
 
             var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -49,10 +52,11 @@ public static class GitChanges
             }
             return set;
         }
+        catch (OperationCanceledException) { throw; }
         catch { return null; }
     }
 
-    private static string? Run(string workingDir, string args)
+    private static string? Run(string workingDir, string args, CancellationToken cancellationToken)
     {
         try
         {
@@ -77,11 +81,27 @@ public static class GitChanges
             // the timeout actually bound the read.
             var outTask = p.StandardOutput.ReadToEndAsync();
             var errTask = p.StandardError.ReadToEndAsync();
-            if (!p.WaitForExit(5000)) { try { p.Kill(true); } catch { } return null; }
+            var elapsed = Stopwatch.StartNew();
+            try
+            {
+                while (!p.WaitForExit(100))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (elapsed.ElapsedMilliseconds < 5000) continue;
+                    try { p.Kill(true); } catch { }
+                    return null;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                try { p.Kill(true); } catch { }
+                throw;
+            }
             string output = outTask.GetAwaiter().GetResult();
             errTask.GetAwaiter().GetResult();     // observe/drain stderr
             return p.ExitCode == 0 ? output : null;
         }
+        catch (OperationCanceledException) { throw; }
         catch { return null; }                    // git not installed / spawn failure
     }
 }

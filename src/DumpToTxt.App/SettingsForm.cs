@@ -5,14 +5,16 @@ using DumpToTxt.Core;
 namespace DumpToTxt.App;
 
 /// <summary>
-/// Settings GUI. Rebuilt in P4 into tabs (File types / Ignore &amp; globs / Caps &amp; binary / Output /
-/// Presets) so the full config — including the P3 ignore/glob/caps knobs that were previously
-/// settings.json-only — is reachable from the UI. Saving writes the COMPLETE config (fixing the prior
-/// bug where a save erased the P3 fields) and re-syncs the right-click label. Saves to the user config
-/// (%APPDATA%\DumpToTxt\settings.json).
+/// Task-oriented settings surface arranged into flat General, Files, and Safety tabs. Saving writes
+/// the complete user config without rewriting untouched lossy fields.
 /// </summary>
 public sealed class SettingsForm : Form
 {
+    private sealed record ModeOption(string Name, DumpSelectionMode Mode)
+    {
+        public override string ToString() => Name;
+    }
+
     private static readonly string[] KnownExt =
     {
         ".html", ".css", ".js", ".ts", ".json", ".md", ".txt",
@@ -32,22 +34,27 @@ public sealed class SettingsForm : Form
     private readonly TextBox _tbDot = new();
 
     // Ignore & globs
-    private readonly CheckBox _chkGitignore = new() { Text = "Respect .gitignore" };
-    private readonly CheckBox _chkDumpignore = new() { Text = "Respect .dumptotxtignore" };
+    private readonly CheckBox _chkGitignore = new() { Text = "Follow .gitignore" };
+    private readonly CheckBox _chkDumpignore = new() { Text = "Follow .dumptotxtignore" };
     private readonly CheckedListBox _clbExcl = new() { CheckOnClick = true };
     private readonly TextBox _tbExclCustom = new();
     private readonly TextBox _tbInclude = new() { Multiline = true, ScrollBars = ScrollBars.Vertical };
     private readonly TextBox _tbExclude = new() { Multiline = true, ScrollBars = ScrollBars.Vertical };
 
     // Caps & binary
-    private readonly CheckBox _chkDetectBinary = new() { Text = "Detect and skip binary files" };
+    private readonly CheckBox _chkDetectBinary = new() { Text = "Skip binary contents" };
     private readonly NumericUpDown _numMaxFile = new() { Maximum = 4_000_000, ThousandsSeparator = true, Increment = 64 };
     private readonly NumericUpDown _numMaxTotal = new() { Maximum = 4_000_000, ThousandsSeparator = true, Increment = 64 };
 
     // Output
+    private readonly ComboBox _cmbFormat = new() { DropDownStyle = ComboBoxStyle.DropDownList, DisplayMember = nameof(OutputFormatOption.DisplayName) };
     private readonly ComboBox _cmbStyle = new() { DropDownStyle = ComboBoxStyle.DropDownList };
     private readonly ComboBox _cmbTarget = new() { DropDownStyle = ComboBoxStyle.DropDownList };
     private readonly TextBox _tbOutDir = new();
+    private readonly ComboBox _cmbMode = new() { DropDownStyle = ComboBoxStyle.DropDownList };
+    private readonly CheckBox _chkShowReview = new() { Text = "Review before creating a dump", AutoSize = true };
+    private readonly TabControl _tabs = new();
+    private bool _syncingStyle;
 
     // Tokens
     private readonly ComboBox _cmbTokenEnc = new() { DropDownStyle = ComboBoxStyle.DropDownList };
@@ -55,7 +62,7 @@ public sealed class SettingsForm : Form
 
     // Secrets
     private readonly ComboBox _cmbSecretScan = new() { DropDownStyle = ComboBoxStyle.DropDownList };
-    private readonly CheckBox _chkSecretEntropy = new() { Text = "Also flag generic high-entropy strings (noisier)" };
+    private readonly CheckBox _chkSecretEntropy = new() { Text = "Also check random-looking strings (more false alarms)", AutoSize = true };
     private readonly TextBox _tbSecretAllow = new() { Multiline = true, ScrollBars = ScrollBars.Vertical };
 
     // Presets
@@ -79,11 +86,15 @@ public sealed class SettingsForm : Form
 
     public SettingsForm()
     {
-        Text = "DumpToTxt Settings";
-        Width = 800;
-        Height = 660;
-        MinimumSize = new Size(800, 660);
+        Text = "DumpToTxt settings";
+        Width = 880;
+        Height = 720;
+        MinimumSize = new Size(820, 620);
         StartPosition = FormStartPosition.CenterScreen;
+        AutoScaleMode = AutoScaleMode.Dpi;
+        Font = UiTheme.UiFont();
+        BackColor = UiTheme.Window;
+        ForeColor = UiTheme.Text;
         try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { /* no icon */ }
 
         BuildUi();
@@ -92,30 +103,457 @@ public sealed class SettingsForm : Form
 
     private void BuildUi()
     {
-        var tabs = new TabControl { Left = 12, Top = 12, Width = 762, Height = 575 };
-        tabs.TabPages.Add(BuildFileTypesTab());
-        tabs.TabPages.Add(BuildIgnoreTab());
-        tabs.TabPages.Add(BuildCapsTab());
-        tabs.TabPages.Add(BuildOutputTab());
-        tabs.TabPages.Add(BuildTokensTab());
-        tabs.TabPages.Add(BuildSecretsTab());
-        tabs.TabPages.Add(BuildPresetsTab());
+        PopulateControlChoices();
+        var root = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1 };
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 72));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 62));
+        root.Controls.Add(BuildSettingsHeader(), 0, 0);
 
-        var btnSave = new Button { Text = "Save", Left = 12, Top = 595, Width = 120 };
-        btnSave.Click += (_, _) => OnSave();
-        var btnReset = new Button { Text = "Reset defaults", Left = 142, Top = 595, Width = 140 };
+        root.Controls.Add(BuildSettingsTabs(), 0, 1);
+
+        var footer = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, Padding = new Padding(20, 11, 20, 9), BackColor = UiTheme.Rail };
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        var btnReset = new Button { Text = "Reset to defaults", Width = 126, Height = 34 };
+        UiTheme.StyleSecondary(btnReset);
         btnReset.Click += (_, _) => OnReset();
-        var btnClose = new Button { Text = "Close", Left = 654, Top = 595, Width = 120 };
-        btnClose.Click += (_, _) => Close();
-        _status.SetBounds(292, 600, 350, 23);
-
-        Controls.Add(tabs);
-        Controls.Add(btnSave);
-        Controls.Add(btnReset);
-        Controls.Add(btnClose);
-        Controls.Add(_status);
+        footer.Controls.Add(btnReset, 0, 0);
+        _status.Anchor = AnchorStyles.Left;
+        _status.AutoSize = true;
+        footer.Controls.Add(_status, 1, 0);
+        var btnCancel = new Button { Text = "Cancel", Width = 88, Height = 34, DialogResult = DialogResult.Cancel };
+        UiTheme.StyleSecondary(btnCancel);
+        btnCancel.Click += (_, _) => Close();
+        footer.Controls.Add(btnCancel, 2, 0);
+        var btnSave = new Button { Text = "Save and close", Width = 132, Height = 34 };
+        UiTheme.StylePrimary(btnSave);
+        btnSave.Click += (_, _) => OnSave();
+        footer.Controls.Add(btnSave, 3, 0);
+        root.Controls.Add(footer, 0, 2);
+        Controls.Add(root);
+        SizeChanged += (_, _) =>
+        {
+            root.Bounds = ClientRectangle;
+            root.PerformLayout();
+        };
+        AcceptButton = btnSave;
+        CancelButton = btnCancel;
 
         WireDirtyTracking();
+    }
+
+    private void PopulateControlChoices()
+    {
+        _cmbFormat.AccessibleName = "Format";
+        _cmbStyle.AccessibleName = "Layout";
+        _cmbTarget.AccessibleName = "Destination";
+        _tbOutDir.AccessibleName = "Folder";
+        _cmbMode.AccessibleName = "Included content";
+        _cmbSecretScan.AccessibleName = "When sensitive data is found";
+        _clbExt.AccessibleName = "Essential file types";
+        _tbExtCustom.AccessibleName = "Other extensions";
+        _tbDot.AccessibleName = "Specific file names";
+        _clbExcl.AccessibleName = "Folders to skip";
+        _tbInclude.AccessibleName = "Include only patterns";
+        _tbExclude.AccessibleName = "Exclude patterns";
+        _tbSecretAllow.AccessibleName = "Sensitive values to ignore";
+        foreach (ComboBox combo in new[] { _cmbFormat, _cmbStyle, _cmbTarget, _cmbMode, _cmbSecretScan, _cmbPreset, _cmbTokenEnc })
+            UiTheme.StyleChoiceCombo(combo);
+        foreach (var format in OutputStyleCatalog.Formats) _cmbFormat.Items.Add(format);
+        _cmbFormat.SelectedIndexChanged += (_, _) => PopulateSettingsLayouts();
+        _cmbStyle.Format += (_, e) => { if (e.ListItem is OutputStyle style) e.Value = OutputStyleCatalog.LayoutName(style); };
+        foreach (OutputTarget target in Enum.GetValues<OutputTarget>()) _cmbTarget.Items.Add(target);
+        _cmbTarget.FormattingEnabled = true;
+        _cmbTarget.Format += (_, e) => e.Value = e.ListItem switch
+        {
+            OutputTarget.File => "File",
+            OutputTarget.Clipboard => "Clipboard",
+            OutputTarget.Stdout => "Console",
+            _ => e.ListItem?.ToString(),
+        };
+        _cmbTarget.SelectedIndexChanged += (_, _) => SettingsDestinationChanged();
+        _cmbMode.Items.Add(new ModeOption("Essential files", DumpSelectionMode.Basic));
+        _cmbMode.Items.Add(new ModeOption("All text files", DumpSelectionMode.Thorough));
+        _cmbMode.Items.Add(new ModeOption("File list only", DumpSelectionMode.None));
+        foreach (TokenEncoding encoding in Enum.GetValues<TokenEncoding>()) _cmbTokenEnc.Items.Add(encoding);
+        _cmbTokenEnc.FormattingEnabled = true;
+        _cmbTokenEnc.Format += (_, e) => e.Value = e.ListItem switch
+        {
+            TokenEncoding.O200kBase => "o200k (recommended)",
+            TokenEncoding.Cl100kBase => "cl100k (legacy)",
+            _ => e.ListItem?.ToString(),
+        };
+        foreach (SecretScanMode mode in Enum.GetValues<SecretScanMode>()) _cmbSecretScan.Items.Add(mode);
+        _cmbSecretScan.FormattingEnabled = true;
+        _cmbSecretScan.Format += (_, e) => e.Value = e.ListItem switch
+        {
+            SecretScanMode.Off => "Do not scan",
+            SecretScanMode.Warn => "Warn only",
+            SecretScanMode.Redact => "Hide sensitive values",
+            SecretScanMode.Skip => "Skip file contents",
+            _ => e.ListItem?.ToString(),
+        };
+        foreach (string extension in KnownExt) _clbExt.Items.Add(extension);
+        foreach (string folder in KnownExcl) _clbExcl.Items.Add(folder);
+        foreach (var preset in Presets.All) _cmbPreset.Items.Add(preset);
+        _cmbPreset.SelectedIndexChanged += (_, _) =>
+            _lblPresetDesc.Text = (_cmbPreset.SelectedItem as Preset)?.Description ?? "";
+        if (_cmbPreset.Items.Count > 0) _cmbPreset.SelectedIndex = 0;
+    }
+
+    private Control BuildSettingsHeader()
+    {
+        var panel = new Panel { Dock = DockStyle.Fill, BackColor = UiTheme.Window, Padding = new Padding(20, 12, 20, 8) };
+        panel.Controls.Add(new Label
+        {
+            Text = "Settings",
+            AutoSize = true,
+            Location = new Point(20, 12),
+            Font = UiTheme.UiFont(13f, FontStyle.Bold),
+            ForeColor = UiTheme.Text,
+        });
+        var description = new Label
+        {
+            Text = "Defaults for new dumps.",
+            AutoSize = false,
+            AutoEllipsis = true,
+            Location = new Point(20, 40),
+            Height = 22,
+            ForeColor = UiTheme.Muted,
+            Width = 800,
+        };
+        panel.Controls.Add(description);
+        var divider = new Panel { Height = 1, BackColor = UiTheme.Border, Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom };
+        panel.Controls.Add(divider);
+        panel.Resize += (_, _) =>
+        {
+            description.Width = Math.Max(100, panel.ClientSize.Width - 40);
+            divider.SetBounds(20, panel.ClientSize.Height - 1, Math.Max(0, panel.ClientSize.Width - 40), 1);
+        };
+        return panel;
+    }
+
+    private Control BuildSettingsTabs()
+    {
+        var host = new Panel { Dock = DockStyle.Fill, BackColor = UiTheme.Window, Padding = new Padding(20, 10, 20, 12) };
+        _tabs.Dock = DockStyle.Fill;
+        _tabs.Appearance = TabAppearance.FlatButtons;
+        _tabs.DrawMode = TabDrawMode.OwnerDrawFixed;
+        _tabs.SizeMode = TabSizeMode.Fixed;
+        _tabs.ItemSize = new Size(150, 34);
+        _tabs.DrawItem += (_, e) =>
+        {
+            bool selected = e.Index == _tabs.SelectedIndex;
+            Rectangle bounds = e.Bounds;
+            using var background = new SolidBrush(UiTheme.Window);
+            using var tabFont = UiTheme.UiFont(9f, selected ? FontStyle.Bold : FontStyle.Regular);
+            e.Graphics.FillRectangle(background, bounds);
+            TextRenderer.DrawText(e.Graphics, _tabs.TabPages[e.Index].Text, tabFont,
+                bounds, selected ? UiTheme.Text : UiTheme.Muted,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            if (selected)
+            {
+                using var accent = new SolidBrush(UiTheme.Accent);
+                e.Graphics.FillRectangle(accent, bounds.Left + 12, bounds.Bottom - 3, bounds.Width - 24, 3);
+            }
+        };
+        _tabs.TabPages.Add(BuildGeneralTab());
+        _tabs.TabPages.Add(BuildContentTab());
+        _tabs.TabPages.Add(BuildSafetyTab());
+        host.Controls.Add(_tabs);
+        return host;
+    }
+
+    private TabPage BuildGeneralTab()
+    {
+        var page = SettingsTab("General");
+        var layout = SettingsTabLayout(460, 3);
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 180));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 120));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        layout.Controls.Add(BuildRunDefaultsSection(), 0, 0);
+        layout.Controls.Add(BuildContentDefaultsSection(), 0, 1);
+        layout.Controls.Add(BuildStartingPointSection(), 0, 2);
+        page.Controls.Add(layout);
+        return page;
+    }
+
+    private TabPage BuildContentTab()
+    {
+        var page = SettingsTab("Files");
+        var layout = SettingsTabLayout(460, 2);
+        layout.ColumnCount = 2;
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 65));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 35));
+
+        var types = BuildTextTypesSection();
+        types.Margin = new Padding(0, 0, 12, 10);
+        var folders = BuildExcludedFoldersSection();
+        folders.Margin = new Padding(12, 0, 0, 10);
+        var included = BuildPathPatternsSection("Include only", "Optional. One pattern per line.", _tbInclude);
+        included.Margin = new Padding(0, 10, 12, 0);
+        var excluded = BuildPathPatternsSection("Exclude", "One .gitignore pattern per line.", _tbExclude);
+        excluded.Margin = new Padding(12, 10, 0, 0);
+
+        layout.Controls.Add(types, 0, 0);
+        layout.Controls.Add(folders, 1, 0);
+        layout.Controls.Add(included, 0, 1);
+        layout.Controls.Add(excluded, 1, 1);
+        page.Controls.Add(layout);
+        return page;
+    }
+
+    private TabPage BuildSafetyTab()
+    {
+        var page = SettingsTab("Safety & limits");
+        var layout = SettingsTabLayout(460, 1);
+        layout.ColumnCount = 2;
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 46));
+        layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 54));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        var left = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            RowCount = 2,
+            ColumnCount = 1,
+            BackColor = UiTheme.Window,
+            Margin = new Padding(0, 0, 12, 0),
+        };
+        left.RowStyles.Add(new RowStyle(SizeType.Percent, 42));
+        left.RowStyles.Add(new RowStyle(SizeType.Percent, 58));
+        left.Controls.Add(BuildSafetySection(), 0, 0);
+        left.Controls.Add(BuildLimitsSection(), 0, 1);
+        var ai = BuildAiSection();
+        ai.Margin = new Padding(12, 0, 0, 0);
+        layout.Controls.Add(left, 0, 0);
+        layout.Controls.Add(ai, 1, 0);
+        page.Controls.Add(layout);
+        return page;
+    }
+
+    private static TabPage SettingsTab(string text) => new(text)
+    {
+        BackColor = UiTheme.Window,
+        ForeColor = UiTheme.Text,
+        AutoScroll = true,
+    };
+
+    private static TableLayoutPanel SettingsTabLayout(int minimumHeight, int rows) => new()
+    {
+        Dock = DockStyle.Top,
+        Height = minimumHeight,
+        MinimumSize = new Size(0, minimumHeight),
+        RowCount = rows,
+        ColumnCount = 1,
+        Padding = new Padding(18),
+        BackColor = UiTheme.Window,
+    };
+
+    private Control BuildRunDefaultsSection()
+    {
+        var section = FlatSection("Output", "Format, layout, and destination.");
+        AddFieldLabel(section, "Format", 58);
+        _cmbFormat.SetBounds(140, 54, 280, 31);
+        AddFieldLabel(section, "Layout", 90);
+        _cmbStyle.SetBounds(140, 86, 280, 31);
+        AddFieldLabel(section, "Destination", 122);
+        _cmbTarget.SetBounds(140, 118, 280, 31);
+        AddFieldLabel(section, "Folder", 154);
+        _tbOutDir.SetBounds(140, 150, 470, 27);
+        _tbOutDir.PlaceholderText = "Desktop";
+        var browse = new Button { Text = "Browse…", Width = 92, Height = 28 };
+        browse.Location = new Point(620, 149);
+        browse.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        UiTheme.StyleSecondary(browse);
+        browse.Click += (_, _) => OnBrowse();
+        section.Controls.AddRange(new Control[] { _cmbFormat, _cmbStyle, _cmbTarget, _tbOutDir, browse });
+        section.Resize += (_, _) =>
+        {
+            browse.Left = section.ClientSize.Width - 92;
+            _tbOutDir.Width = Math.Max(160, browse.Left - _tbOutDir.Left - 8);
+        };
+        return section;
+    }
+
+    private Control BuildContentDefaultsSection()
+    {
+        var section = FlatSection("Default content", "Hold Shift in File Explorer to review one dump.");
+        AddFieldLabel(section, "Include", 62);
+        _cmbMode.SetBounds(140, 58, 300, 31);
+        _chkShowReview.Location = new Point(140, 94);
+        section.Controls.AddRange(new Control[] { _cmbMode, _chkShowReview });
+        return section;
+    }
+
+    private Control BuildStartingPointSection()
+    {
+        var section = FlatSection("Preset", "Apply a preset, then adjust it.");
+        _cmbPreset.SetBounds(0, 58, 250, 31);
+        var apply = new Button { Text = "Apply preset", Location = new Point(262, 58), Width = 130, Height = 31 };
+        UiTheme.StyleSecondary(apply);
+        apply.Click += (_, _) => OnLoadPreset();
+        _lblPresetDesc.SetBounds(0, 96, 680, 24);
+        _lblPresetDesc.ForeColor = UiTheme.Muted;
+        section.Controls.AddRange(new Control[] { _cmbPreset, apply, _lblPresetDesc });
+        section.Resize += (_, _) => _lblPresetDesc.Width = Math.Max(200, section.ClientSize.Width);
+        return section;
+    }
+
+    private Control BuildTextTypesSection()
+    {
+        var section = FlatSection("File types", "Included by Essential files.");
+        _clbExt.SetBounds(0, 58, 320, 100);
+        var custom = FieldHint("Other extensions", 166);
+        _tbExtCustom.SetBounds(0, 187, 320, 27);
+        var named = FieldHint("Specific file names", 221);
+        _tbDot.SetBounds(0, 242, 320, 27);
+        section.Controls.AddRange(new Control[] { _clbExt, custom, _tbExtCustom, named, _tbDot });
+        section.Resize += (_, _) =>
+        {
+            int width = Math.Max(180, section.ClientSize.Width);
+            _clbExt.Width = width;
+            _tbExtCustom.Width = width;
+            _tbDot.Width = width;
+        };
+        return section;
+    }
+
+    private Control BuildExcludedFoldersSection()
+    {
+        var section = FlatSection("Folders to skip", "Common folders and ignore rules.");
+        _chkGitignore.Text = "Follow .gitignore";
+        _chkDumpignore.Text = "Follow .dumptotxtignore";
+        _chkGitignore.SetBounds(0, 58, 280, 24);
+        _chkDumpignore.SetBounds(0, 82, 280, 24);
+        _clbExcl.SetBounds(0, 108, 320, 80);
+        var additional = FieldHint("Other folder names", 196);
+        _tbExclCustom.SetBounds(0, 217, 320, 27);
+        section.Controls.AddRange(new Control[] { _chkGitignore, _chkDumpignore, _clbExcl, additional, _tbExclCustom });
+        section.Resize += (_, _) =>
+        {
+            int width = Math.Max(180, section.ClientSize.Width);
+            _clbExcl.Width = width;
+            _tbExclCustom.Width = width;
+        };
+        return section;
+    }
+
+    private Control BuildPathPatternsSection(string title, string description, TextBox textBox)
+    {
+        var section = FlatSection(title, description);
+        textBox.SetBounds(0, 58, 320, 100);
+        section.Controls.Add(textBox);
+        section.Resize += (_, _) => textBox.SetBounds(0, 58, Math.Max(180, section.ClientSize.Width), Math.Max(52, section.ClientSize.Height - 58));
+        return section;
+    }
+
+    private Control BuildSafetySection()
+    {
+        var section = FlatSection("Sensitive data", "What to do when a likely secret is found.");
+        AddFieldLabel(section, "When found", 62);
+        _cmbSecretScan.SetBounds(140, 58, 240, 31);
+        _chkSecretEntropy.Location = new Point(0, 96);
+        section.Controls.AddRange(new Control[] { _cmbSecretScan, _chkSecretEntropy });
+        return section;
+    }
+
+    private Control BuildLimitsSection()
+    {
+        var section = FlatSection("File limits", "0 means unlimited. Binary files stay in the list.");
+        _chkDetectBinary.SetBounds(0, 58, 300, 24);
+        AddFieldLabel(section, "Max file size (KB)", 94);
+        _numMaxFile.SetBounds(160, 90, 160, 27);
+        AddFieldLabel(section, "Max dump size (KB)", 128);
+        _numMaxTotal.SetBounds(160, 124, 160, 27);
+        section.Controls.AddRange(new Control[] { _chkDetectBinary, _numMaxFile, _numMaxTotal });
+        return section;
+    }
+
+    private Control BuildAiSection()
+    {
+        var section = FlatSection("Token estimate", "Estimate size for AI tools.");
+        AddFieldLabel(section, "Model", 62);
+        _cmbTokenEnc.SetBounds(160, 58, 240, 31);
+        AddFieldLabel(section, "Warn above", 96);
+        _numMaxTokens.SetBounds(160, 92, 240, 27);
+        var allowHint = FieldHint("Ignore these sensitive values (one regex per line)", 132);
+        _tbSecretAllow.SetBounds(0, 153, 680, 54);
+        section.Controls.AddRange(new Control[] { _cmbTokenEnc, _numMaxTokens, allowHint, _tbSecretAllow });
+        section.Resize += (_, _) => _tbSecretAllow.SetBounds(0, 153, Math.Max(300, section.ClientSize.Width), Math.Max(40, section.ClientSize.Height - 153));
+        return section;
+    }
+
+    private static Panel FlatSection(string title, string description)
+    {
+        var section = new Panel { Dock = DockStyle.Fill, BackColor = UiTheme.Window, Margin = new Padding(0) };
+        section.Controls.Add(new Label
+        {
+            Text = title,
+            AutoSize = true,
+            Location = new Point(0, 0),
+            Font = UiTheme.UiFont(10f, FontStyle.Bold),
+            ForeColor = UiTheme.Text,
+        });
+        var helper = new Label
+        {
+            Text = description,
+            AutoEllipsis = true,
+            Location = new Point(0, 24),
+            Height = 20,
+            ForeColor = UiTheme.Muted,
+        };
+        var divider = new Panel { Height = 1, BackColor = UiTheme.Border };
+        section.Controls.AddRange(new Control[] { helper, divider });
+        section.Resize += (_, _) =>
+        {
+            helper.Width = Math.Max(100, section.ClientSize.Width);
+            divider.SetBounds(0, 49, Math.Max(0, section.ClientSize.Width), 1);
+        };
+        return section;
+    }
+
+    private static Label FieldHint(string text, int top) => new()
+    {
+        Text = text,
+        Location = new Point(0, top),
+        AutoSize = true,
+        ForeColor = UiTheme.Muted,
+    };
+
+    private static void AddFieldLabel(Control parent, string text, int top, int left = 0) => parent.Controls.Add(new Label
+    {
+        Text = text,
+        Location = new Point(left, top),
+        Width = 132,
+        Height = 22,
+        ForeColor = UiTheme.Muted,
+    });
+
+    private void PopulateSettingsLayouts()
+    {
+        if (_syncingStyle || _cmbFormat.SelectedItem is not OutputFormatOption format) return;
+        OutputStyle old = _cmbStyle.SelectedItem is OutputStyle selected ? selected : OutputStyle.Classic;
+        _syncingStyle = true;
+        _cmbStyle.Items.Clear();
+        foreach (OutputStyle style in OutputStyleCatalog.Layouts(format.Kind)) _cmbStyle.Items.Add(style);
+        _cmbStyle.SelectedItem = OutputStyleCatalog.Format(old) == format.Kind
+            ? old : OutputStyleCatalog.DefaultStyle(format.Kind);
+        _syncingStyle = false;
+        bool word = format.Kind == OutputFormatKind.Word;
+        if (word) _cmbTarget.SelectedItem = OutputTarget.File;
+        SettingsDestinationChanged();
+    }
+
+    private void SettingsDestinationChanged()
+    {
+        bool file = _cmbTarget.SelectedItem is not OutputTarget target || target == OutputTarget.File;
+        _tbOutDir.Enabled = file;
     }
 
     /// <summary>Marks the exclude-folder UI / cap spinners dirty when the USER edits them (guarded against
@@ -128,206 +566,6 @@ public sealed class SettingsForm : Form
         _numMaxFile.ValueChanged += (_, _) => { if (!_loading) _maxFileDirty = true; };
         _numMaxTotal.ValueChanged += (_, _) => { if (!_loading) _maxTotalDirty = true; };
         _numMaxTokens.ValueChanged += (_, _) => { if (!_loading) _maxTokensDirty = true; };
-    }
-
-    private TabPage BuildFileTypesTab()
-    {
-        var tab = new TabPage("File types");
-        _clbExt.SetBounds(12, 12, 350, 470);
-        foreach (var e in KnownExt) _clbExt.Items.Add(e);
-
-        var lblCustom = new Label { Text = "Manual file types (comma-separated). Example: .ps1, .iss", Left = 12, Top = 488, Width = 350 };
-        _tbExtCustom.SetBounds(12, 508, 350, 23);
-
-        var lblDot = new Label { Text = "Allowed dotfiles (comma-separated):", Left = 384, Top = 12, Width = 350 };
-        _tbDot.SetBounds(384, 35, 350, 23);
-        var lblDotHint = new Label
-        {
-            Text = "Dotfiles are printed even without a whitelisted extension (matched by full name).",
-            Left = 384, Top = 64, Width = 350, Height = 40,
-        };
-
-        tab.Controls.Add(_clbExt);
-        tab.Controls.Add(lblCustom);
-        tab.Controls.Add(_tbExtCustom);
-        tab.Controls.Add(lblDot);
-        tab.Controls.Add(_tbDot);
-        tab.Controls.Add(lblDotHint);
-        return tab;
-    }
-
-    private TabPage BuildIgnoreTab()
-    {
-        var tab = new TabPage("Ignore & globs");
-        _chkGitignore.SetBounds(12, 12, 350, 24);
-        _chkDumpignore.SetBounds(12, 38, 350, 24);
-
-        var lblExcl = new Label { Text = "Excluded folders:", Left = 12, Top = 70, Width = 350 };
-        _clbExcl.SetBounds(12, 92, 350, 300);
-        foreach (var x in KnownExcl) _clbExcl.Items.Add(x);
-        var lblExclCustom = new Label { Text = "Additional folders (comma-separated). Example: cache, temp", Left = 12, Top = 396, Width = 350 };
-        _tbExclCustom.SetBounds(12, 416, 350, 23);
-
-        var lblInc = new Label { Text = "Include globs — one per line (blank = all files):", Left = 384, Top = 12, Width = 350 };
-        _tbInclude.SetBounds(384, 35, 350, 190);
-        var lblExc = new Label { Text = "Exclude globs — one per line (gitignore syntax):", Left = 384, Top = 235, Width = 350 };
-        _tbExclude.SetBounds(384, 258, 350, 181);
-
-        tab.Controls.Add(_chkGitignore);
-        tab.Controls.Add(_chkDumpignore);
-        tab.Controls.Add(lblExcl);
-        tab.Controls.Add(_clbExcl);
-        tab.Controls.Add(lblExclCustom);
-        tab.Controls.Add(_tbExclCustom);
-        tab.Controls.Add(lblInc);
-        tab.Controls.Add(_tbInclude);
-        tab.Controls.Add(lblExc);
-        tab.Controls.Add(_tbExclude);
-        return tab;
-    }
-
-    private TabPage BuildCapsTab()
-    {
-        var tab = new TabPage("Caps & binary");
-        _chkDetectBinary.SetBounds(12, 16, 400, 24);
-
-        var lblFile = new Label { Text = "Max per-file size (KB, 0 = unlimited):", Left = 12, Top = 56, Width = 280 };
-        _numMaxFile.SetBounds(300, 54, 130, 23);
-        var lblTotal = new Label { Text = "Max total size (KB, 0 = unlimited):", Left = 12, Top = 92, Width = 280 };
-        _numMaxTotal.SetBounds(300, 90, 130, 23);
-
-        var lblHint = new Label
-        {
-            Text = "Content beyond a cap is truncated with a [truncated] marker. Binary files (NUL-byte sniff) "
-                 + "are listed but their content is skipped with a marker.",
-            Left = 12, Top = 132, Width = 700, Height = 50,
-        };
-
-        tab.Controls.Add(_chkDetectBinary);
-        tab.Controls.Add(lblFile);
-        tab.Controls.Add(_numMaxFile);
-        tab.Controls.Add(lblTotal);
-        tab.Controls.Add(_numMaxTotal);
-        tab.Controls.Add(lblHint);
-        return tab;
-    }
-
-    private TabPage BuildOutputTab()
-    {
-        var tab = new TabPage("Output");
-        var lblStyle = new Label { Text = "Output style:", Left = 12, Top = 18, Width = 90 };
-        foreach (OutputStyle s in Enum.GetValues<OutputStyle>()) _cmbStyle.Items.Add(s);
-        _cmbStyle.SetBounds(108, 15, 160, 23);
-
-        var lblTarget = new Label { Text = "Output to:", Left = 300, Top = 18, Width = 70 };
-        foreach (OutputTarget t in Enum.GetValues<OutputTarget>()) _cmbTarget.Items.Add(t);
-        _cmbTarget.SetBounds(372, 15, 160, 23);
-
-        var lblDir = new Label { Text = "Output folder:", Left = 12, Top = 56, Width = 90 };
-        _tbOutDir.SetBounds(108, 53, 500, 23);
-        var btnBrowse = new Button { Text = "Browse…", Left = 616, Top = 52, Width = 110 };
-        btnBrowse.Click += (_, _) => OnBrowse();
-
-        var lblHint = new Label
-        {
-            Text = "Folder applies to file output only (blank = Desktop). Clipboard / Console ignore it.",
-            Left = 12, Top = 88, Width = 700,
-        };
-
-        tab.Controls.Add(lblStyle);
-        tab.Controls.Add(_cmbStyle);
-        tab.Controls.Add(lblTarget);
-        tab.Controls.Add(_cmbTarget);
-        tab.Controls.Add(lblDir);
-        tab.Controls.Add(_tbOutDir);
-        tab.Controls.Add(btnBrowse);
-        tab.Controls.Add(lblHint);
-        return tab;
-    }
-
-    private TabPage BuildTokensTab()
-    {
-        var tab = new TabPage("Tokens");
-        var lblEnc = new Label { Text = "Token encoding:", Left = 12, Top = 18, Width = 110 };
-        foreach (TokenEncoding e in Enum.GetValues<TokenEncoding>()) _cmbTokenEnc.Items.Add(e);
-        _cmbTokenEnc.SetBounds(128, 15, 200, 23);
-        var lblEncHint = new Label
-        {
-            Text = "o200k_base = GPT-4o / o-series / current era (recommended). cl100k_base = legacy gpt-4 / 3.5-turbo.",
-            Left = 12, Top = 46, Width = 700, Height = 40,
-        };
-
-        var lblMax = new Label { Text = "Token budget (0 = none):", Left = 12, Top = 96, Width = 280 };
-        _numMaxTokens.SetBounds(300, 94, 160, 23);
-        var lblMaxHint = new Label
-        {
-            Text = "When > 0, the dump is flagged once its total exceeds this — warn-only, no content is dropped. "
-                 + "Token counts appear in the non-Classic output styles; Classic output is unchanged.",
-            Left = 12, Top = 124, Width = 700, Height = 60,
-        };
-
-        tab.Controls.Add(lblEnc);
-        tab.Controls.Add(_cmbTokenEnc);
-        tab.Controls.Add(lblEncHint);
-        tab.Controls.Add(lblMax);
-        tab.Controls.Add(_numMaxTokens);
-        tab.Controls.Add(lblMaxHint);
-        return tab;
-    }
-
-    private TabPage BuildSecretsTab()
-    {
-        var tab = new TabPage("Secrets");
-        var lblMode = new Label { Text = "On secret detected:", Left = 12, Top = 18, Width = 120 };
-        foreach (SecretScanMode m in Enum.GetValues<SecretScanMode>()) _cmbSecretScan.Items.Add(m);
-        _cmbSecretScan.SetBounds(138, 15, 180, 23);
-        var lblModeHint = new Label
-        {
-            Text = "Off = no scan. Warn = flag + count, content untouched. Redact = replace each secret with "
-                 + "[REDACTED]. Skip = drop the file's content (a file whose only hits are from the generic/"
-                 + "entropy detectors is redacted instead of dropped). Redact/Skip apply to the non-Classic "
-                 + "styles only — Classic output stays byte-identical; findings still appear in the post-dump "
-                 + "notice. Only file CONTENT is scanned — secrets in file/directory NAMES are not detected.",
-            Left = 12, Top = 46, Width = 720, Height = 76,
-        };
-
-        _chkSecretEntropy.SetBounds(12, 130, 500, 24);
-
-        var lblAllow = new Label { Text = "Allowlist — one regex per line (matches the detected secret VALUE, not the key name or line):", Left = 12, Top = 164, Width = 720 };
-        _tbSecretAllow.SetBounds(12, 187, 720, 156);
-
-        tab.Controls.Add(lblMode);
-        tab.Controls.Add(_cmbSecretScan);
-        tab.Controls.Add(lblModeHint);
-        tab.Controls.Add(_chkSecretEntropy);
-        tab.Controls.Add(lblAllow);
-        tab.Controls.Add(_tbSecretAllow);
-        return tab;
-    }
-
-    private TabPage BuildPresetsTab()
-    {
-        var tab = new TabPage("Presets");
-        var lbl = new Label
-        {
-            Text = "Pick a preset, then “Load into form” to preview and tweak it before saving.",
-            Left = 12, Top = 16, Width = 700,
-        };
-        foreach (var p in Presets.All) _cmbPreset.Items.Add(p);
-        _cmbPreset.SetBounds(12, 48, 220, 23);
-        _cmbPreset.SelectedIndexChanged += (_, _) =>
-            _lblPresetDesc.Text = (_cmbPreset.SelectedItem as Preset)?.Description ?? "";
-
-        var btnLoad = new Button { Text = "Load into form", Left = 244, Top = 47, Width = 140 };
-        btnLoad.Click += (_, _) => OnLoadPreset();
-
-        _lblPresetDesc.SetBounds(12, 84, 720, 60);
-
-        tab.Controls.Add(lbl);
-        tab.Controls.Add(_cmbPreset);
-        tab.Controls.Add(btnLoad);
-        tab.Controls.Add(_lblPresetDesc);
-        return tab;
     }
 
     private void LoadFromConfig(DumpConfig cfg)
@@ -356,9 +594,19 @@ public sealed class SettingsForm : Form
             _chkDetectBinary.Checked = cfg.DetectBinary;
             _numMaxFile.Value = ClampKb(cfg.MaxFileSizeBytes);
             _numMaxTotal.Value = ClampKb(cfg.MaxTotalSizeBytes);
+            _syncingStyle = true;
+            _cmbFormat.SelectedItem = _cmbFormat.Items.Cast<OutputFormatOption>()
+                .First(x => x.Kind == OutputStyleCatalog.Format(cfg.Style));
+            _cmbStyle.Items.Clear();
+            foreach (OutputStyle style in OutputStyleCatalog.Layouts(OutputStyleCatalog.Format(cfg.Style)))
+                _cmbStyle.Items.Add(style);
             _cmbStyle.SelectedItem = cfg.Style;
+            _syncingStyle = false;
             _cmbTarget.SelectedItem = cfg.OutputTarget;
             _tbOutDir.Text = cfg.OutputDir ?? "";
+            _cmbMode.SelectedItem = _cmbMode.Items.Cast<ModeOption>()
+                .First(x => x.Mode == cfg.LastSelectionMode);
+            _chkShowReview.Checked = cfg.ShowReviewBeforeDump;
             _cmbTokenEnc.SelectedItem = cfg.TokenEncoding;
             _numMaxTokens.Value = ClampTokens(cfg.MaxTokens);
             _cmbSecretScan.SelectedItem = cfg.SecretScan;
@@ -399,6 +647,8 @@ public sealed class SettingsForm : Form
         Style = _cmbStyle.SelectedItem is OutputStyle s ? s : OutputStyle.Classic,
         OutputTarget = _cmbTarget.SelectedItem is OutputTarget t ? t : OutputTarget.File,
         OutputDir = _tbOutDir.Text.Trim().Length == 0 ? null : _tbOutDir.Text.Trim(),
+        LastSelectionMode = _cmbMode.SelectedItem is ModeOption option ? option.Mode : DumpSelectionMode.Basic,
+        ShowReviewBeforeDump = _chkShowReview.Checked,
         TokenEncoding = _cmbTokenEnc.SelectedItem is TokenEncoding te ? te : TokenEncoding.O200kBase,
         // Preserve the exact loaded budget unless the user touched the spinner, so a value above the
         // spinner's display ceiling isn't silently clamped on an untouched save (mirrors the byte caps).
@@ -446,7 +696,7 @@ public sealed class SettingsForm : Form
 
     private void OnBrowse()
     {
-        using var dlg = new FolderBrowserDialog { Description = "Choose the output folder for dumps" };
+        using var dlg = new FolderBrowserDialog { Description = "Choose where to save dumps" };
         if (!string.IsNullOrWhiteSpace(_tbOutDir.Text) && Directory.Exists(_tbOutDir.Text))
             dlg.SelectedPath = _tbOutDir.Text;
         if (dlg.ShowDialog(this) == DialogResult.OK)
@@ -455,23 +705,36 @@ public sealed class SettingsForm : Form
 
     private void OnLoadPreset()
     {
-        if (_cmbPreset.SelectedItem is not Preset p) { _status.Text = "Pick a preset first."; return; }
+        if (_cmbPreset.SelectedItem is not Preset p) { _status.Text = "Choose a preset."; return; }
         var cfg = BuildConfigFromForm();
         p.Apply(cfg);
         LoadFromConfig(cfg);
-        _status.Text = $"Loaded preset ‘{p.Name}’ (not saved yet).";
+        _status.Text = $"{p.Name} applied. Save to keep it.";
     }
 
     private void OnSave()
     {
         var cfg = BuildConfigFromForm();
-        if (cfg.ExtSet.Count == 0) { _status.Text = "❌ Pick at least 1 extension."; return; }
+        if (cfg.ExtSet.Count == 0)
+        {
+            _tabs.SelectedIndex = 1;
+            _status.ForeColor = UiTheme.Error;
+            _status.Text = "Choose at least one file type.";
+            return;
+        }
         try { _ = new Regex(cfg.ExcludeRegex); }
-        catch { _status.Text = "❌ Exclude regex invalid."; return; }
+        catch
+        {
+            _tabs.SelectedIndex = 1;
+            _status.ForeColor = UiTheme.Error;
+            _status.Text = "The folder exclusion pattern is invalid.";
+            return;
+        }
 
         ConfigStore.Save(cfg);
         ContextMenu.TrySyncLabels(cfg);
-        _status.Text = "✅ Saved.";
+        DialogResult = DialogResult.OK;
+        Close();
     }
 
     private void OnReset()
@@ -481,6 +744,7 @@ public sealed class SettingsForm : Form
         for (int i = 0; i < _clbExcl.Items.Count; i++) _clbExcl.SetItemChecked(i, false);
         _tbExtCustom.Text = "";
         _tbExclCustom.Text = "";
-        _status.Text = "Defaults loaded (not saved yet).";
+        _status.ForeColor = UiTheme.Warning;
+        _status.Text = "Defaults restored. Save to keep them.";
     }
 }

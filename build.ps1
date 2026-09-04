@@ -78,13 +78,18 @@ function Build-Lite {
 function Build-Installer($flavorName) {
     $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
     if (-not (Test-Path $iscc)) { $iscc = "C:\Program Files\Inno Setup 6\ISCC.exe" }
+    if (-not (Test-Path $iscc)) { $iscc = Join-Path $env:LOCALAPPDATA "Programs\Inno Setup 6\ISCC.exe" }
     if (-not (Test-Path $iscc)) {
-        Write-Warning "Inno Setup (ISCC.exe) not found; skipped installer. Get it: https://jrsoftware.org/isdl.php"
-        return
+        throw "Inno Setup (ISCC.exe) not found. Install Inno Setup 6, then rerun with -Installer."
     }
     Write-Host "==> [$flavorName] installer..."
     & $iscc "/DFlavor=$flavorName" (Join-Path $root "installer\DumpToTxt.iss")
     if ($LASTEXITCODE -ne 0) { throw "ISCC failed for $flavorName ($LASTEXITCODE)" }
+    $setup = Join-Path $dist "DumpToTxt-Setup-$flavorName.exe"
+    if (-not (Test-Path $setup) -or (Get-Item $setup).Length -eq 0) {
+        throw "installer output missing or empty: $setup"
+    }
+    Report-Size $setup
 }
 
 foreach ($f in $flavors) {

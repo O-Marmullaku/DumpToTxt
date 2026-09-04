@@ -9,6 +9,8 @@ public sealed class DumpResult
     public string? OutputPath { get; init; }
     /// <summary>The rendered dump text (no BOM), regardless of output target.</summary>
     public string Text { get; init; } = "";
+    /// <summary>Binary output for package formats such as Word.</summary>
+    public byte[]? BinaryContent { get; init; }
     public int FilesIncluded { get; init; }
     /// <summary>Total secret findings across the dump (0 when scanning is off / none found).</summary>
     public int SecretFindingCount { get; init; }
@@ -27,24 +29,18 @@ public sealed class DumpResult
 /// </summary>
 public sealed class DumpEngine
 {
-    // Single-directory listing; recursion is driven manually so ignored directories are pruned.
-    private static readonly EnumerationOptions TopLevel = new()
-    {
-        RecurseSubdirectories = false,
-        IgnoreInaccessible = true,
-        AttributesToSkip = 0,
-    };
-
-    private const int BinarySniffBytes = 8000;
-
     private static readonly IReadOnlyDictionary<OutputStyle, IDumpFormatter> Formatters =
         new Dictionary<OutputStyle, IDumpFormatter>
         {
             [OutputStyle.Classic] = new ClassicFormatter(),
             [OutputStyle.Plain] = new PlainFormatter(),
             [OutputStyle.Markdown] = new MarkdownFormatter(),
+            [OutputStyle.MarkdownAi] = new MarkdownFormatter(OutputStyle.MarkdownAi),
+            [OutputStyle.MarkdownCompact] = new MarkdownFormatter(OutputStyle.MarkdownCompact),
             [OutputStyle.Xml] = new XmlFormatter(),
+            [OutputStyle.XmlCompact] = new XmlFormatter(OutputStyle.XmlCompact),
             [OutputStyle.Json] = new JsonFormatter(),
+            [OutputStyle.JsonCompact] = new JsonFormatter(OutputStyle.JsonCompact),
         };
 
     /// <summary>
@@ -53,8 +49,11 @@ public sealed class DumpEngine
     /// the caller to route (clipboard/stdout). <paramref name="outputDir"/> overrides the config
     /// output dir (defaults to the config value, then the Desktop).
     /// </summary>
-    public DumpResult Run(string targetPath, DumpConfig cfg, string? outputDir = null)
+    public DumpResult Run(string targetPath, DumpConfig cfg, string? outputDir = null,
+        DumpContentSelection? contentSelection = null)
     {
+        if (OutputStyleCatalog.IsWord(cfg.Style) && cfg.OutputTarget != OutputTarget.File)
+            throw new InvalidOperationException("Word documents must be saved as a file.");
         targetPath = Path.GetFullPath(targetPath);
         bool isFile = File.Exists(targetPath);
         bool isDir = Directory.Exists(targetPath);
@@ -83,15 +82,25 @@ public sealed class DumpEngine
             string dir = outputDir ?? cfg.OutputDir
                 ?? Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
             Directory.CreateDirectory(dir);
-            outPath = MakeOutputPath(dir, SafeName(baseNameRaw));
+            outPath = MakeOutputPath(dir, SafeName(baseNameRaw), OutputStyleCatalog.Extension(cfg.Style));
             outNameOnly = Path.GetFileName(outPath);
         }
 
-        var model = Gather(targetPath, isFile, root, cfg, outNameOnly);
-        string text = SelectFormatter(cfg.Style).Render(model, cfg);
+        var model = Gather(targetPath, isFile, root, cfg, outNameOnly, contentSelection);
+        byte[]? binary = null;
+        string text;
+        if (cfg.Style == OutputStyle.Docx)
+        {
+            binary = DocxFormatter.RenderPackage(model, cfg);
+            text = "";
+        }
+        else text = SelectFormatter(cfg.Style).Render(model, cfg);
 
         if (outPath != null)
-            File.WriteAllText(outPath, text, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+        {
+            if (binary is not null) File.WriteAllBytes(outPath, binary);
+            else File.WriteAllText(outPath, text, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+        }
 
         // How many files had their whole content omitted (Skip + a high-confidence secret) — surfaced in the
         // post-dump notice so the loss isn't silent. Never happens for Classic (it doesn't sanitize).
@@ -104,6 +113,7 @@ public sealed class DumpEngine
         {
             OutputPath = outPath,
             Text = text,
+            BinaryContent = binary,
             FilesIncluded = model.Files.Count,
             SecretFindingCount = model.SecretFindingCount,
             FilesWithSecrets = model.FilesWithSecrets,
@@ -114,7 +124,8 @@ public sealed class DumpEngine
     private static IDumpFormatter SelectFormatter(OutputStyle style) =>
         Formatters.TryGetValue(style, out var f) ? f : Formatters[OutputStyle.Classic];
 
-    private static DumpModel Gather(string targetPath, bool isFile, string root, DumpConfig cfg, string outNameOnly)
+    private static DumpModel Gather(string targetPath, bool isFile, string root, DumpConfig cfg,
+        string outNameOnly, DumpContentSelection? contentSelection)
     {
         var matcher = IgnoreMatcher.Build(root, cfg);
         var extSet = new HashSet<string>(
@@ -126,7 +137,7 @@ public sealed class DumpEngine
 
         // ONE traversal: ignored directories are pruned (never descended), and the same pass collects
         // the full surviving structure (entries) and the content-eligible files (candidates).
-        Walk(root, matcher, extSet, dotAllow, outNameOnly, entries, candidates);
+        Walk(root, matcher, extSet, dotAllow, outNameOnly, entries, candidates, contentSelection);
 
         entries.Sort((a, b) => string.Compare(a.FullName, b.FullName, StringComparison.OrdinalIgnoreCase));
         candidates.Sort((a, b) => string.Compare(a.FullName, b.FullName, StringComparison.OrdinalIgnoreCase));
@@ -138,9 +149,14 @@ public sealed class DumpEngine
         {
             candidates = candidates.Where(fi => changed.Contains(fi.FullName)).ToList();
             var keepDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var fi in candidates)
+            // A transient type choice controls CONTENT only. Build its changed-file directory listing
+            // from all changed entries; legacy calls keep their candidate-derived behavior byte-for-byte.
+            IEnumerable<string> filesForTree = contentSelection is null
+                ? candidates.Select(fi => fi.FullName)
+                : entries.Where(e => !e.IsDirectory && changed.Contains(e.FullName)).Select(e => e.FullName);
+            foreach (string file in filesForTree)
             {
-                string? d = Path.GetDirectoryName(fi.FullName);
+                string? d = Path.GetDirectoryName(file);
                 while (!string.IsNullOrEmpty(d))
                 {
                     keepDirs.Add(d!);
@@ -166,11 +182,11 @@ public sealed class DumpEngine
             var fi = new FileInfo(targetPath);
             string rel = Path.GetRelativePath(root, fi.FullName);
             files = new List<DumpFile>();
-            bool legible = IsLegible(fi, extSet, dotAllow)
+            bool legible = IsLegible(fi, root, extSet, dotAllow, contentSelection)
                 && !matcher.IsExcluded(fi.FullName, rel, isDir: false)
                 && matcher.MatchesInclude(rel);
             if (legible && (changed is null || changed.Contains(fi.FullName)))
-                files.Add(ReadDumpFile(fi, root, cfg, ref budget, allowlist));
+                files.Add(ReadDumpFile(fi, root, cfg, ref budget, allowlist, contentSelection is not null));
             else if (legible)                       // filtered out only because it has no git changes
             {
                 skipped = fi.FullName;
@@ -183,7 +199,7 @@ public sealed class DumpEngine
         {
             files = new List<DumpFile>(candidates.Count);
             foreach (var fi in candidates)
-                files.Add(ReadDumpFile(fi, root, cfg, ref budget, allowlist));
+                files.Add(ReadDumpFile(fi, root, cfg, ref budget, allowlist, contentSelection is not null));
         }
 
         return new DumpModel
@@ -200,57 +216,35 @@ public sealed class DumpEngine
 
     /// <summary>Manual recursive walk that prunes ignored directories and collects entries + content candidates.</summary>
     private static void Walk(string root, IgnoreMatcher matcher, HashSet<string> extSet,
-        HashSet<string> dotAllow, string outNameOnly, List<ListedEntry> entries, List<FileInfo> candidates)
+        HashSet<string> dotAllow, string outNameOnly, List<ListedEntry> entries, List<FileInfo> candidates,
+        DumpContentSelection? contentSelection)
     {
-        var stack = new Stack<string>();
-        stack.Push(root);
-
-        while (stack.Count > 0)
+        foreach (var entry in FileDiscovery.Enumerate(root, matcher))
         {
-            string dir = stack.Pop();
-            IEnumerable<FileSystemInfo> children;
-            try { children = new DirectoryInfo(dir).EnumerateFileSystemInfos("*", TopLevel); }
-            catch { continue; } // inaccessible directory: skip
-
-            foreach (var info in children)
+            entries.Add(new ListedEntry
             {
-                bool entryIsDir;
-                try { entryIsDir = (info.Attributes & FileAttributes.Directory) != 0; }
-                catch { continue; }
-
-                string full = info.FullName;
-                string rel = Path.GetRelativePath(root, full);
-
-                // Excluded: dropped from BOTH the listing and the content. A directory match prunes its subtree.
-                if (matcher.IsExcluded(full, rel, entryIsDir)) continue;
-
-                entries.Add(new ListedEntry { FullName = full, RelativePath = rel, IsDirectory = entryIsDir });
-
-                if (entryIsDir)
-                {
-                    stack.Push(full);
-                }
-                else if (info is FileInfo fi
-                         && IsLegible(fi, extSet, dotAllow)
-                         && !Regex.IsMatch(fi.Name, @"\.min\.", RegexOptions.IgnoreCase)
-                         && !string.Equals(fi.Name, outNameOnly, StringComparison.OrdinalIgnoreCase)
-                         && matcher.MatchesInclude(rel))
-                {
-                    candidates.Add(fi);
-                }
-            }
+                FullName = entry.FullName,
+                RelativePath = entry.RelativePath,
+                IsDirectory = entry.IsDirectory,
+            });
+            if (!entry.IsDirectory && entry.Info is FileInfo fi
+                && IsLegible(fi, root, extSet, dotAllow, contentSelection)
+                && !Regex.IsMatch(fi.Name, @"\.min\.", RegexOptions.IgnoreCase)
+                && !string.Equals(fi.Name, outNameOnly, StringComparison.OrdinalIgnoreCase)
+                && matcher.MatchesInclude(entry.RelativePath)) candidates.Add(fi);
         }
     }
 
     /// <summary>Reads a candidate file applying binary detection and per-file + total size caps.</summary>
     private static DumpFile ReadDumpFile(FileInfo fi, string root, DumpConfig cfg, ref long totalBudget,
-        IReadOnlyList<System.Text.RegularExpressions.Regex>? secretAllowlist)
+        IReadOnlyList<System.Text.RegularExpressions.Regex>? secretAllowlist, bool requireTextLike)
     {
         string rel = Path.GetRelativePath(root, fi.FullName);
         long size;
         try { size = fi.Length; } catch { size = 0; }
 
-        if (cfg.DetectBinary && IsBinary(fi.FullName))
+        if (requireTextLike ? !TextFileClassifier.IsTextLike(fi.FullName)
+            : cfg.DetectBinary && TextFileClassifier.IsBinaryForDump(fi.FullName))
             return new DumpFile { FullName = fi.FullName, RelativePath = rel, Content = "", Size = size, IsBinary = true };
 
         long perFile = cfg.MaxFileSizeBytes > 0 ? cfg.MaxFileSizeBytes : long.MaxValue;
@@ -287,42 +281,26 @@ public sealed class DumpEngine
         return new DumpFile { FullName = fi.FullName, RelativePath = rel, Content = content, Size = size, IsTruncated = truncated, TokenCount = tokens, Secrets = secrets };
     }
 
-    private static string MakeOutputPath(string dir, string safeBase)
+    private static string MakeOutputPath(string dir, string safeBase, string extension)
     {
         string timeTag = DateTime.Now.ToString("HH-mm");
-        string candidate = Path.Combine(dir, $"{safeBase}-dump-{timeTag}.txt");
+        string candidate = Path.Combine(dir, $"{safeBase}-dump-{timeTag}{extension}");
         if (!File.Exists(candidate)) return candidate;
         for (int i = 1; ; i++)
         {
-            candidate = Path.Combine(dir, $"{safeBase}-dump-{timeTag}-{i:00}.txt");
+            candidate = Path.Combine(dir, $"{safeBase}-dump-{timeTag}-{i:00}{extension}");
             if (!File.Exists(candidate)) return candidate;
         }
     }
 
-    private static bool IsLegible(FileInfo fi, HashSet<string> extSet, HashSet<string> dotAllow)
+    private static bool IsLegible(FileInfo fi, string root, HashSet<string> extSet, HashSet<string> dotAllow,
+        DumpContentSelection? contentSelection)
     {
+        if (contentSelection is not null) return contentSelection.Allows(fi, root);
         var ext = fi.Extension.ToLowerInvariant();
         if (!string.IsNullOrEmpty(ext) && extSet.Contains(ext)) return true;
         if (dotAllow.Contains(fi.Name)) return true;
         return false;
-    }
-
-    /// <summary>NUL-byte sniff over the file head. UTF-16/32 BOM ⇒ treat as text.</summary>
-    private static bool IsBinary(string path)
-    {
-        try
-        {
-            using var fs = File.OpenRead(path);
-            int n = (int)Math.Min(fs.Length, BinarySniffBytes);
-            if (n == 0) return false;
-            var buf = new byte[n];
-            int read = fs.Read(buf, 0, n);
-            if (read >= 2 && ((buf[0] == 0xFF && buf[1] == 0xFE) || (buf[0] == 0xFE && buf[1] == 0xFF)))
-                return false; // UTF-16 BOM — its NULs are expected
-            for (int i = 0; i < read; i++) if (buf[i] == 0) return true;
-            return false;
-        }
-        catch { return false; } // unreadable: let SafeReadText surface it
     }
 
     /// <summary>Full read, preserving the original encoding/BOM detection (byte-identical to v2-P1).</summary>

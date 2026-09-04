@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Xml.Linq;
+using System.IO.Compression;
 using DumpToTxt.Core;
 
 namespace DumpToTxt.Tests;
@@ -31,6 +32,26 @@ public class FormatterTests
         Directory.CreateDirectory(Path.Combine(root, "sub"));
         File.WriteAllText(Path.Combine(root, "a.cs"), "class A {}\n", NoBom);
         File.WriteAllText(Path.Combine(root, "sub", "b.py"), "print(1)\n", NoBom);
+    }
+
+    [Theory]
+    [InlineData(OutputStyle.Plain, OutputFormatKind.Text, ".txt", "Standard")]
+    [InlineData(OutputStyle.Classic, OutputFormatKind.Text, ".txt", "Classic")]
+    [InlineData(OutputStyle.Markdown, OutputFormatKind.Markdown, ".md", "Standard")]
+    [InlineData(OutputStyle.MarkdownAi, OutputFormatKind.Markdown, ".md", "AI-friendly")]
+    [InlineData(OutputStyle.MarkdownCompact, OutputFormatKind.Markdown, ".md", "Compact")]
+    [InlineData(OutputStyle.Json, OutputFormatKind.Json, ".json", "Readable")]
+    [InlineData(OutputStyle.JsonCompact, OutputFormatKind.Json, ".json", "Compact")]
+    [InlineData(OutputStyle.Xml, OutputFormatKind.Xml, ".xml", "Readable")]
+    [InlineData(OutputStyle.XmlCompact, OutputFormatKind.Xml, ".xml", "Compact")]
+    [InlineData(OutputStyle.Docx, OutputFormatKind.Word, ".docx", "Navigable")]
+    public void OutputCatalog_SeparatesFormatLayoutAndExtension(
+        OutputStyle style, OutputFormatKind format, string extension, string layout)
+    {
+        Assert.Equal(format, OutputStyleCatalog.Format(style));
+        Assert.Equal(extension, OutputStyleCatalog.Extension(style));
+        Assert.Equal(layout, OutputStyleCatalog.LayoutName(style));
+        Assert.Contains(style, OutputStyleCatalog.Layouts(format));
     }
 
     [Fact]
@@ -77,6 +98,72 @@ public class FormatterTests
             Assert.Contains("````", o); // 4-backtick fence because content holds a 3-backtick run
         }
         finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void MarkdownAi_UsesStableFileBoundariesAndRelativePaths()
+    {
+        string root = Make(Sample);
+        try
+        {
+            string o = Render(root, OutputStyle.MarkdownAi);
+            Assert.Contains("<!-- file:start path=\"a.cs\" -->", o);
+            Assert.Contains("## File: `a.cs`", o);
+            Assert.Contains("```csharp", o);
+            Assert.Contains("<!-- file:end path=\"a.cs\" -->", o);
+            Assert.DoesNotContain("Largest files by tokens", o);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void CompactJsonAndXml_AreValidWithoutPresentationIndentation()
+    {
+        string root = Make(Sample);
+        try
+        {
+            string json = Render(root, OutputStyle.JsonCompact);
+            string xml = Render(root, OutputStyle.XmlCompact);
+            _ = JsonDocument.Parse(json);
+            _ = XDocument.Parse(xml);
+            Assert.DoesNotContain("\r\n  \"", json);
+            Assert.DoesNotContain("\r\n  <", xml);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void Docx_HasIndexBookmarksAndBackLinks()
+    {
+        string root = Make(Sample);
+        string output = Path.Combine(Path.GetTempPath(), "dtt-docx-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(output);
+        try
+        {
+            var cfg = DumpConfig.CreateDefault();
+            cfg.Style = OutputStyle.Docx;
+            cfg.OutputTarget = OutputTarget.File;
+            cfg.OutputDir = output;
+            cfg.SecretScan = SecretScanMode.Off;
+
+            var result = new DumpEngine().Run(root, cfg);
+
+            Assert.EndsWith(".docx", result.OutputPath, StringComparison.OrdinalIgnoreCase);
+            using var zip = ZipFile.OpenRead(result.OutputPath!);
+            Assert.NotNull(zip.GetEntry("[Content_Types].xml"));
+            Assert.NotNull(zip.GetEntry("word/document.xml"));
+            using var reader = new StreamReader(zip.GetEntry("word/document.xml")!.Open());
+            string xml = reader.ReadToEnd();
+            Assert.Contains("w:name=\"index\"", xml);
+            Assert.Contains("w:anchor=\"file_1\"", xml);
+            Assert.Contains("w:anchor=\"index\"", xml);
+            Assert.Contains("a.cs", xml);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+            Directory.Delete(output, true);
+        }
     }
 
     [Fact]

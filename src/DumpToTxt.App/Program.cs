@@ -29,7 +29,24 @@ internal static class Program
             if (presetName is not null) Presets.ByName(presetName)?.Apply(cfg);
             if (changed) cfg.OnlyGitChanged = true;
 
-            var result = new DumpEngine().Run(target!, cfg);
+            DumpContentSelection selection;
+            bool forceReview = (Control.ModifierKeys & Keys.Shift) == Keys.Shift;
+            if (cfg.ShowReviewBeforeDump || forceReview)
+            {
+                using var selectionForm = new DumpSelectionForm(target!, cfg);
+                if (selectionForm.ShowDialog() != DialogResult.OK
+                    || selectionForm.Selection is null
+                    || selectionForm.UpdatedConfig is null) return;
+                cfg = selectionForm.UpdatedConfig;
+                selection = selectionForm.Selection;
+                ConfigStore.SaveRunPreferences(cfg);
+            }
+            else
+            {
+                selection = DumpContentSelection.FromMode(cfg.LastSelectionMode, cfg);
+            }
+
+            var result = new DumpEngine().Run(target!, cfg, contentSelection: selection);
 
             // Secret-scan notice: the realistic "surface in the GUI" channel until the P7 preview pane lands.
             bool hasSecrets = result.SecretFindingCount > 0;
@@ -51,6 +68,7 @@ internal static class Program
             {
                 case OutputTarget.Clipboard:
                     Clipboard.SetText(string.IsNullOrEmpty(result.Text) ? " " : result.Text);
+                    CompletionSound.Play();
                     MessageBox.Show(
                         $"Copied {result.FilesIncluded} file(s) to the clipboard." + secretNotice,
                         "DumpToTxt", MessageBoxButtons.OK,
@@ -65,24 +83,24 @@ internal static class Program
 
                 case OutputTarget.File:
                 default:
+                    CompletionSound.Play();
                     if (hasSecrets)
                         MessageBox.Show(
                             $"Dump written to:\n{result.OutputPath}{secretNotice}",
                             "DumpToTxt — secrets detected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    // Open the written file; surface its path if the viewer can't launch.
+                    // Open with the user's associated app (Word for .docx, editor for text formats).
                     try
                     {
                         Process.Start(new ProcessStartInfo
                         {
-                            FileName = "notepad.exe",
-                            Arguments = $"\"{result.OutputPath}\"",
+                            FileName = result.OutputPath!,
                             UseShellExecute = true,
                         });
                     }
                     catch (Exception viewerEx)
                     {
                         MessageBox.Show(
-                            $"Dump written to:\n{result.OutputPath}\n\nCould not open Notepad: {viewerEx.Message}",
+                            $"Dump written to:\n{result.OutputPath}\n\nCould not open it: {viewerEx.Message}",
                             "DumpToTxt", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
                     break;
