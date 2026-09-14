@@ -137,9 +137,15 @@ internal static class DeepNavigationScenario
                 }
                 var restore = tree.Nodes.Cast<TreeNode>().FirstOrDefault(row => row.Text.StartsWith("Browse all ", StringComparison.Ordinal));
                 if (restore is not null) formType.GetMethod("PreviewNode", flags)!.Invoke(form, new object[] { restore });
+                for (int page = 0; page < 8 && !realized.ContainsKey("side-198.txt"); page++)
+                {
+                    var next = tree.Nodes.Cast<TreeNode>().FirstOrDefault(row => row.Text.StartsWith("Next paths", StringComparison.Ordinal));
+                    if (next is null) break;
+                    formType.GetMethod("PreviewNode", flags)!.Invoke(form, new object[] { next });
+                }
                 if (!realized.ContainsKey("side-198.txt") || model.PathCount != inventory
                     || model.SelectedBytes != bulkCount + sideFileCount || rebases == 0)
-                    throw new InvalidOperationException("Restoring siblings changed inventory or selection.");
+                    throw new InvalidOperationException("Restoring or paging siblings changed inventory or selection.");
                 completed = true;
                 timer.Stop();
                 form.Close();
