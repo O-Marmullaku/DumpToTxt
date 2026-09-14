@@ -12,7 +12,7 @@ public sealed class DumpSelectionForm : Form
     private sealed record PageTag(DumpReviewNode Parent, int Offset);
     private sealed record FolderViewTag(DumpReviewNode Folder);
     private enum SortColumn { Name, TextSize, Share }
-    private const int PageSize = 200;
+    private const int PageSize = 64;
     private const int MaxRealizedNodes = 1600;
     private readonly Dictionary<string, TreeNode> _realized = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, int> _pages = new(StringComparer.OrdinalIgnoreCase);
@@ -848,7 +848,7 @@ public sealed class DumpSelectionForm : Form
             PlaceNavigationRow(rows, ref index, navigationRows,
                 row => row.Tag is PageTag page && page.Parent.RelativePath.Equals(parent.RelativePath, StringComparison.OrdinalIgnoreCase)
                     && page.Offset == Math.Max(0, offset - PageSize),
-                "Previous 200 paths — press Enter", new PageTag(parent, Math.Max(0, offset - PageSize)));
+                $"Previous {PageSize:N0} paths — press Enter", new PageTag(parent, Math.Max(0, offset - PageSize)));
 
         foreach (var node in desired)
         {
