@@ -264,12 +264,12 @@ internal sealed class ContributionTreeView : TreeView
             EndCap = System.Drawing.Drawing2D.LineCap.Round,
             LineJoin = System.Drawing.Drawing2D.LineJoin.Round,
         };
-        graphics.DrawLines(check,
-        [
+        graphics.DrawLines(check, new Point[]
+        {
             new Point(bounds.X + 4, bounds.Y + 8),
             new Point(bounds.X + 7, bounds.Y + 11),
             new Point(bounds.X + 12, bounds.Y + 5),
-        ]);
+        });
     }
 
     protected override void Dispose(bool disposing)
