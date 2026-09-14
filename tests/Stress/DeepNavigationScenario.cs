@@ -11,7 +11,6 @@ internal static class NativeTestWindow
 
     public static void Show(Form form)
     {
-        // Consume the hidden helper's startup flag, then reveal only the tested window.
         form.Show();
         ShowWindow(form.Handle, 1);
     }
@@ -25,11 +24,14 @@ internal static class DeepNavigationScenario
         var clock = Stopwatch.StartNew();
         var model = new DumpReviewTree(DumpSelectionMode.Thorough);
         const int levels = 40;
+        const int bulkCount = 10_000;
+        const int sideFileCount = (levels * 199) - 1; // Root reserves one sibling slot for the bulk folder.
         var type = DumpFileTypeKey.FromFileName("file.txt");
         string path = "";
         for (int level = 0; level < levels; level++)
         {
-            for (int side = 1; side < 200; side++)
+            int lastSide = level == 0 ? 198 : 199;
+            for (int side = 1; side <= lastSide; side++)
             {
                 string sidePath = path + $"side-{side:D3}.txt";
                 model.AddText(new(sidePath, sidePath, type, 1, 0, true));
@@ -37,24 +39,29 @@ internal static class DeepNavigationScenario
             path += "chain/";
             model.AddPath(new(path, path.TrimEnd('/'), true));
         }
+        for (int i = 0; i < bulkCount; i++)
+        {
+            string bulkPath = $"bulk/file-{i:D5}.txt";
+            model.AddText(new(bulkPath, bulkPath, type, 1, 0, true));
+        }
         string leafPath = path + "leaf.txt";
         model.AddText(new(leafPath, leafPath, type, 1000, 0, true));
         int inventory = model.PathCount;
+        long expectedSelected = bulkCount + sideFileCount + 1000L;
         using var form = new DumpSelectionForm(fixture, config);
         var formType = typeof(DumpSelectionForm);
         var tree = (TreeView)formType.GetField("_tree", flags)!.GetValue(form)!;
         var realized = (Dictionary<string, TreeNode>)formType.GetField("_realized", flags)!.GetValue(form)!;
         using var timer = new System.Windows.Forms.Timer { Interval = 20 };
-        bool initialized = false, completed = false;
+        bool initialized = false, completed = false, bulkChecked = false;
         int depth = 0, peak = 0;
         int rebases = 0;
         string? pendingRebase = null;
         var expansions = new List<double>();
         var populationTimes = new List<double>();
+        var bulkToggles = new List<double>();
         Stopwatch? currentExpansion = null;
         double populationMs = 0;
-        // This handler runs after the production BeforeExpand handler and separates
-        // page preparation from the remainder of the native expansion call.
         tree.BeforeExpand += (_, _) => populationMs = currentExpansion?.Elapsed.TotalMilliseconds ?? 0;
         path = "";
         Exception? failure = null;
@@ -73,6 +80,29 @@ internal static class DeepNavigationScenario
                     formType.GetField("_viewRoot", flags)!.SetValue(form, model.Root);
                     formType.GetMethod("RefreshTree", flags)!.Invoke(form, null);
                     initialized = true;
+                }
+                if (!bulkChecked)
+                {
+                    if (!realized.TryGetValue("bulk", out var bulkRow))
+                        throw new InvalidOperationException("The large parent folder is not reachable.");
+                    bulkRow.Expand();
+                    peak = Math.Max(peak, realized.Count);
+                    var toggle = Stopwatch.StartNew();
+                    formType.GetMethod("ToggleNode", flags)!.Invoke(form, new object[] { bulkRow });
+                    bulkToggles.Add(toggle.Elapsed.TotalMilliseconds);
+                    var bulkNode = model.Find("bulk")!;
+                    if (model.SelectedBytes != expectedSelected - bulkCount
+                        || model.State(bulkNode) != DumpNodeSelectionState.Excluded
+                        || model.State(model.Find("bulk/file-09999.txt")!) != DumpNodeSelectionState.Excluded)
+                        throw new InvalidOperationException("Large parent exclusion did not remain lazy and complete.");
+                    toggle.Restart();
+                    formType.GetMethod("ToggleNode", flags)!.Invoke(form, new object[] { bulkRow });
+                    bulkToggles.Add(toggle.Elapsed.TotalMilliseconds);
+                    if (model.SelectedBytes != expectedSelected || model.State(bulkNode) != DumpNodeSelectionState.Included)
+                        throw new InvalidOperationException("Large parent inclusion did not restore the subtree.");
+                    bulkRow.Collapse();
+                    bulkChecked = true;
+                    return;
                 }
                 if (pendingRebase is not null)
                 {
@@ -99,7 +129,7 @@ internal static class DeepNavigationScenario
                 if (!realized.TryGetValue(leafPath, out var leaf))
                     throw new InvalidOperationException("Deep leaf is unreachable.");
                 formType.GetMethod("ToggleNode", flags)!.Invoke(form, new object[] { leaf });
-                if (model.SelectedBytes != levels * 199) throw new InvalidOperationException("Deep exclusion changed unrelated content.");
+                if (model.SelectedBytes != bulkCount + sideFileCount) throw new InvalidOperationException("Deep exclusion changed unrelated content.");
                 while (((DumpReviewNode)formType.GetField("_viewRoot", flags)!.GetValue(form)!).Parent is not null)
                 {
                     var back = tree.Nodes.Cast<TreeNode>().Single(row => row.Text.StartsWith("Back to ", StringComparison.Ordinal));
@@ -107,7 +137,8 @@ internal static class DeepNavigationScenario
                 }
                 var restore = tree.Nodes.Cast<TreeNode>().FirstOrDefault(row => row.Text.StartsWith("Browse all ", StringComparison.Ordinal));
                 if (restore is not null) formType.GetMethod("PreviewNode", flags)!.Invoke(form, new object[] { restore });
-                if (!realized.ContainsKey("side-199.txt") || model.PathCount != inventory || model.SelectedBytes != levels * 199 || rebases == 0)
+                if (!realized.ContainsKey("side-198.txt") || model.PathCount != inventory
+                    || model.SelectedBytes != bulkCount + sideFileCount || rebases == 0)
                     throw new InvalidOperationException("Restoring siblings changed inventory or selection.");
                 completed = true;
                 timer.Stop();
@@ -126,11 +157,26 @@ internal static class DeepNavigationScenario
         if (failure is not null) throw failure;
         if (!completed) throw new InvalidOperationException("Deep navigation closed before completing assertions.");
         expansions.Sort();
-        return new { mode = "ui-deep", levels = depth, logicalPaths = inventory, peakRealizedRows = peak, rebases,
-            selectedBytes = model.SelectedBytes, elapsedMs = clock.Elapsed.TotalMilliseconds,
-            expansionP95Ms = expansions[(int)((expansions.Count - 1) * .95)], expansionMaxMs = expansions[^1],
+        bulkToggles.Sort();
+        double expansionP95 = expansions[(int)((expansions.Count - 1) * .95)];
+        double expansionMax = expansions[^1];
+        double bulkToggleMax = bulkToggles[^1];
+        return new
+        {
+            mode = "ui-deep",
+            levels = depth,
+            logicalPaths = inventory,
+            peakRealizedRows = peak,
+            rebases,
+            selectedBytes = model.SelectedBytes,
+            elapsedMs = clock.Elapsed.TotalMilliseconds,
+            expansionP95Ms = expansionP95,
+            expansionMaxMs = expansionMax,
             populationMaxMs = populationTimes.Max(),
-            latencyTargetPassed = expansions[(int)((expansions.Count - 1) * .95)] <= 100 && expansions[^1] <= 250,
-            passed = true };
+            bulkToggleP95Ms = bulkToggles[(int)((bulkToggles.Count - 1) * .95)],
+            bulkToggleMaxMs = bulkToggleMax,
+            latencyTargetPassed = expansionP95 <= 100 && expansionMax <= 250 && bulkToggleMax <= 250,
+            passed = true,
+        };
     }
 }

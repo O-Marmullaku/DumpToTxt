@@ -50,6 +50,62 @@ public sealed class ProgressiveReviewTests
     }
 
     [Fact]
+    public void ReviewSorting_NameAndContributionAreDirectionalAndDeterministic()
+    {
+        var tree = new DumpReviewTree(DumpSelectionMode.Thorough);
+        tree.AddText(Entry("zeta.txt", 10));
+        tree.AddText(Entry("Alpha.txt", 20));
+        tree.AddText(Entry("beta.txt", 20));
+        tree.AddText(Entry("gamma.txt", 5));
+
+        Assert.Equal(new[] { "Alpha.txt", "beta.txt", "gamma.txt", "zeta.txt" },
+            tree.Root.Page(0, 10, DumpReviewSort.NameAscending).Select(node => node.RelativePath));
+        Assert.Equal(new[] { "zeta.txt", "gamma.txt", "beta.txt", "Alpha.txt" },
+            tree.Root.Page(0, 10, DumpReviewSort.NameDescending).Select(node => node.RelativePath));
+        Assert.Equal(new[] { "Alpha.txt", "beta.txt", "zeta.txt", "gamma.txt" },
+            tree.Root.Page(0, 10, DumpReviewSort.ContributionDescending).Select(node => node.RelativePath));
+        Assert.Equal(new[] { "gamma.txt", "zeta.txt", "Alpha.txt", "beta.txt" },
+            tree.Root.Page(0, 10, DumpReviewSort.ContributionAscending).Select(node => node.RelativePath));
+    }
+
+    [Fact]
+    public void ReviewSorting_DiscoveryOrderDoesNotMoveWhenContributionChanges()
+    {
+        var tree = new DumpReviewTree(DumpSelectionMode.Thorough);
+        tree.AddPath(new("", "folder/b.txt", false));
+        tree.AddPath(new("", "folder/a.txt", false));
+        var folder = tree.Find("folder")!;
+        Assert.Equal(new[] { "folder/b.txt", "folder/a.txt" },
+            folder.Page(0, 10, DumpReviewSort.DiscoveryAscending).Select(node => node.RelativePath));
+
+        tree.AddText(Entry("folder/a.txt", 500));
+        tree.AddText(Entry("folder/b.txt", 1));
+
+        Assert.Equal(new[] { "folder/b.txt", "folder/a.txt" },
+            folder.Page(0, 10, DumpReviewSort.DiscoveryAscending).Select(node => node.RelativePath));
+        Assert.Equal(new[] { "folder/a.txt", "folder/b.txt" },
+            folder.Page(0, 10, DumpReviewSort.ContributionDescending).Select(node => node.RelativePath));
+    }
+
+    [Fact]
+    public void LargeDirectorySelection_RemainsLazyAndFutureChildrenInheritTheParentChoice()
+    {
+        var tree = new DumpReviewTree(DumpSelectionMode.Thorough);
+        for (int i = 0; i < 20_000; i++) tree.AddText(Entry($"bulk/{i:D5}.txt", i + 1));
+        var bulk = tree.Find("bulk")!;
+
+        tree.Select(bulk, DumpSelectionMode.None);
+        Assert.Equal(0, tree.SelectedBytes);
+        Assert.Equal(DumpNodeSelectionState.Excluded, tree.State(tree.Find("bulk/00000.txt")!));
+        Assert.Equal(DumpNodeSelectionState.Excluded, tree.State(tree.Find("bulk/19999.txt")!));
+
+        tree.AddText(Entry("bulk/later.txt", 25));
+        Assert.Equal(DumpNodeSelectionState.Excluded, tree.State(tree.Find("bulk/later.txt")!));
+        tree.Select(tree.Find("bulk/later.txt")!, DumpSelectionMode.Thorough);
+        Assert.Equal(DumpNodeSelectionState.Mixed, tree.State(bulk));
+    }
+
+    [Fact]
     public void RandomizedLazyAggregates_MatchFlatNearestAncestorSelection()
     {
         var tree = new DumpReviewTree(DumpSelectionMode.Basic);
@@ -102,8 +158,6 @@ public sealed class ProgressiveReviewTests
             for (int i = 0; i < 1_000; i++) File.WriteAllText(Path.Combine(root, $"{i}.txt"), "plain content");
             var state = new DumpPreviewScanState();
             await DumpPreviewScanner.ScanAsync(root, DumpConfig.CreateDefault(), state, CancellationToken.None);
-            // A snapshot-only caller must finish without draining notifications. Publication
-            // cursors subsequently visit this same retained inventory, without a second queue.
             Assert.True(state.Snapshot().Completed);
             Assert.Equal(1_000, state.Snapshot().Paths.Count);
             var paths = new HashSet<string>();

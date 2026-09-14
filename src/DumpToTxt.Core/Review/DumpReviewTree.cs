@@ -1,13 +1,25 @@
 namespace DumpToTxt.Core;
 
+public enum DumpReviewSortKey { Discovery, Name, Contribution }
+public enum DumpReviewSortDirection { Ascending, Descending }
+
+public readonly record struct DumpReviewSort(DumpReviewSortKey Key, DumpReviewSortDirection Direction)
+{
+    public static DumpReviewSort DiscoveryAscending { get; } = new(DumpReviewSortKey.Discovery, DumpReviewSortDirection.Ascending);
+    public static DumpReviewSort NameAscending { get; } = new(DumpReviewSortKey.Name, DumpReviewSortDirection.Ascending);
+    public static DumpReviewSort NameDescending { get; } = new(DumpReviewSortKey.Name, DumpReviewSortDirection.Descending);
+    public static DumpReviewSort ContributionAscending { get; } = new(DumpReviewSortKey.Contribution, DumpReviewSortDirection.Ascending);
+    public static DumpReviewSort ContributionDescending { get; } = new(DumpReviewSortKey.Contribution, DumpReviewSortDirection.Descending);
+}
+
 /// <summary>Complete logical inventory; native rows are only a paged view of this tree.</summary>
 public sealed class DumpReviewNode
 {
-    internal readonly SortedSet<DumpReviewNode> SortedChildren = new(Comparer<DumpReviewNode>.Create((a, b) =>
-    {
-        int size = b.TextBytes.CompareTo(a.TextBytes);
-        return size != 0 ? size : StringComparer.OrdinalIgnoreCase.Compare(a.RelativePath, b.RelativePath);
-    }));
+    private readonly List<DumpReviewNode> _children = new();
+    private readonly Dictionary<DumpReviewSort, (int Version, DumpReviewNode[] Nodes)> _ordered = new();
+    private int _nameVersion;
+    private int _contributionVersion;
+
     public required string Name { get; init; }
     public required string RelativePath { get; init; }
     public bool IsDirectory { get; internal set; }
@@ -19,8 +31,71 @@ public sealed class DumpReviewNode
     internal long AssignmentEpoch, AggregateEpoch;
     internal DumpSelectionMode Assignment;
     internal bool HasText;
-    public int ChildCount => SortedChildren.Count;
-    public IEnumerable<DumpReviewNode> Page(int offset, int count) => SortedChildren.Skip(offset).Take(count);
+    public int ChildCount => _children.Count;
+
+    /// <summary>Compatibility page ordering: largest contribution first.</summary>
+    public IEnumerable<DumpReviewNode> Page(int offset, int count) =>
+        Page(offset, count, DumpReviewSort.ContributionDescending);
+
+    public IEnumerable<DumpReviewNode> Page(int offset, int count, DumpReviewSort sort)
+    {
+        if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
+        if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
+        if (count == 0 || offset >= _children.Count) return Array.Empty<DumpReviewNode>();
+
+        if (sort.Key == DumpReviewSortKey.Discovery)
+        {
+            if (sort.Direction == DumpReviewSortDirection.Ascending)
+                return _children.Skip(offset).Take(count);
+            return _children.AsEnumerable().Reverse().Skip(offset).Take(count);
+        }
+
+        int version = sort.Key == DumpReviewSortKey.Name ? _nameVersion : _contributionVersion;
+        if (!_ordered.TryGetValue(sort, out var cached) || cached.Version != version)
+        {
+            var nodes = _children.ToArray();
+            Array.Sort(nodes, (left, right) => Compare(left, right, sort));
+            cached = (version, nodes);
+            _ordered[sort] = cached;
+        }
+        return cached.Nodes.Skip(offset).Take(count);
+    }
+
+    internal void AddChild(DumpReviewNode child)
+    {
+        _children.Add(child);
+        _nameVersion++;
+        _contributionVersion++;
+        _ordered.Clear();
+    }
+
+    internal void ChildContributionChanged()
+    {
+        _contributionVersion++;
+        _ordered.Remove(DumpReviewSort.ContributionAscending);
+        _ordered.Remove(DumpReviewSort.ContributionDescending);
+    }
+
+    private static int Compare(DumpReviewNode left, DumpReviewNode right, DumpReviewSort sort)
+    {
+        if (sort.Key == DumpReviewSortKey.Contribution)
+        {
+            int size = left.TextBytes.CompareTo(right.TextBytes);
+            if (sort.Direction == DumpReviewSortDirection.Descending) size = -size;
+            if (size != 0) return size;
+            return CompareName(left, right, DumpReviewSortDirection.Ascending);
+        }
+        return CompareName(left, right, sort.Direction);
+    }
+
+    private static int CompareName(DumpReviewNode left, DumpReviewNode right, DumpReviewSortDirection direction)
+    {
+        int result = StringComparer.OrdinalIgnoreCase.Compare(left.Name, right.Name);
+        if (result == 0) result = StringComparer.Ordinal.Compare(left.Name, right.Name);
+        if (result == 0) result = StringComparer.OrdinalIgnoreCase.Compare(left.RelativePath, right.RelativePath);
+        if (result == 0) result = StringComparer.Ordinal.Compare(left.RelativePath, right.RelativePath);
+        return direction == DumpReviewSortDirection.Ascending ? result : -result;
+    }
 }
 
 /// <summary>Incremental aggregates with lazy subtree assignments. A toggle touches only its ancestors,
@@ -55,7 +130,7 @@ public sealed class DumpReviewTree
             Parent = parent,
         };
         _nodes.Add(normalized, node);
-        parent.SortedChildren.Add(node);
+        parent.AddChild(node);
         return node;
     }
 
@@ -68,15 +143,14 @@ public sealed class DumpReviewTree
         foreach (var ancestor in chain) Ensure(ancestor);
         var mode = Effective(node).Mode;
         bool selected = mode == DumpSelectionMode.Thorough || mode == DumpSelectionMode.Basic && entry.IsBasic;
-        foreach (var ancestor in chain) ancestor.Parent?.SortedChildren.Remove(ancestor);
         foreach (var ancestor in chain)
         {
             ancestor.TextBytes += entry.TextBytes;
             ancestor.TextCount++;
             if (entry.IsBasic) { ancestor.BasicBytes += entry.TextBytes; ancestor.BasicCount++; }
             if (selected) { ancestor.SelectedBytes += entry.TextBytes; ancestor.SelectedCount++; }
+            ancestor.Parent?.ChildContributionChanged();
         }
-        foreach (var ancestor in chain) ancestor.Parent?.SortedChildren.Add(ancestor);
     }
 
     public void Select(DumpReviewNode node, DumpSelectionMode mode)
@@ -103,8 +177,11 @@ public sealed class DumpReviewTree
     {
         Ensure(node);
         if (node.TextCount == 0)
-            return Effective(node).Mode == DumpSelectionMode.None && Effective(node).Epoch != Root.AssignmentEpoch
+        {
+            var effective = Effective(node);
+            return effective.Mode == DumpSelectionMode.None && effective.Epoch != Root.AssignmentEpoch
                 ? DumpNodeSelectionState.Excluded : DumpNodeSelectionState.Included;
+        }
         return node.SelectedCount == 0 ? DumpNodeSelectionState.Excluded
             : node.SelectedCount == node.TextCount ? DumpNodeSelectionState.Included : DumpNodeSelectionState.Mixed;
     }

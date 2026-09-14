@@ -9,10 +9,7 @@ internal sealed class ContributionTreeView : TreeView
     {
         public required string DisplayName { get; set; }
         public required string Size { get; set; }
-        public required DumpNodeSelectionState State { get; set; }
-        public double DisplayedShare { get; set; }
-        public double TargetShare { get; set; }
-        public long AddedAt { get; set; }
+        public double Share { get; set; }
     }
 
     public const int SizeColumnWidth = 92;
@@ -24,8 +21,9 @@ internal sealed class ContributionTreeView : TreeView
     public event EventHandler<TreeNode>? PreviewRequested;
 
     private readonly Dictionary<TreeNode, RowMetrics> _metrics = new();
-    private readonly System.Windows.Forms.Timer _animationTimer = new() { Interval = 33 };
     private TreeNode? _hotNode;
+
+    public Func<TreeNode, DumpNodeSelectionState>? StateProvider { get; set; }
 
     public ContributionTreeView()
     {
@@ -38,7 +36,7 @@ internal sealed class ContributionTreeView : TreeView
         ShowLines = false;
         ShowPlusMinus = false;
         ShowRootLines = false;
-        ShowNodeToolTips = true;
+        ShowNodeToolTips = false;
         ItemHeight = 37;
         Font = UiTheme.UiFont(9f);
         BackColor = UiTheme.Surface;
@@ -46,16 +44,25 @@ internal sealed class ContributionTreeView : TreeView
         AccessibleName = "Content map";
         AccessibleDescription = "Files and folders with Included, Mixed, or Excluded selection state. Press Space to change a row.";
         ImageList = BuildNodeImages();
-        _animationTimer.Tick += (_, _) => AdvanceAnimation();
         MouseMove += (_, e) =>
         {
             TreeNode? next = NodeAtRow(e.Y);
             if (next == _hotNode) return;
+            TreeNode? previous = _hotNode;
             _hotNode = next;
-            Invalidate();
+            InvalidateRow(previous);
+            InvalidateRow(next);
         };
-        MouseLeave += (_, _) => { _hotNode = null; Invalidate(); };
-        MouseDown += (_, e) => HandlePointer(e.Location);
+        MouseLeave += (_, _) =>
+        {
+            TreeNode? previous = _hotNode;
+            _hotNode = null;
+            InvalidateRow(previous);
+        };
+        MouseDown += (_, e) =>
+        {
+            if (e.Button == MouseButtons.Left) HandlePointer(e.Location);
+        };
         KeyDown += (_, e) =>
         {
             if (e.KeyCode != Keys.Space || SelectedNode is null) return;
@@ -65,42 +72,26 @@ internal sealed class ContributionTreeView : TreeView
         };
     }
 
-    public void SetMetrics(TreeNode node, string displayName, string size, double share,
-        DumpNodeSelectionState state, bool animateEntry = false)
+    public void SetMetrics(TreeNode node, string displayName, string size, double share, bool invalidate = true)
     {
-        double target = Math.Clamp(share, 0, 100);
-        bool animate = SystemInformation.UIEffectsEnabled && SystemInformation.IsMenuAnimationEnabled;
+        double value = Math.Round(Math.Clamp(share, 0, 100), 1, MidpointRounding.AwayFromZero);
         if (!_metrics.TryGetValue(node, out RowMetrics? metrics))
         {
-            metrics = new RowMetrics
-            {
-                DisplayName = displayName,
-                Size = size,
-                State = state,
-                DisplayedShare = animate ? 0 : target,
-                TargetShare = target,
-                AddedAt = animate && animateEntry ? Environment.TickCount64 : 0,
-            };
+            metrics = new RowMetrics { DisplayName = displayName, Size = size, Share = value };
             _metrics[node] = metrics;
         }
         else
         {
-            if (metrics.DisplayName == displayName && metrics.Size == size && metrics.State == state
-                && metrics.TargetShare == target) return;
+            if (metrics.DisplayName == displayName && metrics.Size == size && metrics.Share == value) return;
             metrics.DisplayName = displayName;
             metrics.Size = size;
-            metrics.State = state;
-            metrics.TargetShare = target;
-            if (!animate) metrics.DisplayedShare = target;
+            metrics.Share = value;
         }
-
-        if (animate && (Math.Abs(metrics.DisplayedShare - metrics.TargetShare) >= 0.1 || metrics.AddedAt > 0))
-            _animationTimer.Start();
-        if (node.IsVisible) Invalidate(node.Bounds);
+        if (invalidate) InvalidateRow(node);
     }
 
     public DumpNodeSelectionState GetNodeState(TreeNode node) =>
-        _metrics.TryGetValue(node, out RowMetrics? metrics) ? metrics.State : DumpNodeSelectionState.Excluded;
+        StateProvider?.Invoke(node) ?? DumpNodeSelectionState.Excluded;
 
     public void Forget(TreeNode node)
     {
@@ -120,6 +111,26 @@ internal sealed class ContributionTreeView : TreeView
         return base.ProcessCmdKey(ref msg, keyData);
     }
 
+    protected override void OnMouseDoubleClick(MouseEventArgs e)
+    {
+        if (e.Button != MouseButtons.Left)
+        {
+            base.OnMouseDoubleClick(e);
+            return;
+        }
+
+        TreeNode? node = NodeAtRow(e.Y);
+        if (node is null)
+        {
+            base.OnMouseDoubleClick(e);
+            return;
+        }
+
+        SelectedNode = node;
+        if (IsExpanderHit(node, e.Location) || IsToggleHit(node, e.Location)) return;
+        PreviewRequested?.Invoke(this, node);
+    }
+
     protected override void OnDrawNode(DrawTreeNodeEventArgs e)
     {
         if (e.Node is null || !_metrics.TryGetValue(e.Node, out RowMetrics? metrics))
@@ -129,18 +140,13 @@ internal sealed class ContributionTreeView : TreeView
         }
 
         var row = new Rectangle(0, e.Bounds.Top, ClientSize.Width, e.Bounds.Height);
-        if (!_animationTimer.Enabled) metrics.DisplayedShare = metrics.TargetShare;
+        DumpNodeSelectionState state = GetNodeState(e.Node);
         bool selected = e.Node == SelectedNode;
-        bool excluded = metrics.State == DumpNodeSelectionState.Excluded;
+        bool excluded = state == DumpNodeSelectionState.Excluded;
         Color background = selected ? UiTheme.AccentSoft
             : excluded ? UiTheme.Window
             : e.Node == _hotNode ? UiTheme.ControlHover
             : UiTheme.Surface;
-        if (metrics.AddedAt > 0)
-        {
-            double elapsed = Environment.TickCount64 - metrics.AddedAt;
-            background = Blend(UiTheme.AccentSoft, background, Math.Clamp(elapsed / 420d, 0, 1));
-        }
         using (var brush = new SolidBrush(background)) e.Graphics.FillRectangle(brush, row);
         using (var pen = new Pen(UiTheme.Rail))
             e.Graphics.DrawLine(pen, 0, row.Bottom - 1, row.Right, row.Bottom - 1);
@@ -153,7 +159,7 @@ internal sealed class ContributionTreeView : TreeView
         int sizeX = Math.Max(nameX + 40, shareX - SizeColumnWidth);
 
         if (e.Node.Nodes.Count > 0) DrawExpander(e.Graphics, e.Node, branchX, row.Top + (row.Height / 2));
-        DrawState(e.Graphics, metrics.State, new Rectangle(checkX, row.Top + ((row.Height - 16) / 2), 16, 16));
+        DrawState(e.Graphics, state, new Rectangle(checkX, row.Top + ((row.Height - 16) / 2), 16, 16));
         ImageList?.Draw(e.Graphics, iconX, row.Top + ((row.Height - 16) / 2), 16, 16, e.Node.ImageIndex);
 
         Color text = excluded ? UiTheme.DisabledText : UiTheme.Text;
@@ -167,13 +173,13 @@ internal sealed class ContributionTreeView : TreeView
         int barWidth = 36;
         var bar = new Rectangle(shareX + 8, row.Top + ((row.Height - 4) / 2), barWidth, 4);
         using (var track = new SolidBrush(UiTheme.Border)) e.Graphics.FillRectangle(track, bar);
-        if (!excluded && metrics.DisplayedShare > 0)
+        if (!excluded && metrics.Share > 0)
         {
-            var fill = new Rectangle(bar.X, bar.Y, Math.Max(1, (int)Math.Round(barWidth * metrics.DisplayedShare / 100d)), bar.Height);
+            var fill = new Rectangle(bar.X, bar.Y, Math.Max(1, (int)Math.Round(barWidth * metrics.Share / 100d)), bar.Height);
             using var accent = new SolidBrush(UiTheme.Accent);
             e.Graphics.FillRectangle(accent, fill);
         }
-        TextRenderer.DrawText(e.Graphics, $"{metrics.DisplayedShare:0.#}%", Font,
+        TextRenderer.DrawText(e.Graphics, $"{metrics.Share:0.#}%", Font,
             new Rectangle(bar.Right + 5, row.Top, Math.Max(0, ClientSize.Width - bar.Right - 11), row.Height), text,
             TextFormatFlags.VerticalCenter | TextFormatFlags.Right | TextFormatFlags.NoPrefix);
 
@@ -186,12 +192,26 @@ internal sealed class ContributionTreeView : TreeView
         TreeNode? node = NodeAtRow(location.Y);
         if (node is null) return;
         SelectedNode = node;
+        if (IsExpanderHit(node, location)) node.Toggle();
+        else if (IsToggleHit(node, location)) ToggleRequested?.Invoke(this, node);
+        InvalidateRow(node);
+    }
+
+    private bool IsExpanderHit(TreeNode node, Point location) =>
+        node.Nodes.Count > 0 && ExpanderBounds(node).Contains(location);
+
+    private bool IsToggleHit(TreeNode node, Point location) => StateBounds(node).Contains(location);
+
+    private Rectangle ExpanderBounds(TreeNode node)
+    {
         int branchX = 8 + (node.Level * Indent);
-        var branchBounds = new Rectangle(branchX, node.Bounds.Top + ((ItemHeight - 16) / 2), 16, 16);
-        var stateBounds = new Rectangle(branchX + 18, node.Bounds.Top + ((ItemHeight - 16) / 2), 16, 16);
-        if (node.Nodes.Count > 0 && branchBounds.Contains(location)) node.Toggle();
-        else if (stateBounds.Contains(location)) ToggleRequested?.Invoke(this, node);
-        Invalidate();
+        return new Rectangle(branchX, node.Bounds.Top + ((ItemHeight - 16) / 2), 16, 16);
+    }
+
+    private Rectangle StateBounds(TreeNode node)
+    {
+        int branchX = 8 + (node.Level * Indent);
+        return new Rectangle(branchX + 18, node.Bounds.Top + ((ItemHeight - 16) / 2), 16, 16);
     }
 
     private TreeNode? NodeAtRow(int y)
@@ -202,6 +222,12 @@ internal sealed class ContributionTreeView : TreeView
             if (node.Bounds.Top > y) break;
         }
         return null;
+    }
+
+    private void InvalidateRow(TreeNode? node)
+    {
+        if (node is { IsVisible: true })
+            Invalidate(new Rectangle(0, node.Bounds.Top, ClientSize.Width, node.Bounds.Height));
     }
 
     private static void DrawExpander(Graphics graphics, TreeNode node, int x, int centerY)
@@ -239,50 +265,17 @@ internal sealed class ContributionTreeView : TreeView
             LineJoin = System.Drawing.Drawing2D.LineJoin.Round,
         };
         graphics.DrawLines(check,
-        new Point[]
-        {
+        [
             new Point(bounds.X + 4, bounds.Y + 8),
             new Point(bounds.X + 7, bounds.Y + 11),
             new Point(bounds.X + 12, bounds.Y + 5),
-        });
-    }
-
-    private void AdvanceAnimation()
-    {
-        bool active = false;
-        long now = Environment.TickCount64;
-        for (TreeNode? node = TopNode; node is not null && node.Bounds.Top < ClientSize.Height; node = node.NextVisibleNode)
-        {
-            if (!_metrics.TryGetValue(node, out RowMetrics? metrics)) continue;
-            double delta = metrics.TargetShare - metrics.DisplayedShare;
-            if (Math.Abs(delta) >= 0.1)
-            {
-                metrics.DisplayedShare += delta * 0.28;
-                active = true;
-            }
-            else metrics.DisplayedShare = metrics.TargetShare;
-
-            if (metrics.AddedAt > 0)
-            {
-                if (now - metrics.AddedAt < 420) active = true;
-                else metrics.AddedAt = 0;
-            }
-        }
-        Invalidate();
-        if (!active) _animationTimer.Stop();
-    }
-
-    private static Color Blend(Color from, Color to, double progress)
-    {
-        int Mix(int a, int b) => (int)Math.Round(a + ((b - a) * progress));
-        return Color.FromArgb(Mix(from.R, to.R), Mix(from.G, to.G), Mix(from.B, to.B));
+        ]);
     }
 
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
-            _animationTimer.Dispose();
             ImageList?.Dispose();
             _metrics.Clear();
         }
