@@ -1,10 +1,3 @@
-/*
-THESIS: Review contribution before generation; refuse the type-grid wizard that hides impact and output decisions.
-OWN-WORLD: Native Windows utility surfaces, quiet cool neutrals, semantic blue, dense tree data, standard controls.
-STORY: Choose representation, inspect the largest contributors, exclude noise, preview the result, create the dump.
-FIRST VIEWPORT: Remembered run choices stay in a narrow left rail; the live content map owns the wide workspace; Create dump anchors the lower-right.
-FORM: A · Review workspace, selected in the interactive prototype. FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance.
-*/
 using System.Drawing;
 using DumpToTxt.Core;
 
@@ -15,7 +8,19 @@ public sealed class DumpSelectionForm : Form
 {
     private const int RailContentWidth = 252;
 
-    private sealed record NodeTag(DumpContributionNode Node, IReadOnlyList<DumpPreviewEntry> Entries);
+    private sealed record NodeTag(DumpReviewNode Node);
+    private sealed record PageTag(DumpReviewNode Parent, int Offset);
+    private sealed record FolderViewTag(DumpReviewNode Folder);
+    private const int PageSize = 200;
+    private const int MaxRealizedNodes = 1600;
+    private readonly Dictionary<string, TreeNode> _realized = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> _pages = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _compactedParents = new(StringComparer.OrdinalIgnoreCase);
+    private DumpReviewTree _review = null!;
+    private DumpReviewNode _viewRoot = null!;
+    private bool _scanComplete, _refreshingNodes, _started;
+    private int _scanGeneration, _previewGeneration;
+    private CancellationTokenSource? _previewCancellation;
     private sealed record ModeOption(DumpSelectionMode Mode, string Label)
     {
         public override string ToString() => Label;
@@ -23,14 +28,14 @@ public sealed class DumpSelectionForm : Form
 
     private readonly string _targetPath;
     private readonly DumpConfig _config;
-    private readonly DumpPreviewScanState _scanState = new();
-    private readonly DumpSelectionModel _selectionModel = new();
+    private DumpPreviewScanState _scanState = new();
     private readonly DumpPathSelectionModel _pathSelection = new();
-    private readonly CancellationTokenSource _scanCancellation = new();
-    private readonly System.Windows.Forms.Timer _refreshTimer = new() { Interval = 120 };
+    private CancellationTokenSource _scanCancellation = new();
+    private readonly System.Windows.Forms.Timer _refreshTimer = new() { Interval = 30 };
     private readonly ComboBox _formatCombo = new() { DropDownStyle = ComboBoxStyle.DropDownList };
     private readonly ComboBox _layoutCombo = new() { DropDownStyle = ComboBoxStyle.DropDownList };
     private readonly RadioButton _clipboard = new() { Text = "Copy to clipboard", AutoSize = true };
+    private readonly RadioButton _console = new() { Text = "Write to console", AutoSize = true };
     private readonly RadioButton _file = new() { Text = "Save to file", AutoSize = true };
     private readonly TextBox _outputFolder = new();
     private readonly Button _chooseFolder = new() { Text = "Browse…" };
@@ -43,6 +48,12 @@ public sealed class DumpSelectionForm : Form
     private readonly Panel _mapWorkspace = new();
     private readonly Panel _previewWorkspace = new();
     private readonly Button _previewButton = new() { Text = "Preview output…", AutoSize = true, Height = 32 };
+    private readonly ProgressBar _scanProgress = new()
+    {
+        Style = ProgressBarStyle.Marquee,
+        MarqueeAnimationSpeed = 24,
+        AccessibleName = "Scanning activity",
+    };
     private readonly Button _previewBack = new() { Text = "Back to content map", AutoSize = true, Height = 32 };
     private readonly ContributionTreeView _tree = new() { Dock = DockStyle.Fill };
     private readonly RichTextBox _preview = new()
@@ -59,19 +70,20 @@ public sealed class DumpSelectionForm : Form
     private readonly Label _selectionSummary = new() { AutoSize = true, ForeColor = UiTheme.Text };
     private readonly CheckBox _skipNext = new() { Text = "Skip this screen next time", AutoSize = true };
     private readonly Label _validation = new() { AutoSize = true, ForeColor = UiTheme.Error };
+    private readonly ToolTip _details = new();
     private readonly Button _create = new() { Text = "Create dump", Width = 118, Height = 34 };
     private readonly Button _cancel = new() { Text = "Cancel", Width = 88, Height = 34 };
 
-    private DumpPreviewSnapshot _snapshot = new(Array.Empty<DumpPreviewTypeCount>(), 0, false);
     private Task? _scanTask;
     private string? _previewPath;
     private Control? _previewReturnFocus;
     private bool _ending;
     private bool _allowClose;
+    private bool _ownedResourcesDisposed;
     private bool _syncingFormat;
     private bool _syncingDestination;
     private bool _syncingMode;
-    private bool _initialTreeExpansionApplied;
+
 
     public DumpContentSelection? Selection { get; private set; }
     public DumpConfig? UpdatedConfig { get; private set; }
@@ -90,11 +102,15 @@ public sealed class DumpSelectionForm : Form
         ForeColor = UiTheme.Text;
         try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
         BuildUi();
-        _scanStatus.AccessibleName = "Scan progress";
         _selectionSummary.AccessibleName = "Current selection summary";
         _validation.AccessibleName = "Selection error";
         _validation.AccessibleRole = AccessibleRole.Alert;
         LoadRunChoices();
+        _review = new DumpReviewTree(_config.LastSelectionMode);
+        _viewRoot = _review.Root;
+        _respectGitignore.CheckedChanged += (_, _) => RestartScan();
+        _respectDumpignore.CheckedChanged += (_, _) => RestartScan();
+        _sensitive.SelectedIndexChanged += (_, _) => RefreshPreview();
         _refreshTimer.Tick += (_, _) => RefreshFromScan();
         Shown += (_, _) => { StartScan(); _tree.Focus(); };
     }
@@ -126,6 +142,7 @@ public sealed class DumpSelectionForm : Form
             BackColor = UiTheme.Border,
             Panel1MinSize = 300,
             Panel2MinSize = 500,
+            Margin = new Padding(0),
         };
         split.Panel1.BackColor = UiTheme.Rail;
         split.Panel2.BackColor = UiTheme.Surface;
@@ -176,8 +193,8 @@ public sealed class DumpSelectionForm : Form
         flow.Controls.Add(BuildComboHost(_layoutCombo));
 
         flow.Controls.Add(UiTheme.SectionLabel("SEND TO"));
-        _clipboard.CheckedChanged += (_, _) => DestinationChoiceChanged(_clipboard, _file);
-        _file.CheckedChanged += (_, _) => DestinationChoiceChanged(_file, _clipboard);
+        _clipboard.CheckedChanged += (_, _) => DestinationChoiceChanged(_clipboard);
+        _file.CheckedChanged += (_, _) => DestinationChoiceChanged(_file);
         var destinationRow = new TableLayoutPanel { Width = RailContentWidth, Height = 32, ColumnCount = 3, Margin = new Padding(0, 0, 0, 3) };
         destinationRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 86));
         destinationRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -198,6 +215,8 @@ public sealed class DumpSelectionForm : Form
         flow.Controls.Add(destinationRow);
         _clipboard.Margin = new Padding(0, 1, 0, 0);
         flow.Controls.Add(_clipboard);
+        _console.CheckedChanged += (_, _) => DestinationChoiceChanged(_console);
+        flow.Controls.Add(_console);
 
         flow.Controls.Add(UiTheme.SectionLabel("START WITH"));
         UiTheme.StyleChoiceCombo(_modeCombo);
@@ -255,7 +274,7 @@ public sealed class DumpSelectionForm : Form
         _sensitive.Format += (_, e) => e.Value = e.ListItem switch
         {
             SecretScanMode.Off => "Do not scan",
-            SecretScanMode.Warn => "Warn only",
+            SecretScanMode.Warn => "Ask before keeping",
             SecretScanMode.Redact => "Hide sensitive values",
             SecretScanMode.Skip => "Skip file contents",
             _ => e.ListItem?.ToString(),
@@ -270,18 +289,58 @@ public sealed class DumpSelectionForm : Form
         _mapWorkspace.Dock = DockStyle.Fill;
         _mapWorkspace.BackColor = UiTheme.Surface;
         var mapLayout = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1 };
-        mapLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 68));
+        mapLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 72));
         mapLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
         mapLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         mapLayout.Controls.Add(BuildMapToolbar(), 0, 0);
         mapLayout.Controls.Add(BuildTreeHeader(), 0, 1);
         _tree.AccessibleName = "Included file and folder contribution map";
+        _tree.Margin = new Padding(0);
+        _tree.BeforeExpand += (_, e) =>
+        {
+            if (_refreshingNodes || e.Node?.Tag is not NodeTag tag) return;
+            // Owner-drawn rows use client coordinates. Rebase before indentation can
+            // push the next level's name and inclusion control outside the viewport.
+            int nextNameX = 68 + ((e.Node.Level + 1) * _tree.Indent);
+            if (nextNameX + 120 + ContributionTreeView.SizeColumnWidth + ContributionTreeView.ShareColumnWidth > _tree.ClientSize.Width)
+            {
+                e.Cancel = true;
+                BeginInvoke(new Action(() => ShowFolder(tag.Node)));
+                return;
+            }
+            _tree.BeginUpdate();
+            try
+            {
+                if (!EnsureRealizationRoom(e.Node))
+                {
+                    e.Cancel = true;
+                    // Even a chain longer than the realization budget stays reachable.
+                    BeginInvoke(new Action(() => ShowFolder(tag.Node)));
+                    return;
+                }
+                PopulatePage(e.Node.Nodes, tag.Node);
+            }
+            finally { _tree.EndUpdate(); }
+        };
+        _tree.AfterCollapse += (_, e) =>
+        {
+            if (_refreshingNodes || e.Node?.Tag is not NodeTag tag) return;
+            ReleaseNodes(e.Node.Nodes);
+            e.Node.Nodes.Clear();
+            _compactedParents.Remove(tag.Node.RelativePath);
+            if (tag.Node.ChildCount > 0) e.Node.Nodes.Add(new TreeNode("Expand to browse"));
+        };
         _tree.ToggleRequested += (_, node) => ToggleNode(node);
         _tree.PreviewRequested += (_, node) => PreviewNode(node);
         _tree.AfterSelect += (_, e) =>
         {
             if (e.Node?.Tag is not NodeTag) return;
-            string state = e.Node.StateImageIndex switch { 1 => "Included", 2 => "Partly included", _ => "Excluded" };
+            string state = _tree.GetNodeState(e.Node) switch
+            {
+                DumpNodeSelectionState.Included => "Included",
+                DumpNodeSelectionState.Mixed => "Partly included",
+                _ => "Excluded",
+            };
             _tree.AccessibleDescription = $"{state}: {e.Node.Text}. Press Space to change inclusion or Enter to preview.";
             _tree.AnnounceDescription();
         };
@@ -313,11 +372,21 @@ public sealed class DumpSelectionForm : Form
 
     private Control BuildMapToolbar()
     {
-        var panel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 2, Padding = new Padding(18, 12, 18, 8) };
+        var panel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 4,
+            Padding = new Padding(18, 8, 18, 0),
+            BackColor = UiTheme.Surface,
+            Margin = new Padding(0),
+        };
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 25));
-        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 23));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 20));
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 3));
         _scanStatus.Text = "Preparing scan…";
         _scanStatus.Font = UiTheme.UiFont(10f, FontStyle.Bold);
         _scanStatus.ForeColor = UiTheme.Text;
@@ -331,6 +400,13 @@ public sealed class DumpSelectionForm : Form
         _previewButton.Click += (_, _) => ShowPreview(returnFocus: _previewButton);
         panel.Controls.Add(_previewButton, 1, 0);
         panel.SetRowSpan(_previewButton, 2);
+        _scanProgress.Dock = DockStyle.Fill;
+        _scanProgress.Margin = new Padding(0);
+        panel.Controls.Add(_scanProgress, 0, 2);
+        panel.SetColumnSpan(_scanProgress, 2);
+        var accent = new Panel { Dock = DockStyle.Fill, BackColor = UiTheme.Accent, Margin = new Padding(0) };
+        panel.Controls.Add(accent, 0, 3);
+        panel.SetColumnSpan(accent, 2);
         return panel;
     }
 
@@ -340,7 +416,7 @@ public sealed class DumpSelectionForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 3,
-            BackColor = Color.FromArgb(247, 249, 251),
+            BackColor = UiTheme.Window,
             Padding = new Padding(16, 0, 16, 0),
             Margin = new Padding(0),
         };
@@ -366,7 +442,8 @@ public sealed class DumpSelectionForm : Form
 
     private Control BuildFooter()
     {
-        var panel = new Panel { Dock = DockStyle.Fill, BackColor = UiTheme.Rail };
+        var panel = new Panel { Dock = DockStyle.Fill, BackColor = UiTheme.Rail, Margin = new Padding(0) };
+        panel.Controls.Add(new Panel { Dock = DockStyle.Top, Height = 1, BackColor = UiTheme.Border });
         _skipNext.Location = new Point(20, 20);
         _skipNext.AccessibleDescription = "Use the last saved choices automatically on future Explorer invocations.";
         panel.Controls.Add(_skipNext);
@@ -401,14 +478,18 @@ public sealed class DumpSelectionForm : Form
             .First(x => x.Kind == OutputStyleCatalog.Format(_config.Style));
         PopulateLayouts(_config.Style);
         _syncingFormat = false;
-        _clipboard.Checked = _config.OutputTarget == OutputTarget.Clipboard;
-        _file.Checked = !_clipboard.Checked;
+        OutputTarget savedTarget = _config.OutputTarget;
+        _syncingDestination = true;
+        _clipboard.Checked = savedTarget == OutputTarget.Clipboard && !OutputStyleCatalog.IsWord(_config.Style);
+        _console.Checked = savedTarget == OutputTarget.Stdout && !OutputStyleCatalog.IsWord(_config.Style);
+        _file.Checked = savedTarget == OutputTarget.File || OutputStyleCatalog.IsWord(_config.Style);
+        _clipboard.Enabled = _console.Enabled = !OutputStyleCatalog.IsWord(_config.Style);
+        _syncingDestination = false;
         _outputFolder.Text = _config.OutputDir ?? "";
         _respectGitignore.Checked = _config.RespectGitignore;
         _respectDumpignore.Checked = _config.UseDumpToTxtIgnore;
         _sensitive.SelectedItem = _config.SecretScan;
         _skipNext.Checked = !_config.ShowReviewBeforeDump;
-        _selectionModel.SelectMode(_config.LastSelectionMode);
         _syncingMode = true;
         _modeCombo.SelectedItem = _modeCombo.Items.Cast<ModeOption>()
             .First(x => x.Mode == _config.LastSelectionMode);
@@ -424,7 +505,7 @@ public sealed class DumpSelectionForm : Form
         _config.Style = next;
         PopulateLayouts(next);
         bool word = OutputStyleCatalog.IsWord(next);
-        _clipboard.Enabled = !word;
+        _clipboard.Enabled = _console.Enabled = !word;
         if (word) _file.Checked = true;
         RefreshPreview();
     }
@@ -433,8 +514,8 @@ public sealed class DumpSelectionForm : Form
     {
         if (_syncingMode || _modeCombo.SelectedItem is not ModeOption option) return;
         _config.LastSelectionMode = option.Mode;
-        _selectionModel.SelectMode(option.Mode);
         _pathSelection.Clear();
+        _review.Select(_review.Root, option.Mode);
         RefreshTree();
         RefreshPreview();
     }
@@ -456,7 +537,7 @@ public sealed class DumpSelectionForm : Form
         if (_syncingFormat || _layoutCombo.SelectedItem is not OutputStyle style) return;
         _config.Style = style;
         bool word = OutputStyleCatalog.IsWord(style);
-        _clipboard.Enabled = !word;
+        _clipboard.Enabled = _console.Enabled = !word;
         if (word) _file.Checked = true;
         RefreshPreview();
     }
@@ -466,16 +547,18 @@ public sealed class DumpSelectionForm : Form
         bool save = _file.Checked || OutputStyleCatalog.IsWord(_config.Style);
         _outputFolder.Enabled = save;
         _chooseFolder.Enabled = save;
-        _config.OutputTarget = save ? OutputTarget.File : OutputTarget.Clipboard;
+        _config.OutputTarget = save ? OutputTarget.File : _console.Checked ? OutputTarget.Stdout : OutputTarget.Clipboard;
     }
 
-    private void DestinationChoiceChanged(RadioButton selected, RadioButton other)
+    private void DestinationChoiceChanged(RadioButton selected)
     {
         if (_syncingDestination) return;
         _syncingDestination = true;
         try
         {
-            if (selected.Checked) other.Checked = false;
+            if (selected.Checked)
+                foreach (var radio in new[] { _file, _clipboard, _console })
+                    if (radio != selected) radio.Checked = false;
             DestinationChanged();
         }
         finally
@@ -497,146 +580,291 @@ public sealed class DumpSelectionForm : Form
 
     private void StartScan()
     {
-        _scanStatus.Text = "Scanning files…";
+        _started = true;
+        _scanComplete = false;
+        _create.Enabled = false;
+        SetScanStatus("Scanning files…");
+        _scanProgress.Visible = true;
         _refreshTimer.Start();
-        _scanTask = DumpPreviewScanner.ScanAsync(_targetPath, _config, _scanState, _scanCancellation.Token);
+        _scanTask = DumpPreviewScanner.ScanAsync(_targetPath, _config.Clone(), _scanState, _scanCancellation.Token);
+    }
+
+    private async void RestartScan()
+    {
+        if (!_started || _ending) return;
+        int generation = ++_scanGeneration;
+        _scanCancellation.Cancel();
+        _previewCancellation?.Cancel();
+        ++_previewGeneration;
+        _refreshTimer.Stop();
+        _create.Enabled = false;
+        _scanComplete = false;
+        SetScanStatus("Updating file rules…");
+        var previous = _scanTask;
+        try { if (previous is not null) await previous; } catch { }
+        if (_ending || IsDisposed || generation != _scanGeneration) return;
+        _scanCancellation.Dispose();
+        _scanCancellation = new();
+        _scanState = new();
+        _config.RespectGitignore = _respectGitignore.Checked;
+        _config.UseDumpToTxtIgnore = _respectDumpignore.Checked;
+        _review = new DumpReviewTree(_config.LastSelectionMode);
+        _viewRoot = _review.Root;
+        ReleaseNodes(_tree.Nodes);
+        _tree.Nodes.Clear();
+        _pages.Clear();
+        _compactedParents.Clear();
+        StartScan();
     }
 
     private void RefreshFromScan()
     {
         if (_ending) return;
-        _snapshot = _scanState.Snapshot();
-        _selectionModel.Apply(_snapshot);
-        RefreshTree();
-        _scanStatus.Text = _snapshot.Completed
-            ? "Scan complete"
-            : "Scanning project…";
-
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        bool changed = false;
+        DumpPreviewBatch batch;
+        do
+        {
+            batch = _scanState.Drain(128);
+            foreach (var change in batch.Changes)
+            {
+                if (change.Path is { } path)
+                {
+                    var node = _review.AddPath(path);
+                    if (_pathSelection.Overrides.TryGetValue(node.RelativePath, out bool included))
+                        _review.Select(node, included ? DumpSelectionMode.Thorough : DumpSelectionMode.None);
+                }
+                if (change.Entry is { } entry) _review.AddText(entry);
+            }
+            changed |= batch.Changes.Count > 0;
+        } while (batch.Changes.Count > 0 && !batch.Completed && watch.ElapsedMilliseconds < 10);
+        if (changed) RefreshTree();
+        _scanComplete = batch.Completed;
+        if (batch.DiagnosticCount > 0)
+        {
+            _validation.Text = $"{batch.DiagnosticCount:N0} scan issue(s): {batch.LastDiagnostic}";
+            _details.SetToolTip(_validation, batch.LastDiagnostic);
+        }
         if (_scanTask is { IsFaulted: true })
         {
             _refreshTimer.Stop();
-            _scanStatus.Text = "Scan could not be completed";
+            _scanProgress.Visible = false;
+            SetScanStatus("Scan could not be completed");
             _validation.Text = _scanTask.Exception?.GetBaseException().Message ?? "Unknown scan error.";
         }
-        else if (_snapshot.Completed)
+        else if (batch.Completed)
         {
             _refreshTimer.Stop();
+            _scanProgress.Visible = false;
+            SetScanStatus("Scan complete");
+            _create.Enabled = _review.PathCount > 0 || _config.LastSelectionMode == DumpSelectionMode.None;
             RefreshPreview();
         }
+        else SetScanStatus($"Scanning project… {batch.ScannedFiles:N0} files found");
+    }
+
+    private void SetScanStatus(string status)
+    {
+        _scanStatus.Text = status;
+        _scanStatus.AccessibleName = status;
     }
 
     private void RefreshTree()
     {
-        var expanded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (TreeNode node in Flatten(_tree.Nodes))
-            if (node.IsExpanded && node.Tag is NodeTag tag) expanded.Add(tag.Node.RelativePath);
-        string? selected = _tree.SelectedNode?.Tag is NodeTag selectedTag
-            ? selectedTag.Node.RelativePath : null;
-
-        DumpContentSelection baseSelection = _selectionModel.Capture();
-        DumpContributionNode contribution = DumpContributionTree.Build(_snapshot.Paths, _snapshot.Entries);
-        long total = contribution.TextBytes;
-
         _tree.BeginUpdate();
+        _refreshingNodes = true;
         try
         {
-            _tree.Nodes.Clear();
-            _tree.ClearMetrics();
-            foreach (DumpContributionNode child in contribution.Children)
-                _tree.Nodes.Add(BuildTreeNode(child, baseSelection, total));
-            foreach (TreeNode node in Flatten(_tree.Nodes))
-            {
-                if (node.Tag is not NodeTag tag) continue;
-                if (expanded.Contains(tag.Node.RelativePath)) node.Expand();
-                if (string.Equals(selected, tag.Node.RelativePath, StringComparison.OrdinalIgnoreCase))
-                    _tree.SelectedNode = node;
-            }
-            if (_snapshot.Completed && !_initialTreeExpansionApplied)
-            {
-                TreeNode? firstDirectory = _tree.Nodes.Cast<TreeNode>()
-                    .FirstOrDefault(node => node.Tag is NodeTag tag && tag.Node.IsDirectory);
-                firstDirectory?.Expand();
-                if (firstDirectory is not null)
-                {
-                    foreach (TreeNode child in firstDirectory.Nodes)
-                        if (child.Tag is NodeTag tag && tag.Node.IsDirectory) child.Expand();
-                }
-                _initialTreeExpansionApplied = true;
-            }
+            PopulatePage(_tree.Nodes, _viewRoot);
+            foreach (var row in _realized.Values.ToArray())
+                if (row.TreeView is not null && row.IsExpanded && row.Tag is NodeTag tag)
+                    PopulatePage(row.Nodes, tag.Node);
+            foreach (var row in _realized.Values) UpdateRow(row);
         }
-        finally { _tree.EndUpdate(); }
-
-        var included = _snapshot.Entries.Where(entry => _pathSelection.IsIncluded(
-            entry.RelativePath, baseSelection.AllowsType(entry.Type))).ToArray();
-        _selectionSummary.Text = $"{FormatBytes(included.Sum(x => x.TextBytes))} selected";
-        _create.Enabled = _snapshot.Completed
-            && (_snapshot.Paths.Count > 0 || _config.LastSelectionMode == DumpSelectionMode.None);
+        finally { _refreshingNodes = false; _tree.EndUpdate(); }
+        UpdateSelectionSummary();
     }
 
-    private TreeNode BuildTreeNode(DumpContributionNode node, DumpContentSelection baseSelection, long total)
+    private void UpdateSelectionSummary()
     {
-        IReadOnlyList<DumpPreviewEntry> descendants = _snapshot.Entries.Where(entry =>
-        {
-            string path = NormalizePath(entry.RelativePath);
-            string nodePath = NormalizePath(node.RelativePath);
-            return nodePath.Length == 0 || string.Equals(path, nodePath, StringComparison.OrdinalIgnoreCase)
-                || path.StartsWith(nodePath + "/", StringComparison.OrdinalIgnoreCase);
-        }).ToArray();
-        DumpNodeSelectionState state = _pathSelection.State(node.RelativePath,
-            descendants.Select(x => (x.RelativePath, baseSelection.AllowsType(x.Type))));
-        long value = node.TextBytes;
-        double share = total > 0 ? 100d * value / total : 0;
-        var treeNode = new TreeNode(node.Name)
-        {
-            Name = node.RelativePath,
-            StateImageIndex = ContributionTreeView.StateIndex(state),
-            ImageIndex = node.IsDirectory ? ContributionTreeView.FolderImageIndex : ContributionTreeView.FileImageIndex,
-            SelectedImageIndex = node.IsDirectory ? ContributionTreeView.FolderImageIndex : ContributionTreeView.FileImageIndex,
-            ForeColor = state == DumpNodeSelectionState.Excluded ? UiTheme.DisabledText : UiTheme.Text,
-            Tag = new NodeTag(node, descendants),
-            ToolTipText = $"{state}: " + (node.IsDirectory
-                ? "Space toggles this folder and all files below it; Enter previews its contents"
-                : $"{node.RelativePath}; press Enter to preview"),
-        };
-        _tree.SetMetrics(treeNode, FormatBytes(value), share);
-        foreach (var child in node.Children) treeNode.Nodes.Add(BuildTreeNode(child, baseSelection, total));
-        return treeNode;
+        _selectionSummary.Text = $"{FormatBytes(_review.SelectedBytes)} selected · {_review.PathCount:N0} paths";
+        _selectionSummary.AccessibleDescription = _selectionSummary.Text;
     }
+
+    private void UpdateRow(TreeNode row)
+    {
+        if (row.Tag is not NodeTag tag) return;
+        var node = tag.Node;
+        var state = _review.State(node);
+        string text = AccessibleNodeText(node.Name, state);
+        if (row.Text != text) row.Text = text;
+        row.ForeColor = state == DumpNodeSelectionState.Excluded ? UiTheme.DisabledText : UiTheme.Text;
+        row.ToolTipText = $"{node.RelativePath}; {state}. Space changes inclusion; Enter previews. {node.ChildCount:N0} children.";
+        _tree.SetMetrics(row, node.Name, FormatBytes(node.TextBytes), Share(node.TextBytes, _review.Root.TextBytes), state);
+        if (node.ChildCount > 0 && row.Nodes.Count == 0) row.Nodes.Add(new TreeNode("Expand to browse"));
+    }
+
+    private void PopulatePage(TreeNodeCollection rows, DumpReviewNode parent)
+    {
+        TreeNode? selected = _tree.SelectedNode;
+        int offset = _pages.GetValueOrDefault(parent.RelativePath);
+        offset = Math.Min(offset, Math.Max(0, ((parent.ChildCount - 1) / PageSize) * PageSize));
+        int existingCount = rows.Cast<TreeNode>().Count(row => row.Tag is NodeTag);
+        int count = Math.Min(PageSize, Math.Max(0, MaxRealizedNodes - _realized.Count + existingCount));
+        bool compacted = _compactedParents.TryGetValue(parent.RelativePath, out string? retainedPath);
+        var desired = compacted && _review.Find(retainedPath!) is { } retained
+            ? new[] { retained } : parent.Page(offset, count).ToArray();
+        var wanted = desired.Select(node => node.RelativePath).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (TreeNode row in rows.Cast<TreeNode>().ToArray())
+            if (row.Tag is not NodeTag tag || !wanted.Contains(tag.Node.RelativePath))
+            {
+                ReleaseNode(row);
+                row.Remove();
+            }
+        int index = 0;
+        if (rows == _tree.Nodes && parent.Parent is { } outer)
+            rows.Insert(index++, new TreeNode($"Back to {outer.Name} — press Enter") { Tag = new FolderViewTag(outer) });
+        if (!compacted && offset > 0) rows.Insert(index++, PageRow(parent, Math.Max(0, offset - PageSize), "Previous 200 paths"));
+        foreach (var node in desired)
+        {
+            if (!_realized.TryGetValue(node.RelativePath, out var row))
+            {
+                row = new TreeNode { Name = node.RelativePath, Tag = new NodeTag(node),
+                    ImageIndex = node.IsDirectory ? 0 : 1, SelectedImageIndex = node.IsDirectory ? 0 : 1 };
+                _realized.Add(node.RelativePath, row);
+                rows.Insert(Math.Min(index, rows.Count), row);
+                UpdateRow(row);
+            }
+            else if (row.Index != index)
+            {
+                bool expanded = row.IsExpanded;
+                row.Remove();
+                rows.Insert(Math.Min(index, rows.Count), row);
+                if (expanded) row.Expand();
+            }
+            index++;
+        }
+        if (compacted)
+            rows.Add(PageRow(parent, offset, $"Browse all {parent.ChildCount:N0} sibling paths"));
+        else if (offset + desired.Length < parent.ChildCount)
+            rows.Add(PageRow(parent, offset + desired.Length, desired.Length == 0
+                ? "Collapse another folder, then press Enter to browse"
+                : $"Next paths ({offset + desired.Length:N0} of {parent.ChildCount:N0} shown)"));
+        if (selected?.TreeView == _tree) _tree.SelectedNode = selected;
+    }
+
+    private static TreeNode PageRow(DumpReviewNode parent, int offset, string label) =>
+        new(label + " — press Enter") { Tag = new PageTag(parent, offset) };
+
+    private bool EnsureRealizationRoom(TreeNode expanding)
+    {
+        if (_realized.Count + PageSize <= MaxRealizedNodes) return true;
+        var ancestors = new HashSet<TreeNode>();
+        for (var node = expanding; node is not null; node = node.Parent) ancestors.Add(node);
+        foreach (var row in _realized.Values.ToArray())
+        {
+            if (row.IsExpanded && !ancestors.Contains(row)) row.Collapse();
+            if (_realized.Count + PageSize <= MaxRealizedNodes) break;
+        }
+        // Keep the active branch, but release its ancestors' sibling pages. A visible
+        // navigation row restores each complete sibling page on demand.
+        foreach (var branch in ancestors.Reverse())
+        {
+            if (_realized.Count + PageSize <= MaxRealizedNodes) break;
+            if (branch.Tag is not NodeTag tag) continue;
+            var parent = tag.Node.Parent!;
+            var rows = branch.Parent?.Nodes ?? _tree.Nodes;
+            _compactedParents[parent.RelativePath] = tag.Node.RelativePath;
+            PopulatePage(rows, parent);
+        }
+        return _realized.Count + PageSize <= MaxRealizedNodes;
+    }
+
+    private void ShowFolder(DumpReviewNode folder)
+    {
+        if (_ending || IsDisposed) return;
+        _viewRoot = folder;
+        ReleaseNodes(_tree.Nodes);
+        _tree.Nodes.Clear();
+        _compactedParents.Clear();
+        RefreshTree();
+        _tree.SelectedNode = _tree.Nodes.Cast<TreeNode>().FirstOrDefault(row => row.Tag is NodeTag);
+    }
+
+    private void ReleaseNodes(TreeNodeCollection rows)
+    {
+        foreach (TreeNode row in rows) ReleaseNode(row);
+    }
+
+    private void ReleaseNode(TreeNode row)
+    {
+        ReleaseNodes(row.Nodes);
+        if (row.Tag is NodeTag tag)
+        {
+            _realized.Remove(tag.Node.RelativePath);
+            _compactedParents.Remove(tag.Node.RelativePath);
+        }
+        _tree.Forget(row);
+    }
+
+    private static string AccessibleNodeText(string name, DumpNodeSelectionState state) =>
+        $"{name} - {state}";
+
+    private static double Share(long value, long total) => total > 0 ? 100d * value / total : 0;
 
     private void ToggleNode(TreeNode treeNode)
     {
+        if (treeNode.Tag is PageTag or FolderViewTag) { PreviewNode(treeNode); return; }
         if (treeNode.Tag is not NodeTag tag) return;
-        DumpNodeSelectionState state = treeNode.StateImageIndex switch
-        {
-            1 => DumpNodeSelectionState.Included,
-            2 => DumpNodeSelectionState.Mixed,
-            _ => DumpNodeSelectionState.Excluded,
-        };
+        DumpNodeSelectionState state = _review.State(tag.Node);
         _pathSelection.Set(tag.Node.RelativePath, tag.Node.IsDirectory,
             state != DumpNodeSelectionState.Included);
-        RefreshTree();
+        _review.Select(tag.Node, state == DumpNodeSelectionState.Included ? DumpSelectionMode.None : DumpSelectionMode.Thorough);
+        foreach (var row in _realized.Values) UpdateRow(row);
+        UpdateSelectionSummary();
         RefreshPreview();
     }
 
     private void PreviewNode(TreeNode treeNode)
     {
+        if (treeNode.Tag is FolderViewTag view) { ShowFolder(view.Folder); return; }
+        if (treeNode.Tag is PageTag page)
+        {
+            var rows = treeNode.Parent?.Nodes ?? _tree.Nodes;
+            _pages[page.Parent.RelativePath] = page.Offset;
+            _tree.BeginUpdate();
+            try
+            {
+                if (_compactedParents.Remove(page.Parent.RelativePath))
+                {
+                    ReleaseNodes(rows);
+                    rows.Clear();
+                }
+                PopulatePage(rows, page.Parent);
+            }
+            finally { _tree.EndUpdate(); }
+            _tree.SelectedNode = rows.Cast<TreeNode>().FirstOrDefault(row => row.Tag is NodeTag);
+            return;
+        }
         if (treeNode.Tag is not NodeTag tag) return;
-        ShowPreview(tag.Node.IsDirectory ? null : tag.Node.RelativePath, _tree);
+        ShowPreview(tag.Node.RelativePath, _tree);
     }
 
     private void ShowPreview(string? relativePath = null, Control? returnFocus = null)
     {
         _previewPath = relativePath;
         _previewReturnFocus = returnFocus;
-        RefreshPreview();
         _mapWorkspace.Visible = false;
         _previewWorkspace.Visible = true;
         _previewWorkspace.BringToFront();
+        RefreshPreview();
         _previewBack.Focus();
     }
 
     private void ShowMap()
     {
+        _previewCancellation?.Cancel();
+        ++_previewGeneration;
         _previewWorkspace.Visible = false;
         _mapWorkspace.Visible = true;
         _mapWorkspace.BringToFront();
@@ -644,30 +872,52 @@ public sealed class DumpSelectionForm : Form
         target.Focus();
     }
 
-    private void RefreshPreview()
+    private async void RefreshPreview()
     {
-        DumpContentSelection selection = _selectionModel.Capture().WithPathOverrides(_pathSelection.Overrides);
-        _preview.Text = _snapshot.Paths.Count == 0
-            ? "The output preview will appear as files are found."
-            : DumpPreviewRenderer.Render(_snapshot, _config, selection, _previewPath);
-        _preview.SelectionStart = 0;
-        _preview.ScrollToCaret();
+        if (!_previewWorkspace.Visible || _ending) return;
+        int generation = ++_previewGeneration;
+        _previewCancellation?.Cancel();
+        var cancellation = new CancellationTokenSource();
+        _previewCancellation = cancellation;
+        var selection = DumpContentSelection.FromMode(_config.LastSelectionMode, _config).WithPathOverrides(_pathSelection.Overrides);
+        var config = _config.Clone();
+        if (_sensitive.SelectedItem is SecretScanMode mode) config.SecretScan = mode;
+        var state = _scanState;
+        string? path = _previewPath;
+        _preview.Text = "Preparing preview…";
+        try
+        {
+            string text = await Task.Run(() => DumpPreviewRenderer.Render(state.Snapshot(cancellation.Token), config, selection, path, cancellation.Token), cancellation.Token);
+            if (_ending || IsDisposed || generation != _previewGeneration || !_previewWorkspace.Visible) return;
+            _preview.Text = text;
+            _preview.SelectionStart = 0;
+            _preview.ScrollToCaret();
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            if (!_ending && !IsDisposed && generation == _previewGeneration) _preview.Text = $"Preview unavailable: {ex.Message}";
+        }
+        finally
+        {
+            if (_previewCancellation == cancellation) _previewCancellation = null;
+            cancellation.Dispose();
+        }
     }
 
     private void AcceptSelection()
     {
         _validation.Text = "";
-        if (!_snapshot.Completed)
+        if (!_scanComplete)
         {
             _validation.Text = "Wait for the scan to finish.";
             return;
         }
 
-        DumpContentSelection selection = _selectionModel.Capture(_snapshot)
+        DumpContentSelection selection = DumpContentSelection.FromMode(_config.LastSelectionMode, _config)
             .WithPathOverrides(_pathSelection.Overrides);
-        if (_config.LastSelectionMode != DumpSelectionMode.None && _snapshot.Entries.Count > 0
-            && !_snapshot.Entries.Any(entry => _pathSelection.IsIncluded(
-                entry.RelativePath, selection.AllowsType(entry.Type))))
+        if (_config.LastSelectionMode != DumpSelectionMode.None && _review.Root.TextCount > 0
+            && _review.SelectedCount == 0)
         {
             _validation.Text = "Include at least one text file.";
             return;
@@ -693,7 +943,7 @@ public sealed class DumpSelectionForm : Form
         }
         else _config.OutputDir = null;
 
-        _config.OutputTarget = _file.Checked ? OutputTarget.File : OutputTarget.Clipboard;
+        _config.OutputTarget = _file.Checked ? OutputTarget.File : _console.Checked ? OutputTarget.Stdout : OutputTarget.Clipboard;
         _config.RespectGitignore = _respectGitignore.Checked;
         _config.UseDumpToTxtIgnore = _respectDumpignore.Checked;
         if (_sensitive.SelectedItem is SecretScanMode secretMode) _config.SecretScan = secretMode;
@@ -709,12 +959,15 @@ public sealed class DumpSelectionForm : Form
         _ending = true;
         _refreshTimer.Stop();
         _scanCancellation.Cancel();
+        _previewCancellation?.Cancel();
+        _create.Enabled = _cancel.Enabled = false;
         if (_scanTask is not null)
         {
             try { await _scanTask.ConfigureAwait(true); }
             catch (OperationCanceledException) { }
             catch { }
         }
+        if (IsDisposed) return;
         _allowClose = true;
         DialogResult = result;
         Close();
@@ -729,20 +982,9 @@ public sealed class DumpSelectionForm : Form
         return unit == 0 ? $"{value:0} {units[unit]}" : $"{value:0.#} {units[unit]}";
     }
 
-    private static string NormalizePath(string path) => path.Replace('\\', '/').Trim('/');
-
-    private static IEnumerable<TreeNode> Flatten(TreeNodeCollection nodes)
-    {
-        foreach (TreeNode node in nodes)
-        {
-            yield return node;
-            foreach (TreeNode child in Flatten(node.Nodes)) yield return child;
-        }
-    }
-
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
-        if (!_allowClose && !_ending)
+        if (!_allowClose)
         {
             e.Cancel = true;
             BeginClose(DialogResult.Cancel);
@@ -753,9 +995,18 @@ public sealed class DumpSelectionForm : Form
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
+        if (disposing && !_ownedResourcesDisposed)
         {
+            _ownedResourcesDisposed = true;
+            _ending = true;
             _refreshTimer.Dispose();
+            _details.Dispose();
+            _scanCancellation.Cancel();
+            // The preview operation disposes its own source in finally. Detach it here so
+            // later cleanup cannot cancel a source whose operation has already completed.
+            var previewCancellation = _previewCancellation;
+            _previewCancellation = null;
+            previewCancellation?.Cancel();
             _scanCancellation.Dispose();
         }
         base.Dispose(disposing);

@@ -4,15 +4,13 @@ using Microsoft.Win32;
 namespace DumpToTxt.App;
 
 /// <summary>
-/// Best-effort sync of the per-user (HKCU) right-click verb labels to the current output choice, so the
-/// main "Dump into …" entry tracks the chosen style/target. It updates ONLY verbs that already exist
-/// (created by the installer or a future per-user registration) — it never creates keys and never touches
-/// HKLM, so it is a harmless no-op when the menu isn't installed per-user. The full menu design (both
-/// verbs, the --preset/--changed commands) lives in docs/to-do-for-human.md.
+/// Best-effort label sync for existing per-user Explorer commands. Never creates registration
+/// or changes machine-wide keys. The administrator installer supplies its own static label;
+/// a settings save must not require elevation or create an additional visible command.
 /// </summary>
 internal static class ContextMenu
 {
-    // Per-user verb roots the installer is expected to create (folder, folder-background, files).
+    // Existing per-user verb roots (folder, folder-background, files).
     private static readonly string[] MainVerbKeys =
     {
         @"Software\Classes\Directory\shell\DumpToTxt",

@@ -8,8 +8,9 @@ internal static class CompletionSound
     private const string ResourceName = "DumpToTxt.App.dumped.wav";
     private static readonly Lazy<SoundPlayer?> Player = new(CreatePlayer);
 
-    public static void Play()
+    public static void Play(bool enabled)
     {
+        if (!enabled) return;
         try { Player.Value?.PlaySync(); }
         catch { /* A sound-device problem must never fail a completed dump. */ }
     }

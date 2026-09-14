@@ -1,0 +1,152 @@
+using DumpToTxt.Core;
+using System.Diagnostics;
+using System.Text;
+
+namespace DumpToTxt.Tests;
+
+public class FilesystemSafetyTests
+{
+    [Fact]
+    public void UnreadableTextIsNotReportedAsBinary()
+    {
+        Assert.Throws<FileNotFoundException>(() => TextFileClassifier.IsTextLike(
+            Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+    }
+
+    [Fact]
+    public void InvalidExclusionCannotSilentlyDisableFiltering()
+    {
+        var config = DumpConfig.CreateDefault();
+        config.ExcludeRegex = "[";
+        Assert.ThrowsAny<ArgumentException>(() => IgnoreMatcher.FromConfig(config));
+    }
+
+    [Fact]
+    public void LegacyRegexHasABoundedMatchTime()
+    {
+        var config = DumpConfig.CreateDefault();
+        config.ExcludeRegex = "^(a+)+$";
+        var matcher = IgnoreMatcher.FromConfig(config);
+        Assert.Throws<System.Text.RegularExpressions.RegexMatchTimeoutException>(() =>
+            matcher.IsExcluded(new string('a', 100_000) + "!", "file.txt", false));
+    }
+
+    [Fact]
+    public void AnsiTextGetsAnEncodingErrorInsteadOfBinaryOrReplacementCharacters()
+    {
+        string path = Path.Combine(Path.GetTempPath(), "dtt-ansi-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            File.WriteAllBytes(path, new byte[] { 99, 97, 102, 233, 32, 116, 101, 120, 116 });
+            Assert.Throws<InvalidDataException>(() => TextFileClassifier.IsTextLike(path));
+            var encoding = TextFileClassifier.DetectTextEncoding(new byte[] { 99, 97, 102, 233 }, out int bom);
+            Assert.Equal(0, bom);
+            Assert.Throws<DecoderFallbackException>(() => encoding.GetString(new byte[] { 233 }));
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void GitChangedFilesPreservesLeadingSpacesUnicodeAndRenameDestination()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "dtt-git-audit-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            Git(root, "init");
+            Git(root, "config", "user.name", "Fixture");
+            Git(root, "config", "user.email", "fixture@example.invalid");
+            File.WriteAllText(Path.Combine(root, "before.txt"), "old");
+            Git(root, "add", ".");
+            Git(root, "commit", "-m", "fixture");
+            Git(root, "mv", "before.txt", " leading-é.txt");
+            File.WriteAllText(Path.Combine(root, " untracked-é.txt"), "new");
+            var changed = GitChanges.ChangedFiles(root);
+            Assert.NotNull(changed);
+            Assert.Contains(Path.Combine(root, " leading-é.txt"), changed);
+            Assert.Contains(Path.Combine(root, " untracked-é.txt"), changed);
+            Assert.DoesNotContain(Path.Combine(root, "before.txt"), changed);
+        }
+        finally
+        {
+            foreach (string file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)) File.SetAttributes(file, FileAttributes.Normal);
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public async Task DirectoryLinksAreInventoriedWithoutTraversingExternalContentOrCycles()
+    {
+        string fixture = Path.Combine(Path.GetTempPath(), "dtt-links-audit-" + Guid.NewGuid().ToString("N"));
+        string root = Path.Combine(fixture, "root"), external = Path.Combine(fixture, "external");
+        Directory.CreateDirectory(root);
+        Directory.CreateDirectory(external);
+        File.WriteAllText(Path.Combine(external, "private.txt"), "must not enter inventory");
+        string outside = Path.Combine(root, "outside"), cycle = Path.Combine(root, "cycle");
+        try
+        {
+            Link(outside, external);
+            Link(cycle, root);
+            var state = new DumpPreviewScanState();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await DumpPreviewScanner.ScanAsync(root, DumpConfig.CreateDefault(), state, timeout.Token);
+            var snapshot = state.Snapshot();
+            Assert.Contains(snapshot.Paths, p => p.RelativePath == "outside");
+            Assert.Contains(snapshot.Paths, p => p.RelativePath == "cycle");
+            Assert.DoesNotContain(snapshot.Paths, p => p.RelativePath.Contains("private.txt"));
+            Assert.Equal(2, snapshot.Paths.Count);
+            // Authoritative exports refuse traversal gaps even when only the map was selected.
+            // Preview inventory is diagnostic, not permission to silently omit linked contents.
+            var config = DumpConfig.CreateDefault();
+            config.OutputTarget = OutputTarget.Stdout;
+            var error = Assert.Throws<IOException>(() => new DumpEngine().Run(root, config,
+                contentSelection: DumpContentSelection.Empty, textOutput: TextWriter.Null));
+            Assert.Contains("Directory link was listed but not traversed", error.Message);
+        }
+        finally
+        {
+            // Delete the link itself first; never recurse across a fixture reparse point.
+            if (Directory.Exists(outside)) Directory.Delete(outside);
+            if (Directory.Exists(cycle)) Directory.Delete(cycle);
+            Directory.Delete(fixture, true);
+        }
+    }
+
+    private static void Git(string root, params string[] arguments)
+    {
+        var start = new ProcessStartInfo("git")
+        {
+            WorkingDirectory = root,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        start.ArgumentList.Add("-c");
+        start.ArgumentList.Add("safe.directory=" + root.Replace('\\', '/'));
+        foreach (string argument in arguments) start.ArgumentList.Add(argument);
+        using var process = Process.Start(start)!;
+        var output = process.StandardOutput.ReadToEndAsync();
+        var error = process.StandardError.ReadToEndAsync();
+        Assert.True(process.WaitForExit(10_000));
+        Assert.True(process.ExitCode == 0, error.GetAwaiter().GetResult());
+        output.GetAwaiter().GetResult();
+    }
+
+    private static void Link(string link, string target)
+    {
+        if (!OperatingSystem.IsWindows()) { Directory.CreateSymbolicLink(link, target); return; }
+        var start = new ProcessStartInfo("cmd.exe")
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        start.ArgumentList.Add("/c"); start.ArgumentList.Add("mklink"); start.ArgumentList.Add("/J");
+        start.ArgumentList.Add(link); start.ArgumentList.Add(target);
+        using var process = Process.Start(start)!;
+        Assert.True(process.WaitForExit(10_000));
+        Assert.True(process.ExitCode == 0, process.StandardError.ReadToEnd());
+    }
+}

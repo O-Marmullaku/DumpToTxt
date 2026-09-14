@@ -1,20 +1,24 @@
-# Build outputs
-/dist/
-*.exe
-
-# Inno Setup compiler output
-Output/
-*.iss.bak
-
-# Local dump test files
-*-dump-*.txt
-
-# .NET build artifacts
+# Reproducible packages, generated fixtures, captures and test logs
+/artifacts/
 bin/
 obj/
-*.user
+TestResults/
+*.exe
+*.pdb
+*.iss.bak
 
-# Windows cruft
+# Local IDE state, user settings and scratch
+.vs/
+*.user
+*.suo
+/.work/
+.dumptotxt.json
+settings.json
+
+# Outputs from manual local dumps
+*-dump-*.txt
+
+# Windows filesystem metadata
 Thumbs.db
 Desktop.ini
 $RECYCLE.BIN/

@@ -1,0 +1,59 @@
+# Product behavior and compatibility
+
+This is the behavior and compatibility authority for the Windows DumpToTxt application. Unless stated otherwise, it applies to **Full and Compact**, which share the same C# implementation. Build and release acceptance belongs to [development](development.md); implementation ownership belongs to [architecture](architecture.md).
+
+## Local, reviewable output
+
+DumpToTxt is a GUI-first file/folder packer, not a publishing client or a hosted service. Normal operation stays local; there is no application telemetry, account service or network tokenization. Files may contain private material, so users must inspect the final artifact before sharing it. Explicit clipboard output and opening a file in its associated application cross into those applications' own behavior and privacy policies.
+
+The installer provides one visible action for each of files, folders and folder backgrounds. A target opens the review workspace by default. No target opens settings. `--preset <name>` (also `--preset=name`) and `--changed` are supported arguments, but the executable remains a Windows GUI host, not a general headless command-line application.
+
+The review workspace offers Essential, All text and Map only content modes. The tree exposes the largest text contributors, per-file/folder choices, mixed inclusion and visible excluded entries. Excluding a parent also applies to descendants discovered later. Inclusion controls select **content**; they do not erase a file's name from the inventory. Preview is explicitly requested, not continuously regenerated. Incomplete discovery cannot be accepted as a complete selection. Export performs a fresh authoritative traversal rather than trusting cached preview text.
+
+Create remembers only format/style, destination type, output folder, whether to show review, and content mode. Per-node exclusions and the review's temporary advanced settings are not persisted. Cancelling review saves nothing. If remembering accepted preferences fails, the user receives a warning and the current dump can continue with its in-memory choices. **Skip this screen next time** reuses the accepted run preferences; holding Shift forces review open again. Export is cancellable, although a blocked operating-system I/O call may delay acknowledgement.
+
+## Formats and delivery
+
+Classic and standard clean text, standard/AI-friendly/compact Markdown, readable/compact JSON and XML, and navigable DOCX are implemented. Word output has a clickable file index, section bookmarks and return links. Text formats support file, clipboard and streamed stdout destinations. Word requires file output. Existing serialized `OutputStyle` names remain compatible even though the GUI separates format from layout.
+
+Classic defaults to Desktop file output. Its contract is the C# golden output: CRLF structural delimiters, source line endings retained inside bodies, and case-insensitive ordinal ordering of the inventory. It is **not** a promise of literal byte parity with PowerShell Lite. Discovery filters, binary detection and explicit protection also apply to Classic; selecting Classic does not bypass privacy settings. The named **Classic preset** is distinct from selecting that layout alone: it intentionally disables the two ignore-file layers and binary detection and resets the legible types, but does not disable sensitive-data protection.
+
+File output is staged beside its destination, completed before publication, and moved without overwriting an existing result. Collisions choose another filename. Failure or cancellation must not expose a completed-looking partial file. Clipboard materialization is bounded. Streamed stdout cannot be rolled back if rendering fails after writing begins. A successful file opens in its associated application; results over 32 MiB require an additional open decision. For DOCX, expanded `word/document.xml` size counts too, since a small ZIP can hide a very large viewer workload. Completion sound is optional and is not played for failed or cancelled exports.
+
+## Configuration and selection
+
+The C# application overlays defaults, machine `%PROGRAMDATA%\DumpToTxt\settings.json`, then user `%APPDATA%\DumpToTxt\settings.json`. A target additionally receives each ancestor `.dumptotxt.json`, from volume root to its own directory, with nearer specified fields winning. The application palette is activated separately from user/machine settings: folder configuration cannot recolor the GUI. Invalid, JSON-null or unreadable configuration is surfaced rather than silently weakening the effective policy.
+
+Saving preserves unknown/unowned JSON fields. An empty extension list retains the previous/default list for compatibility; other explicitly empty lists can clear their values. An older configuration containing `SecretAllowlist` but no `SensitiveValuePatterns` is interpreted as always-hide patterns: that field's previous UI label led users to rely on it for redaction. New configurations explicitly distinguish false-positive allowances from always-hide values. Do not reverse this safety-preserving interpretation when modifying serialization.
+
+The discovery layers include the original exclusion regex, root `.gitignore`, root `.dumptotxtignore`, configured include/exclude globs, binary detection and optional size caps. Exclusions win over content includes. Includes restrict packed content, not the entire directory map. Nested directory-specific `.gitignore` traversal is **not implemented**. Binary detection defaults on; byte caps default off. Changed-files mode selects staged, unstaged and untracked paths using Git; missing Git or a non-repository target falls back to ordinary selection, not an empty result.
+
+## Sensitive data and resource boundaries
+
+Automatic scanning recognizes supported vendor credentials, private-key blocks, generic secret assignments, email addresses, labelled phone values, Luhn-valid card numbers and IBANs. High-entropy detection is optional and off by default because hashes and encoded assets cause false positives. The scanner does not promise complete detection of secrets, names, addresses or arbitrary identifiers. **Paths and filenames are not scanned.**
+
+Warn invokes the GUI's sensitive-data decision before any destination is published. The dialog shows masked findings, never raw detected values; hiding detected values is the recommended choice. Keeping automatic findings is an explicit choice, not an automatic retry. Redact replaces matching spans. Skip omits entire file content only for high-confidence vendor/key findings; generic/entropy false positives are span-redacted instead. Vendor classification takes precedence over a generic match on the same value. A bare private-key marker can therefore cause whole-file omission in Skip. Conservative handling of unterminated key blocks can over-redact base64-like prose; unusual internally spaced key bodies are not guaranteed to be detected.
+
+User-declared always-hide regex matches remain redacted with Off, Warn or Keep, and cannot be cancelled by the false-positive allowlist. Invalid protection patterns and unsupported protected workloads fail rather than bypassing protection. The reusable Core API's Warn behavior without a decision callback is warning/reporting, not an invisible GUI confirmation; callers that publish through another host must supply their own appropriate decision boundary.
+
+Snapshots and sanitized staged content use local temporary files. Normal cleanup is not secure erasure. Disk space, permissions and security software can prevent a run. When requested, token counting consumes emitted, sanitized file bodies with bundled offline o200k/cl100k vocabularies. Budget overruns warn without truncating selected content; format overhead is not part of the reported body-token budget. Preview estimates are not final token counts.
+
+Known limits are intentional fail-closed boundaries, not advertised scale guarantees:
+
+- Automatic protected/exact-token processing needs supported boundaries within a 2,097,152-character window. An uninterrupted giant line can be refused. Arbitrary always-hide regexes require a bounded whole-file processing region; a streaming format does not make arbitrary patterns unbounded.
+- Finding/candidate growth is bounded, including per-file findings and per-region candidate-match guards at 100,000. Materialized string/clipboard results are limited to 16,777,216 characters. A Markdown body needing more than 1,000,000 backticks for a safe fence is refused.
+- Supported text decoding is UTF-8 and BOM-identified UTF-16/UTF-32; invalid or unsupported encodings fail rather than silently corrupting text. Explicit byte caps can replace an incomplete trailing code point and mark truncation. Directory links may be listed during review but are not traversed. Authoritative export refuses unresolved directory links, including Map only, and file links are refused. Use an ignore rule to remove such an entry; merely unchecking its content is insufficient.
+
+## Native interaction
+
+Graphite is the default light theme; Blue is the other light theme. Shared palette roles cover settings, review, progress and sensitive-data decisions. Theme changes preview in settings and cancellation restores the previous palette. Keep standard Windows window chrome, resizing, snapping and system behavior; custom title bars and dark themes are not part of this product contract.
+
+Primary actions must be keyboard reachable with visible focus, not color-only meaning. Space toggles tree inclusion; the tree remains usable during discovery and after navigating deep/wide folders. Maintain readable contrast, accessible names and reduced-motion behavior. Native layout, keyboard and lifecycle tests are acceptance evidence, not proof of comprehensive screen-reader or assistive-technology certification.
+
+## Edition and installation boundaries
+
+Lite is a separately maintained Classic-only implementation, not a generated copy of Core. Its settings UI owns only extensions, allowed dotfiles and the exclusion regex; saving those fields preserves C# and unknown settings. Its loader uses the first readable user/machine configuration. It does **not** implement the C# review, scanning, redaction, format, token or atomic-publication guarantees above.
+
+All installer flavors retain the same application identity and installation location. Re-running setup offers in-wizard Update or reinstall and Uninstall; Cancel changes nothing. Uninstall asks whether to remove user and machine settings, with a keep option. Compact prompts for the .NET 8 Desktop Runtime when missing; automatic runtime download is not implemented. The administrator install supplies a static Explorer label. The application's best-effort label synchronization only touches already-existing per-user keys and does not create registration or elevate.
+
+Code compression/signature extraction, comment stripping, line numbering, embedded Git diff/logs, automatic splitting and nested ignore-file support are not implemented features. There is no committed delivery promise for these ideas. Public licensing, signing and real Windows installation acceptance remain release decisions/checks, not facts implied by the source.

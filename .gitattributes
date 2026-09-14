@@ -8,3 +8,5 @@
 # Windows-native tooling — keep CRLF
 *.ps1  text eol=crlf
 *.iss  text eol=crlf
+*.wav  binary
+*.sln  text eol=crlf

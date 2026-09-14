@@ -5,7 +5,15 @@ namespace DumpToTxt.App;
 
 internal sealed class ContributionTreeView : TreeView
 {
-    private sealed record RowMetrics(string Size, double Share);
+    private sealed class RowMetrics
+    {
+        public required string DisplayName { get; set; }
+        public required string Size { get; set; }
+        public required DumpNodeSelectionState State { get; set; }
+        public double DisplayedShare { get; set; }
+        public double TargetShare { get; set; }
+        public long AddedAt { get; set; }
+    }
 
     public const int SizeColumnWidth = 92;
     public const int ShareColumnWidth = 92;
@@ -16,6 +24,7 @@ internal sealed class ContributionTreeView : TreeView
     public event EventHandler<TreeNode>? PreviewRequested;
 
     private readonly Dictionary<TreeNode, RowMetrics> _metrics = new();
+    private readonly System.Windows.Forms.Timer _animationTimer = new() { Interval = 33 };
     private TreeNode? _hotNode;
 
     public ContributionTreeView()
@@ -34,7 +43,10 @@ internal sealed class ContributionTreeView : TreeView
         Font = UiTheme.UiFont(9f);
         BackColor = UiTheme.Surface;
         ForeColor = UiTheme.Text;
+        AccessibleName = "Content map";
+        AccessibleDescription = "Files and folders with Included, Mixed, or Excluded selection state. Press Space to change a row.";
         ImageList = BuildNodeImages();
+        _animationTimer.Tick += (_, _) => AdvanceAnimation();
         MouseMove += (_, e) =>
         {
             TreeNode? next = NodeAtRow(e.Y);
@@ -53,17 +65,48 @@ internal sealed class ContributionTreeView : TreeView
         };
     }
 
-    public void ClearMetrics() => _metrics.Clear();
-
-    public void SetMetrics(TreeNode node, string size, double share) =>
-        _metrics[node] = new RowMetrics(size, Math.Clamp(share, 0, 100));
-
-    public static int StateIndex(DumpNodeSelectionState state) => state switch
+    public void SetMetrics(TreeNode node, string displayName, string size, double share,
+        DumpNodeSelectionState state, bool animateEntry = false)
     {
-        DumpNodeSelectionState.Included => 1,
-        DumpNodeSelectionState.Mixed => 2,
-        _ => 0,
-    };
+        double target = Math.Clamp(share, 0, 100);
+        bool animate = SystemInformation.UIEffectsEnabled && SystemInformation.IsMenuAnimationEnabled;
+        if (!_metrics.TryGetValue(node, out RowMetrics? metrics))
+        {
+            metrics = new RowMetrics
+            {
+                DisplayName = displayName,
+                Size = size,
+                State = state,
+                DisplayedShare = animate ? 0 : target,
+                TargetShare = target,
+                AddedAt = animate && animateEntry ? Environment.TickCount64 : 0,
+            };
+            _metrics[node] = metrics;
+        }
+        else
+        {
+            if (metrics.DisplayName == displayName && metrics.Size == size && metrics.State == state
+                && metrics.TargetShare == target) return;
+            metrics.DisplayName = displayName;
+            metrics.Size = size;
+            metrics.State = state;
+            metrics.TargetShare = target;
+            if (!animate) metrics.DisplayedShare = target;
+        }
+
+        if (animate && (Math.Abs(metrics.DisplayedShare - metrics.TargetShare) >= 0.1 || metrics.AddedAt > 0))
+            _animationTimer.Start();
+        if (node.IsVisible) Invalidate(node.Bounds);
+    }
+
+    public DumpNodeSelectionState GetNodeState(TreeNode node) =>
+        _metrics.TryGetValue(node, out RowMetrics? metrics) ? metrics.State : DumpNodeSelectionState.Excluded;
+
+    public void Forget(TreeNode node)
+    {
+        _metrics.Remove(node);
+        if (_hotNode == node) _hotNode = null;
+    }
 
     public void AnnounceDescription() => AccessibilityNotifyClients(AccessibleEvents.DescriptionChange, 0);
 
@@ -86,14 +129,20 @@ internal sealed class ContributionTreeView : TreeView
         }
 
         var row = new Rectangle(0, e.Bounds.Top, ClientSize.Width, e.Bounds.Height);
+        if (!_animationTimer.Enabled) metrics.DisplayedShare = metrics.TargetShare;
         bool selected = e.Node == SelectedNode;
-        bool excluded = e.Node.StateImageIndex == 0;
+        bool excluded = metrics.State == DumpNodeSelectionState.Excluded;
         Color background = selected ? UiTheme.AccentSoft
-            : excluded ? Color.FromArgb(245, 246, 248)
-            : e.Node == _hotNode ? Color.FromArgb(246, 249, 253)
+            : excluded ? UiTheme.Window
+            : e.Node == _hotNode ? UiTheme.ControlHover
             : UiTheme.Surface;
+        if (metrics.AddedAt > 0)
+        {
+            double elapsed = Environment.TickCount64 - metrics.AddedAt;
+            background = Blend(UiTheme.AccentSoft, background, Math.Clamp(elapsed / 420d, 0, 1));
+        }
         using (var brush = new SolidBrush(background)) e.Graphics.FillRectangle(brush, row);
-        using (var pen = new Pen(Color.FromArgb(231, 235, 240)))
+        using (var pen = new Pen(UiTheme.Rail))
             e.Graphics.DrawLine(pen, 0, row.Bottom - 1, row.Right, row.Bottom - 1);
 
         int branchX = 8 + (e.Node.Level * Indent);
@@ -104,11 +153,11 @@ internal sealed class ContributionTreeView : TreeView
         int sizeX = Math.Max(nameX + 40, shareX - SizeColumnWidth);
 
         if (e.Node.Nodes.Count > 0) DrawExpander(e.Graphics, e.Node, branchX, row.Top + (row.Height / 2));
-        DrawState(e.Graphics, e.Node.StateImageIndex, new Rectangle(checkX, row.Top + ((row.Height - 16) / 2), 16, 16));
+        DrawState(e.Graphics, metrics.State, new Rectangle(checkX, row.Top + ((row.Height - 16) / 2), 16, 16));
         ImageList?.Draw(e.Graphics, iconX, row.Top + ((row.Height - 16) / 2), 16, 16, e.Node.ImageIndex);
 
         Color text = excluded ? UiTheme.DisabledText : UiTheme.Text;
-        TextRenderer.DrawText(e.Graphics, e.Node.Text, Font,
+        TextRenderer.DrawText(e.Graphics, metrics.DisplayName, Font,
             new Rectangle(nameX, row.Top, Math.Max(20, sizeX - nameX - 8), row.Height), text,
             TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
         TextRenderer.DrawText(e.Graphics, metrics.Size, Font,
@@ -117,14 +166,14 @@ internal sealed class ContributionTreeView : TreeView
 
         int barWidth = 36;
         var bar = new Rectangle(shareX + 8, row.Top + ((row.Height - 4) / 2), barWidth, 4);
-        using (var track = new SolidBrush(Color.FromArgb(218, 225, 234))) e.Graphics.FillRectangle(track, bar);
-        if (!excluded && metrics.Share > 0)
+        using (var track = new SolidBrush(UiTheme.Border)) e.Graphics.FillRectangle(track, bar);
+        if (!excluded && metrics.DisplayedShare > 0)
         {
-            var fill = new Rectangle(bar.X, bar.Y, Math.Max(1, (int)Math.Round(barWidth * metrics.Share / 100d)), bar.Height);
+            var fill = new Rectangle(bar.X, bar.Y, Math.Max(1, (int)Math.Round(barWidth * metrics.DisplayedShare / 100d)), bar.Height);
             using var accent = new SolidBrush(UiTheme.Accent);
             e.Graphics.FillRectangle(accent, fill);
         }
-        TextRenderer.DrawText(e.Graphics, $"{metrics.Share:0.#}%", Font,
+        TextRenderer.DrawText(e.Graphics, $"{metrics.DisplayedShare:0.#}%", Font,
             new Rectangle(bar.Right + 5, row.Top, Math.Max(0, ClientSize.Width - bar.Right - 11), row.Height), text,
             TextFormatFlags.VerticalCenter | TextFormatFlags.Right | TextFormatFlags.NoPrefix);
 
@@ -164,11 +213,11 @@ internal sealed class ContributionTreeView : TreeView
         graphics.DrawLines(pen, points);
     }
 
-    private static void DrawState(Graphics graphics, int stateIndex, Rectangle bounds)
+    private static void DrawState(Graphics graphics, DumpNodeSelectionState state, Rectangle bounds)
     {
-        if (stateIndex == 0)
+        if (state == DumpNodeSelectionState.Excluded)
         {
-            using var border = new Pen(Color.FromArgb(120, 132, 147));
+            using var border = new Pen(UiTheme.DisabledText);
             using var fill = new SolidBrush(Color.White);
             graphics.FillRectangle(fill, bounds);
             graphics.DrawRectangle(border, bounds.X, bounds.Y, bounds.Width - 1, bounds.Height - 1);
@@ -176,7 +225,7 @@ internal sealed class ContributionTreeView : TreeView
         }
 
         using (var fill = new SolidBrush(UiTheme.Accent)) graphics.FillRectangle(fill, bounds);
-        if (stateIndex == 2)
+        if (state == DumpNodeSelectionState.Mixed)
         {
             using var dash = new Pen(Color.White, 2f);
             graphics.DrawLine(dash, bounds.X + 4, bounds.Y + 8, bounds.Right - 4, bounds.Y + 8);
@@ -196,6 +245,48 @@ internal sealed class ContributionTreeView : TreeView
             new Point(bounds.X + 7, bounds.Y + 11),
             new Point(bounds.X + 12, bounds.Y + 5),
         });
+    }
+
+    private void AdvanceAnimation()
+    {
+        bool active = false;
+        long now = Environment.TickCount64;
+        for (TreeNode? node = TopNode; node is not null && node.Bounds.Top < ClientSize.Height; node = node.NextVisibleNode)
+        {
+            if (!_metrics.TryGetValue(node, out RowMetrics? metrics)) continue;
+            double delta = metrics.TargetShare - metrics.DisplayedShare;
+            if (Math.Abs(delta) >= 0.1)
+            {
+                metrics.DisplayedShare += delta * 0.28;
+                active = true;
+            }
+            else metrics.DisplayedShare = metrics.TargetShare;
+
+            if (metrics.AddedAt > 0)
+            {
+                if (now - metrics.AddedAt < 420) active = true;
+                else metrics.AddedAt = 0;
+            }
+        }
+        Invalidate();
+        if (!active) _animationTimer.Stop();
+    }
+
+    private static Color Blend(Color from, Color to, double progress)
+    {
+        int Mix(int a, int b) => (int)Math.Round(a + ((b - a) * progress));
+        return Color.FromArgb(Mix(from.R, to.R), Mix(from.G, to.G), Mix(from.B, to.B));
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _animationTimer.Dispose();
+            ImageList?.Dispose();
+            _metrics.Clear();
+        }
+        base.Dispose(disposing);
     }
 
     private static ImageList BuildNodeImages()
@@ -225,7 +316,7 @@ internal sealed class ContributionTreeView : TreeView
         using var graphics = Graphics.FromImage(image);
         graphics.Clear(Color.Transparent);
         using var fill = new SolidBrush(Color.White);
-        using var border = new Pen(Color.FromArgb(142, 156, 173));
+        using var border = new Pen(UiTheme.DisabledText);
         Point[] shape = [new(3, 1), new(10, 1), new(14, 5), new(14, 15), new(3, 15)];
         graphics.FillPolygon(fill, shape);
         graphics.DrawPolygon(border, shape);
