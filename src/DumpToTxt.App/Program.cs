@@ -38,6 +38,8 @@ internal static class Program
 
             // Resolve MERGES defaults → machine → user → per-folder .dumptotxt.json (nearest wins).
             var cfg = ConfigStore.Resolve(target!);
+            var preferences = ConfigStore.LoadReviewPreferences(target!);
+            preferences?.Apply(cfg);
             if (presetName is not null) Presets.ByName(presetName)?.Apply(cfg);
             if (changed) cfg.OnlyGitChanged = true;
 
@@ -45,13 +47,13 @@ internal static class Program
             bool forceReview = (Control.ModifierKeys & Keys.Shift) == Keys.Shift;
             if (cfg.ShowReviewBeforeDump || forceReview)
             {
-                using var selectionForm = new DumpSelectionForm(target!, cfg);
+                using var selectionForm = new DumpSelectionForm(target!, cfg, preferences);
                 if (selectionForm.ShowDialog() != DialogResult.OK
                     || selectionForm.Selection is null
                     || selectionForm.UpdatedConfig is null) return;
                 cfg = selectionForm.UpdatedConfig;
                 selection = selectionForm.Selection;
-                try { ConfigStore.SaveRunPreferences(cfg); }
+                try { ConfigStore.SaveReviewPreferences(target!, cfg, selection); }
                 catch (Exception preferenceError) when (preferenceError is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
                 {
                     MessageBox.Show($"Your choices could not be remembered. This dump will still use them.\n\n{preferenceError.Message}",
@@ -61,6 +63,7 @@ internal static class Program
             else
             {
                 selection = DumpContentSelection.FromMode(cfg.LastSelectionMode, cfg);
+                if (preferences is not null) selection = selection.WithPathOverrides(preferences.PathOverrides);
             }
 
             using var exporting = new ExportProgressForm(target!, cfg, selection,

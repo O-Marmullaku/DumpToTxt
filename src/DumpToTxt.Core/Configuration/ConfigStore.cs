@@ -128,6 +128,47 @@ public static class ConfigStore
         });
     }
 
+    public static DumpReviewPreferences? LoadReviewPreferences(string targetPath, string? userPath = null)
+    {
+        userPath ??= UserPath;
+        if (!File.Exists(userPath)) return null;
+        var document = JsonNode.Parse(File.ReadAllText(userPath), documentOptions: new JsonDocumentOptions
+        { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true })?.AsObject();
+        var saved = document?["ReviewPreferences"]?.AsObject();
+        string target = Path.GetFullPath(targetPath);
+        var match = saved?.FirstOrDefault(pair => string.Equals(pair.Key, target, StringComparison.OrdinalIgnoreCase));
+        var preferences = match?.Value?.Deserialize<DumpReviewPreferences>(JsonOpts);
+        if (preferences is not null && (preferences.PathOverrides is null
+            || !Enum.IsDefined(preferences.Style) || !Enum.IsDefined(preferences.OutputTarget)
+            || !Enum.IsDefined(preferences.Mode) || !Enum.IsDefined(preferences.SecretScan)))
+            throw new JsonException("Saved review choices are invalid. Repair ReviewPreferences in user settings.");
+        return preferences;
+    }
+
+    public static void SaveReviewPreferences(string targetPath, DumpConfig used, DumpContentSelection selection,
+        string? userPath = null)
+    {
+        userPath ??= UserPath;
+        var document = File.Exists(userPath)
+            ? JsonNode.Parse(File.ReadAllText(userPath), documentOptions: new JsonDocumentOptions
+            { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true })!.AsObject()
+            : new JsonObject();
+        var saved = document["ReviewPreferences"]?.DeepClone().AsObject() ?? new JsonObject();
+        string target = Path.GetFullPath(targetPath);
+        foreach (string key in saved.Select(pair => pair.Key).Where(key =>
+                     string.Equals(key, target, StringComparison.OrdinalIgnoreCase)).ToArray()) saved.Remove(key);
+        saved[target] = JsonSerializer.SerializeToNode(DumpReviewPreferences.Capture(used, selection), JsonOpts);
+        PatchAndSave(userPath, new JsonObject
+        {
+            [nameof(DumpConfig.Style)] = used.Style.ToString(),
+            [nameof(DumpConfig.OutputTarget)] = used.OutputTarget.ToString(),
+            [nameof(DumpConfig.OutputDir)] = used.OutputDir,
+            [nameof(DumpConfig.ShowReviewBeforeDump)] = used.ShowReviewBeforeDump,
+            [nameof(DumpConfig.LastSelectionMode)] = used.LastSelectionMode.ToString(),
+            ["ReviewPreferences"] = saved,
+        });
+    }
+
     /// <summary>Saves to a specific path. Testable seam used by <see cref="Save"/>.</summary>
     public static void SaveTo(string path, DumpConfig cfg) =>
         PatchAndSave(path, JsonNode.Parse(Serialize(cfg))!.AsObject());

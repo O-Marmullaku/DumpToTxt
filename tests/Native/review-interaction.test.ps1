@@ -106,7 +106,22 @@ try {
             Assert-Order @('bulk','b-large.txt','c-tie.txt','d-tie.txt','a-small.txt','empty') 'Share contribution descending'
 
             $bulkRow = $realized['bulk']
+            $clientWidthBeforeExpansion = $tree.ClientSize.Width
+            if ($tree.ClientSize.Height -ne $tree.Height) { throw 'Unneeded horizontal scrollbar is visible.' }
             $bulkRow.Expand()
+            if ($tree.ClientSize.Width -ne $clientWidthBeforeExpansion) {
+                throw 'Expanding a folder changed the vertical scrollbar gutter.'
+            }
+            $tree.SelectedNode = $bulkRow
+            $tree.TopNode = $realized['bulk/file-0050.txt']
+            $topBeforeRefresh = $tree.TopNode
+            $formType.GetMethod('RefreshTree', $flags).Invoke($form, $null) | Out-Null
+            if ($tree.TopNode -ne $topBeforeRefresh -or $tree.SelectedNode -ne $bulkRow) {
+                throw 'Background refresh moved the viewport or selection.'
+            }
+            $send = $tree.GetType().GetMethod('SendMessage', [Reflection.BindingFlags]'Static,NonPublic')
+            $nativeStyle = $send.Invoke($null, @($tree.Handle, [uint32]0x112d, [IntPtr]::Zero, [IntPtr]::Zero))
+            if (($nativeStyle.ToInt64() -band 4) -eq 0) { throw 'Native tree double buffering is disabled.' }
             $review = $reviewField.GetValue($form)
             $bulkNode = $review.Find('bulk')
             $toggle.Invoke($form, @($bulkRow)) | Out-Null
@@ -126,6 +141,9 @@ try {
                 throw 'Parent inclusion did not restore the subtree.'
             }
             $bulkRow.Collapse()
+            if ($tree.ClientSize.Width -ne $clientWidthBeforeExpansion) {
+                throw 'Collapsing a folder changed the vertical scrollbar gutter.'
+            }
 
             $fileRow = $realized['a-small.txt']
             $statePoint = Pointer $fileRow 26
@@ -191,7 +209,54 @@ try {
     }
     finally { $early.Dispose() }
 
-    Write-Host 'PASS: review hit-testing, lazy subtree state, sorting, tooltip removal, early Create, and authoritative export.'
+    # Reopen saved path choices and verify progressive discovery does not overwrite them.
+    $savedCfg = $earlyCfg.Clone()
+    $savedCfg.LastSelectionMode = [DumpToTxt.Core.DumpSelectionMode]::None
+    $overrides = [Collections.Generic.Dictionary[string,bool]]::new()
+    $overrides.Add('bulk', $true)
+    $overrides.Add('bulk/file-0000.txt', $false)
+    $savedSelection = [DumpToTxt.Core.DumpContentSelection]::Empty.WithPathOverrides($overrides)
+    $settings = Join-Path $fixture 'saved-preferences.json'
+    [DumpToTxt.Core.ConfigStore]::SaveReviewPreferences($fixture, $savedCfg, $savedSelection, $settings)
+    $preferences = [DumpToTxt.Core.ConfigStore]::LoadReviewPreferences($fixture, $settings)
+    $preferences.Apply($savedCfg)
+    [IO.File]::WriteAllBytes((Join-Path $fixture 'native.bin'), [byte[]]@(99,97,102,233,32,116,101,120,116))
+    $reopened = [DumpToTxt.App.DumpSelectionForm]::new($fixture, $savedCfg, $preferences)
+    $reopenTimer = [Windows.Forms.Timer]::new()
+    $reopenTimer.Interval = 25
+    $deadline = [DateTime]::UtcNow.AddSeconds(15)
+    $reopenTimer.add_Tick({
+        try {
+            if ([DateTime]::UtcNow -gt $deadline) { throw 'Reopened review did not finish after unsupported encoding.' }
+            if (-not [bool]$formType.GetField('_scanComplete', $flags).GetValue($reopened)) { return }
+            $reopenTimer.Stop()
+            $review = $reviewField.GetValue($reopened)
+            if ($review.SelectedCount -ne 2499) {
+                throw "Remembered selection changed during discovery: $($review.SelectedCount) files."
+            }
+            $validation = $formType.GetField('_validation', $flags).GetValue($reopened)
+            if ($validation.Text -notlike '*native.bin*') { throw 'Unsupported encoding was not reported.' }
+            $createAgain = $formType.GetField('_create', $flags).GetValue($reopened)
+            if (-not $createAgain.Enabled) { throw 'Unsupported file disabled Create dump.' }
+            $formType.GetMethod('AcceptSelection', $flags).Invoke($reopened, $null) | Out-Null
+        }
+        catch {
+            $script:failure = $_
+            $reopenTimer.Stop()
+            $reopened.Dispose()
+        }
+    })
+    try {
+        $reopenTimer.Start()
+        [Windows.Forms.Application]::Run($reopened)
+        if ($null -ne $script:failure) { throw $script:failure }
+        $result = $engine.Run($fixture, $reopened.UpdatedConfig, $null, $reopened.Selection, $null,
+            [Threading.CancellationToken]::None, $null, $null)
+        if ($result.FilesIncluded -ne 2499) { throw 'Export did not use the remembered path overrides.' }
+    }
+    finally { $reopenTimer.Dispose(); $reopened.Dispose() }
+
+    Write-Host 'PASS: review interaction, early Create, authoritative export, remembered choices, and nonfatal encoding diagnostics.'
 }
 finally {
     if ($null -ne $timer) { $timer.Stop(); $timer.Dispose() }

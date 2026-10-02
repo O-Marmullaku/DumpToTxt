@@ -27,7 +27,7 @@ public static class TextFileClassifier
         catch (DecoderFallbackException)
         {
             // Distinguish unsupported ANSI text from binary instead of silently corrupting it as UTF-8.
-            throw new InvalidDataException($"Unsupported text encoding in '{path}'. Convert this file to UTF-8 or Unicode with a byte-order mark.");
+            throw new InvalidDataException($"Cannot read '{path}' as supported text. It may be binary or use an unsupported encoding. Text files must use UTF-8 or Unicode with a byte-order mark.");
         }
         return true;
     }

@@ -20,6 +20,8 @@ public sealed class DumpSelectionForm : Form
     private DumpReviewTree _review = null!;
     private DumpReviewNode _viewRoot = null!;
     private bool _scanComplete, _refreshingNodes, _started;
+    private bool _treeRefreshPending;
+    private long _lastTreeRefreshMillis;
     private int _scanGeneration, _previewGeneration;
     private CancellationTokenSource? _previewCancellation;
     private SortColumn _sortColumn = SortColumn.Name;
@@ -93,10 +95,14 @@ public sealed class DumpSelectionForm : Form
     public DumpContentSelection? Selection { get; private set; }
     public DumpConfig? UpdatedConfig { get; private set; }
 
-    public DumpSelectionForm(string targetPath, DumpConfig config)
+    public DumpSelectionForm(string targetPath, DumpConfig config) : this(targetPath, config, null) { }
+
+    public DumpSelectionForm(string targetPath, DumpConfig config, DumpReviewPreferences? preferences)
     {
         _targetPath = Path.GetFullPath(targetPath);
         _config = config.Clone();
+        if (preferences is not null)
+            foreach (var pair in preferences.PathOverrides) _pathSelection.Set(pair.Key, false, pair.Value);
         Text = "Create dump — DumpToTxt";
         ClientSize = new Size(920, 620);
         MinimumSize = new Size(860, 580);
@@ -662,7 +668,10 @@ public sealed class DumpSelectionForm : Form
         } while (batch.Changes.Count > 0 && !batch.Completed && watch.ElapsedMilliseconds < 10);
 
         _scanComplete = batch.Completed;
-        if (changed || _scanComplete != wasComplete) RefreshTree();
+        _treeRefreshPending |= changed;
+        if (_scanComplete != wasComplete || _treeRefreshPending
+            && (Environment.TickCount64 - _lastTreeRefreshMillis >= 100 || _scanTask is { IsFaulted: true }))
+            RefreshTree();
         if (_scanComplete != wasComplete) UpdateSortHeaders();
 
         if (batch.DiagnosticCount > 0)
@@ -744,6 +753,7 @@ public sealed class DumpSelectionForm : Form
 
     private void RefreshTree()
     {
+        TreeNode? top = _tree.TopNode;
         _tree.BeginUpdate();
         _refreshingNodes = true;
         try
@@ -754,8 +764,11 @@ public sealed class DumpSelectionForm : Form
                     PopulatePage(row.Nodes, tag.Node);
             RefreshRealizedStructure();
             foreach (var row in VisibleRows().ToArray()) UpdateRow(row, invalidateMetrics: false);
+            if (top?.TreeView == _tree && _tree.TopNode != top) _tree.TopNode = top;
         }
         finally { _refreshingNodes = false; _tree.EndUpdate(); }
+        _treeRefreshPending = false;
+        _lastTreeRefreshMillis = Environment.TickCount64;
         UpdateSelectionSummary();
         _tree.Invalidate();
     }
@@ -894,7 +907,7 @@ public sealed class DumpSelectionForm : Form
 
         foreach (TreeNode row in rows.Cast<TreeNode>().ToArray())
             if (row.Tag is not NodeTag && !navigationRows.Contains(row)) row.Remove();
-        if (selected?.TreeView == _tree) _tree.SelectedNode = selected;
+        if (selected?.TreeView == _tree && _tree.SelectedNode != selected) _tree.SelectedNode = selected;
     }
 
     private static void PlaceNavigationRow(TreeNodeCollection rows, ref int index, HashSet<TreeNode> kept,
@@ -1091,8 +1104,6 @@ public sealed class DumpSelectionForm : Form
             }
             _config.OutputDir = folder;
         }
-        else _config.OutputDir = null;
-
         _config.OutputTarget = _file.Checked ? OutputTarget.File : _console.Checked ? OutputTarget.Stdout : OutputTarget.Clipboard;
         _config.RespectGitignore = _respectGitignore.Checked;
         _config.UseDumpToTxtIgnore = _respectDumpignore.Checked;

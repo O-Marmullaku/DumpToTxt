@@ -7,6 +7,35 @@ namespace DumpToTxt.Tests;
 public sealed class DumpPreviewTests
 {
     [Fact]
+    public async Task Scan_UnsupportedEncodingKeepsInventoryAndContinuesToOtherFiles()
+    {
+        using var tree = new TempTree();
+        tree.Bytes("native.bin", 99, 97, 102, 233, 32, 116, 101, 120, 116);
+        tree.Text("good.txt", "READABLE");
+        var state = new DumpPreviewScanState();
+        await DumpPreviewScanner.ScanAsync(tree.Root, DumpConfig.CreateDefault(), state, default);
+        var snapshot = state.Snapshot();
+        Assert.True(snapshot.Completed);
+        Assert.Equal(2, snapshot.ScannedFiles);
+        Assert.Contains(snapshot.Paths, path => path.RelativePath == "native.bin");
+        Assert.Single(snapshot.Entries);
+        Assert.Equal("good.txt", snapshot.Entries[0].RelativePath);
+        var batch = state.Drain();
+        Assert.Equal(1, batch.DiagnosticCount);
+        Assert.Contains("native.bin", batch.LastDiagnostic);
+        Assert.Contains("may be binary", batch.LastDiagnostic);
+
+        var cfg = DumpConfig.CreateDefault();
+        cfg.OutputTarget = OutputTarget.Stdout;
+        var result = new DumpEngine().Run(tree.Root, cfg, contentSelection: DumpContentSelection.Empty);
+        Assert.Contains("native.bin", result.Text);
+        Assert.Equal(0, result.FilesIncluded);
+        // An explicit content inclusion still refuses unsupported decoding.
+        Assert.Throws<InvalidDataException>(() => new DumpEngine().Run(tree.Root, cfg,
+            contentSelection: DumpContentSelection.FromMode(DumpSelectionMode.Thorough, cfg)));
+    }
+
+    [Fact]
     public async Task Scan_GroupsExtensionsCaseInsensitively_AndFindsUnknownText()
     {
         using var tree = new TempTree();

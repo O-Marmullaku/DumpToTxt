@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.Runtime.InteropServices;
 using DumpToTxt.Core;
 
 namespace DumpToTxt.App;
@@ -24,6 +25,66 @@ internal sealed class ContributionTreeView : TreeView
     private TreeNode? _hotNode;
 
     public Func<TreeNode, DumpNodeSelectionState>? StateProvider { get; set; }
+
+    private const int VerticalScrollStyle = 0x00200000;
+    private const int HorizontalScrollStyle = 0x00100000;
+    private const int NoHorizontalScrollStyle = 0x8000;
+    private bool _restoringScrollBar;
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongW")]
+    private static extern int GetWindowStyle(IntPtr window, int index);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ShowScrollBar(IntPtr window, int bar, [MarshalAs(UnmanagedType.Bool)] bool show);
+
+    protected override CreateParams CreateParams
+    {
+        get
+        {
+            var parameters = base.CreateParams;
+            parameters.Style = (parameters.Style | VerticalScrollStyle | NoHorizontalScrollStyle)
+                & ~HorizontalScrollStyle;
+            return parameters;
+        }
+    }
+
+    protected override void WndProc(ref Message message)
+    {
+        const int styleChanging = 0x007c;
+        const int windowStyle = -16;
+        if (message.Msg == styleChanging && message.WParam == (IntPtr)windowStyle && message.LParam != IntPtr.Zero)
+        {
+            // STYLESTRUCT contains two DWORDs: old style, then proposed style.
+            // Keep a permanent vertical gutter while native ranges grow/shrink.
+            int proposed = Marshal.ReadInt32(message.LParam, sizeof(int));
+            Marshal.WriteInt32(message.LParam, sizeof(int),
+                (proposed | VerticalScrollStyle | NoHorizontalScrollStyle) & ~HorizontalScrollStyle);
+        }
+        base.WndProc(ref message);
+        // Native range updates can hide a scrollbar without WM_STYLECHANGING.
+        // Restore it before returning to the message loop; nested messages are guarded.
+        if (!_restoringScrollBar && !Disposing && !IsDisposed && IsHandleCreated
+            && message.Msg != 0x0002 && message.Msg != 0x0082
+            && (GetWindowStyle(Handle, windowStyle) & VerticalScrollStyle) == 0)
+        {
+            _restoringScrollBar = true;
+            try { ShowScrollBar(Handle, 1, true); }
+            finally { _restoringScrollBar = false; }
+        }
+    }
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr mask, IntPtr value);
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        // Buffer the native common control, which owns TreeView painting.
+        const uint setExtendedStyle = 0x1100 + 44;
+        const int doubleBuffer = 0x0004;
+        SendMessage(Handle, setExtendedStyle, (IntPtr)doubleBuffer, (IntPtr)doubleBuffer);
+    }
 
     public ContributionTreeView()
     {

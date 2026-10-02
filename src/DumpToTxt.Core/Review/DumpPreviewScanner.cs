@@ -219,6 +219,8 @@ public static class DumpPreviewScanner
             try { isText = TextFileClassifier.IsTextLike(file.FullName, sniffCancellation.Token); }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             { state.RecordDiagnostic($"Text check timed out: {relative}"); isText = false; }
+            catch (InvalidDataException)
+            { state.RecordDiagnostic($"Content unavailable: {relative}. The file may be binary or use an unsupported text encoding."); isText = false; }
             catch (IOException ex) { state.RecordDiagnostic($"{relative}: {ex.Message}"); isText = false; }
             catch (UnauthorizedAccessException ex) { state.RecordDiagnostic($"{relative}: {ex.Message}"); isText = false; }
         }
