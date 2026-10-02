@@ -112,6 +112,83 @@ public class FilesystemSafetyTests
         }
     }
 
+    [Fact]
+    public async Task SelectedLinksAndLinkedAncestorsAreRefusedBeforeReadingPoliciesOrContent()
+    {
+        string fixture = Path.Combine(Path.GetTempPath(), "dtt-root-link-" + Guid.NewGuid().ToString("N"));
+        string external = Path.Combine(fixture, "external"), link = Path.Combine(fixture, "selected");
+        string child = Path.Combine(external, "child");
+        Directory.CreateDirectory(child);
+        File.WriteAllText(Path.Combine(child, "private.txt"), "external private content");
+        // Invalid policy would produce InvalidDataException if read before the link refusal.
+        File.WriteAllText(Path.Combine(external, ConfigStore.FolderConfigName), "{");
+        try
+        {
+            Link(link, external);
+            foreach (string target in new[] { link, link + Path.DirectorySeparatorChar,
+                         Path.Combine(link, "child"), Path.Combine(link, "child", "private.txt") })
+            {
+                var config = DumpConfig.CreateDefault();
+                string output = Path.Combine(fixture, "output");
+                var error = Assert.Throws<IOException>(() => new DumpEngine().Run(target, config,
+                    outputDir: output, contentSelection: DumpContentSelection.Empty));
+                Assert.Contains("Directory link was not traversed", error.Message);
+                Assert.False(Directory.Exists(output));
+                var state = new DumpPreviewScanState();
+                await Assert.ThrowsAsync<IOException>(() => DumpPreviewScanner.ScanAsync(
+                    target, config, state, CancellationToken.None));
+                Assert.Empty(state.Snapshot().Paths);
+                error = Assert.Throws<IOException>(() => ConfigStore.Resolve(target, "", ""));
+                Assert.IsNotType<InvalidDataException>(error);
+                Assert.Throws<IOException>(() => GitChanges.ChangedFiles(target));
+            }
+            Assert.Throws<IOException>(() => TextFileClassifier.IsTextLike(
+                Path.Combine(link, "child", "private.txt")));
+            // The original directory remains usable.
+            var ordinary = DumpConfig.CreateDefault();
+            ordinary.OutputTarget = OutputTarget.Stdout;
+            using var writer = new StringWriter();
+            new DumpEngine().Run(child, ordinary, textOutput: writer);
+            Assert.Contains("external private content", writer.ToString());
+        }
+        finally
+        {
+            if (Directory.Exists(link)) Directory.Delete(link);
+            Directory.Delete(fixture, true);
+        }
+    }
+
+    [Fact]
+    public async Task IgnoredChildLinkDoesNotPreventOrdinaryExport()
+    {
+        string fixture = Path.Combine(Path.GetTempPath(), "dtt-ignored-link-" + Guid.NewGuid().ToString("N"));
+        string root = Path.Combine(fixture, "root"), external = Path.Combine(fixture, "external");
+        string link = Path.Combine(root, "outside");
+        Directory.CreateDirectory(root);
+        Directory.CreateDirectory(external);
+        File.WriteAllText(Path.Combine(root, "ordinary.txt"), "ordinary content");
+        File.WriteAllText(Path.Combine(root, ".dumptotxtignore"), "outside/\n");
+        File.WriteAllText(Path.Combine(external, "private.txt"), "external private content");
+        try
+        {
+            Link(link, external);
+            var config = DumpConfig.CreateDefault();
+            config.OutputTarget = OutputTarget.Stdout;
+            using var writer = new StringWriter();
+            new DumpEngine().Run(root, config, textOutput: writer);
+            Assert.Contains("ordinary content", writer.ToString());
+            Assert.DoesNotContain("external private content", writer.ToString());
+            var state = new DumpPreviewScanState();
+            await DumpPreviewScanner.ScanAsync(root, config, state, CancellationToken.None);
+            Assert.DoesNotContain(state.Snapshot().Paths, p => p.RelativePath.StartsWith("outside"));
+        }
+        finally
+        {
+            if (Directory.Exists(link)) Directory.Delete(link);
+            Directory.Delete(fixture, true);
+        }
+    }
+
     private static void Git(string root, params string[] arguments)
     {
         var start = new ProcessStartInfo("git")

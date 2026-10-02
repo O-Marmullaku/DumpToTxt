@@ -41,6 +41,20 @@ try {
     }
 } finally { $form.Dispose() }
 
+foreach ($policy in @('(?x)private # retained policy', '(private)-\1')) {
+    $config = [DumpToTxt.Core.DumpConfig]::CreateDefault()
+    $config.ExcludeRegex = $policy
+    $regexForm = New-TestForm $config
+    try {
+        (Field $regexForm '_tbExclCustom').Text = 'cache'
+        Invoke-Method $regexForm 'OnSave'
+        if ($null -eq $saved) { throw 'A valid opaque regex could not be extended.' }
+        foreach ($path in @('C:\repo\private-private\x.txt', 'C:\repo\cache\x.txt')) {
+            if (-not [regex]::IsMatch($path, $saved.ExcludeRegex)) { throw 'Opaque regex comment or backreference changed.' }
+        }
+        if ([regex]::IsMatch('C:\repo\ordinary\x.txt', $saved.ExcludeRegex)) { throw 'Opaque rule broadened unexpectedly.' }
+    } finally { $regexForm.Dispose() }
+}
 $form = New-TestForm ([DumpToTxt.Core.DumpConfig]::CreateDefault())
 try {
     $list = Field $form '_clbExcl'

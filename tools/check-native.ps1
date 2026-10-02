@@ -56,6 +56,7 @@ Invoke-NativeTest 'review-lifecycle.test.ps1' @('-AppDir', $app)
 Invoke-NativeTest 'review-deep-navigation.test.ps1' @('-AppDir', $app, '-StressDir', $stress, '-ReportPath', (Join-Path $run 'deep-navigation.json'))
 Invoke-NativeTest 'sensitive-review.test.ps1' @('-AppDir', $app, '-CaptureDir', (Join-Path $run 'sensitive'))
 Invoke-NativeTest 'settings-behavior.test.ps1' @('-AppDir', $app)
+Invoke-NativeTest 'lite-settings-behavior.test.ps1' @()
 Invoke-NativeTest 'settings-layout.test.ps1' @('-ExePath', $exe, '-CapturePath', (Join-Path $run 'settings.png'))
 Invoke-NativeTest 'theme-layout.test.ps1' @('-AppDir', $app, '-CaptureDir', (Join-Path $run 'themes'))
 if ($ExportTargetPath) {

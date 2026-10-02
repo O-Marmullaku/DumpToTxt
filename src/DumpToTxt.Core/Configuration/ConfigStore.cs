@@ -50,6 +50,7 @@ public static class ConfigStore
     /// <summary>Testable seam: <see cref="Resolve(string)"/> with explicit machine/user paths.</summary>
     public static DumpConfig Resolve(string targetPath, string machinePath, string userPath)
     {
+        FilesystemSafety.EnsureTargetPath(targetPath);
         var cfg = DumpConfig.CreateDefault();
         OverlayFile(cfg, machinePath);
         OverlayFile(cfg, userPath);
@@ -61,7 +62,7 @@ public static class ConfigStore
     private static void OverlayFile(DumpConfig acc, string path)
     {
         if (string.IsNullOrEmpty(path)) return;
-        try { ParseDto(File.ReadAllText(path)).Apply(acc); }
+        try { TextFileClassifier.EnsureRegularFile(path); ParseDto(File.ReadAllText(path)).Apply(acc); }
         catch (FileNotFoundException) { }
         catch (DirectoryNotFoundException) { }
         catch (JsonException) { throw new InvalidDataException($"Configuration is invalid: '{path}'. Repair this file before creating a dump."); }

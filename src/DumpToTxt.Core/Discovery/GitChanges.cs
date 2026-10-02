@@ -7,6 +7,8 @@ namespace DumpToTxt.Core;
 /// Lists the files changed vs the last commit, using the <c>git</c> CLI. Returns the set of absolute
 /// paths considered "changed" (staged + unstaged + untracked), or <c>null</c> when the target is not
 /// inside a git repository or git is unavailable — in which case the caller falls back to a full dump.
+/// Repository hooks and filters are disabled: filtered files may conservatively appear modified.
+/// Submodule worktree dirtiness is ignored; changes to their recorded commits remain visible.
 /// </summary>
 public static class GitChanges
 {
@@ -14,6 +16,7 @@ public static class GitChanges
     public static HashSet<string>? ChangedFiles(string targetPathOrDir,
         CancellationToken cancellationToken = default)
     {
+        FilesystemSafety.EnsureTargetPath(targetPathOrDir);
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -21,15 +24,30 @@ public static class GitChanges
                 ? Path.GetDirectoryName(Path.GetFullPath(targetPathOrDir))!
                 : Path.GetFullPath(targetPathOrDir);
 
-            string? top = Run(dir, "rev-parse --show-toplevel", cancellationToken);
+            string? executable = FindGitExecutable();
+            if (executable is null) return null;
+            string? top = Run(executable, dir, ["rev-parse", "--show-toplevel"], [], cancellationToken);
             if (string.IsNullOrWhiteSpace(top)) return null;     // not a git repo, or git not on PATH
             top = top.Trim();
 
-            // Porcelain v1: 2 status chars + space + path, stable across git versions and locales.
-            // core.quotepath=false keeps non-ASCII paths literal (UTF-8) instead of C-quoted/escaped,
-            // so they still match FileInfo.FullName.
-            string? status = Run(dir, "status --porcelain=v1 -z --untracked-files=all",
-                cancellationToken);
+            // Status can execute configured clean/process filters while comparing tracked contents.
+            // Discover driver names without running them, then disable every effective driver.
+            string? filterNames = Run(executable, dir,
+                ["config", "--null", "--name-only", "--get-regexp", @"^filter\..*\.(clean|process|required)$"],
+                [], cancellationToken, allowNoMatch: true);
+            if (filterNames is null) return null;
+            var filterOverrides = new List<string>();
+            foreach (string key in filterNames.Split('\0', StringSplitOptions.RemoveEmptyEntries)
+                .Distinct(StringComparer.Ordinal))
+            {
+                filterOverrides.Add("-c");
+                filterOverrides.Add(key + (key.EndsWith(".required", StringComparison.OrdinalIgnoreCase)
+                    ? "=false" : "="));
+            }
+            // Avoid recursively running status inside submodules. Changed gitlink commits remain visible.
+            string? status = Run(executable, dir,
+                ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=dirty"],
+                filterOverrides, cancellationToken);
             if (status is null) return null;
 
             var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -54,11 +72,25 @@ public static class GitChanges
         catch { return null; }
     }
 
-    private static string? Run(string workingDir, string args, CancellationToken cancellationToken)
+    private static string? FindGitExecutable()
+    {
+        // Never let the selected repository (or a relative PATH entry) supply our executable.
+        foreach (string entry in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator))
+        {
+            string directory = entry.Trim().Trim('"');
+            if (!Path.IsPathFullyQualified(directory)) continue;
+            string candidate = Path.Combine(directory, OperatingSystem.IsWindows() ? "git.exe" : "git");
+            if (File.Exists(candidate)) return candidate;
+        }
+        return null;
+    }
+
+    private static string? Run(string executable, string workingDir, IEnumerable<string> args,
+        IEnumerable<string> configOverrides, CancellationToken cancellationToken, bool allowNoMatch = false)
     {
         try
         {
-            using var p = Process.Start(new ProcessStartInfo("git", args)
+            var startInfo = new ProcessStartInfo(executable)
             {
                 WorkingDirectory = workingDir,
                 RedirectStandardOutput = true,
@@ -71,7 +103,20 @@ public static class GitChanges
                 // non-ASCII name to mojibake so it never equals FileInfo.FullName and is silently dropped.
                 StandardOutputEncoding = new UTF8Encoding(false),
                 StandardErrorEncoding = new UTF8Encoding(false),
-            });
+            };
+            // These command-line settings take precedence over system/global/repository configuration.
+            // Clear inherited command-scope configuration so it cannot supersede these protections.
+            foreach (string key in startInfo.Environment.Keys.Where(key =>
+                key.Equals("GIT_CONFIG", StringComparison.OrdinalIgnoreCase) ||
+                key.Equals("GIT_CONFIG_PARAMETERS", StringComparison.OrdinalIgnoreCase) ||
+                key.Equals("GIT_CONFIG_COUNT", StringComparison.OrdinalIgnoreCase) ||
+                key.StartsWith("GIT_CONFIG_KEY_", StringComparison.OrdinalIgnoreCase) ||
+                key.StartsWith("GIT_CONFIG_VALUE_", StringComparison.OrdinalIgnoreCase)).ToArray())
+                startInfo.Environment.Remove(key);
+            foreach (string arg in new[] { "--no-pager", "--no-optional-locks", "-c", "core.fsmonitor=",
+                "-c", "core.hooksPath=/dev/null", "-c", "hook.post-index-change.enabled=false" }
+                .Concat(configOverrides).Concat(args)) startInfo.ArgumentList.Add(arg);
+            using var p = Process.Start(startInfo);
             if (p is null) return null;
             // Drain BOTH pipes asynchronously BEFORE waiting. A synchronous ReadToEnd on stdout has no
             // timeout; if git fills its stderr buffer (~4 KB) before closing stdout the two pipes deadlock
@@ -82,9 +127,10 @@ public static class GitChanges
             var elapsed = Stopwatch.StartNew();
             try
             {
-                while (!p.WaitForExit(100))
+                while (!p.WaitForExit(100) || !outTask.IsCompleted || !errTask.IsCompleted)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    if (p.HasExited) Thread.Sleep(20); // A descendant may still hold a redirected pipe.
                     if (elapsed.ElapsedMilliseconds < 5000) continue;
                     try { p.Kill(true); } catch { }
                     return null;
@@ -97,7 +143,7 @@ public static class GitChanges
             }
             string output = outTask.GetAwaiter().GetResult();
             errTask.GetAwaiter().GetResult();     // observe/drain stderr
-            return p.ExitCode == 0 ? output : null;
+            return p.ExitCode == 0 || (allowNoMatch && p.ExitCode == 1 && output.Length == 0) ? output : null;
         }
         catch (OperationCanceledException) { throw; }
         catch { return null; }                    // git not installed / spawn failure

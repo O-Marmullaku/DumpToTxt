@@ -36,6 +36,7 @@ public sealed class IgnoreMatcher
     /// <summary>Builds a matcher from the config plus any ignore files in <paramref name="root"/>.</summary>
     public static IgnoreMatcher Build(string root, DumpConfig cfg)
     {
+        FilesystemSafety.EnsureDirectoryPath(root);
         var ignore = new List<GlobRule>();
         if (cfg.RespectGitignore)
             AddLines(ignore, ReadIgnoreFile(Path.Combine(root, ".gitignore")));
@@ -101,7 +102,7 @@ public sealed class IgnoreMatcher
 
     private static IEnumerable<string> ReadIgnoreFile(string path)
     {
-        try { return File.ReadAllLines(path); }
+        try { TextFileClassifier.EnsureRegularFile(path); return File.ReadAllLines(path); }
         catch (FileNotFoundException) { return Array.Empty<string>(); }
         catch (DirectoryNotFoundException) { return Array.Empty<string>(); }
     }

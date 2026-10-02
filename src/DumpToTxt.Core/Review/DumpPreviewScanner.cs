@@ -166,6 +166,7 @@ public static class DumpPreviewScanner
     {
         cancellationToken.ThrowIfCancellationRequested();
         targetPath = Path.GetFullPath(targetPath);
+        FilesystemSafety.EnsureTargetPath(targetPath);
         bool isFile = File.Exists(targetPath);
         bool isDirectory = Directory.Exists(targetPath);
         if (!isFile && !isDirectory)

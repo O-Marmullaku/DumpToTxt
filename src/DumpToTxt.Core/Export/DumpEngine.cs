@@ -69,6 +69,7 @@ public sealed class DumpEngine
         if (OutputStyleCatalog.IsWord(cfg.Style) && cfg.OutputTarget != OutputTarget.File)
             throw new InvalidOperationException("Word documents must be saved as a file.");
         targetPath = Path.GetFullPath(targetPath);
+        FilesystemSafety.EnsureTargetPath(targetPath);
         bool isFile = File.Exists(targetPath);
         bool isDir = Directory.Exists(targetPath);
         if (!isFile && !isDir)

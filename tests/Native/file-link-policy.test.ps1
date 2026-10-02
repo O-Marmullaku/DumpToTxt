@@ -23,6 +23,23 @@ try {
         else { throw }
     }
     if (-not $refused) { throw 'The classifier followed a file link.' }
+    foreach ($policy in '.gitignore', '.dumptotxtignore', '.dumptotxt.json') {
+        $policyLink = Join-Path $fixture $policy
+        try {
+            [IO.File]::CreateSymbolicLink($policyLink, $target) | Out-Null
+            $refused = $false
+            try {
+                if ($policy -eq '.dumptotxt.json') {
+                    [DumpToTxt.Core.ConfigStore]::Resolve($fixture, '', '') | Out-Null
+                } else {
+                    [DumpToTxt.Core.IgnoreMatcher]::Build($fixture, [DumpToTxt.Core.DumpConfig]::CreateDefault()) | Out-Null
+                }
+            } catch {
+                if ($_.Exception.GetBaseException() -is [IO.IOException]) { $refused = $true } else { throw }
+            }
+            if (-not $refused) { throw "The loader followed the linked $policy policy." }
+        } finally { [IO.File]::Delete($policyLink) }
+    }
     if ([IO.File]::ReadAllText($target) -ne 'fixture') { throw 'The target was modified.' }
     Write-Host 'PASS: file links are refused with an explicit diagnostic and their original target remains unchanged.'
 } finally {

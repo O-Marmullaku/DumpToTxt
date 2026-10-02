@@ -75,6 +75,7 @@ public static class TextFileClassifier
     /// <summary>File links remain inventory entries but their targets are never read implicitly.</summary>
     public static void EnsureRegularFile(string path)
     {
+        FilesystemSafety.EnsureDirectoryPath(Path.GetDirectoryName(Path.GetFullPath(path))!);
         if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
             throw new IOException($"File link content was not read: '{path}'. Select the original file instead.");
     }

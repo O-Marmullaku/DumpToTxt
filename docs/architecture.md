@@ -34,6 +34,10 @@ File output is rendered to a temporary adjacent destination and published only w
 
 ## Configuration ownership
 
+Input path checks reject directory links in a selected root or any ancestor before loading folder configuration, ignore rules, Git status, inventory or file content. Optional policy files also reject file links. Discovery repeats the directory check before enumerating queued folders. These checks cover stable filesystem paths; they are not an operating-system sandbox against concurrent replacement between an attribute check and an open.
+
+Git change discovery resolves Git from absolute PATH directories and applies passive command overrides to every invocation. It disables filesystem monitors, index-change hooks and effective clean/process filters, and avoids nested submodule worktree status. Filtered files can be conservatively reported as changed when raw bytes differ from the indexed filtered representation. Submodule commit changes remain visible, but dirty content inside an unchanged submodule is not inspected. The explicitly configured Git installation and the user's environment remain trusted.
+
 Global settings and per-run choices share a JSON schema but not permission to rewrite each other's fields. `ConfigStore.SaveRunPreferences` patches general run choices; `SaveReviewPreferences` additionally saves accepted output, mode, path and advanced choices under the exact target in user settings. `Program` restores these before explicit preset/changed flags, and the form copies path overrides into progressive discovery. General saves and Lite saves preserve unowned fields. The old allowlist-to-always-hide interpretation protects existing user intent rather than treating an ambiguous old label as consent to disclose data.
 
 The UI activates the palette from global user/machine configuration before constructing forms. The target's content configuration must not implicitly change application appearance. The standalone `LoadFrom` compatibility helper deliberately differs from `Load`/`Resolve`; it is not the current layered resolver.

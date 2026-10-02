@@ -932,7 +932,10 @@ public sealed class SettingsForm : Form
         alts.AddRange(_tbExclCustom.Text.Split(',').Select(s => s.Trim()).Where(s => s.Length > 0).Select(Regex.Escape));
         alts = alts.Where(s => s.Length > 0).Distinct().ToList();
         string editable = alts.Count == 0 ? "(?!)" : @"\\(" + string.Join("|", alts) + @")(\\|$)";
-        return _opaqueExcludeRegex is null ? editable : $"(?:{_opaqueExcludeRegex})|(?:{editable})";
+        if (_opaqueExcludeRegex is null) return editable;
+        // Preserve opaque backreferences and trailing IgnorePatternWhitespace comments.
+        string literal = alts.Count == 0 ? "(?!)" : @"\\(?:" + string.Join("|", alts) + @")(?:\\|$)";
+        return $"(?:{literal})|{_opaqueExcludeRegex}";
     }
 
     private static string[]? ParseFolderTokens(string pattern)

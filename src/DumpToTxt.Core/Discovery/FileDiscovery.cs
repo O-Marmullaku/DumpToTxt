@@ -25,7 +25,11 @@ internal static class FileDiscovery
             cancellationToken.ThrowIfCancellationRequested();
             string dir = stack.Pop();
             IEnumerator<FileSystemInfo> children;
-            try { children = new DirectoryInfo(dir).EnumerateFileSystemInfos("*", TopLevel).GetEnumerator(); }
+            try
+            {
+                FilesystemSafety.EnsureDirectoryPath(dir);
+                children = new DirectoryInfo(dir).EnumerateFileSystemInfos("*", TopLevel).GetEnumerator();
+            }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             { Report($"Could not enumerate '{dir}': {ex.Message}", reportDiagnostic); continue; }
 

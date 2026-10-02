@@ -68,6 +68,26 @@ function SafeName([string]$name) {
   return $name
 }
 
+function Get-EditableFolderExclusions([string]$pattern) {
+  if ($pattern -eq '(?!)') { return [pscustomobject]@{ Editable=$true; Names=@() } }
+  $prefix = '\\('
+  $suffix = ')(\\|$)'
+  if ($pattern.StartsWith($prefix) -and $pattern.EndsWith($suffix)) {
+    $tokens = $pattern.Substring($prefix.Length, $pattern.Length - $prefix.Length - $suffix.Length).Split('|')
+    $names = @()
+    foreach ($token in $tokens) {
+      try { $name = [regex]::Unescape($token) } catch { return [pscustomobject]@{ Editable=$false; Names=@() } }
+      # The folder editor accepts literal comma-separated names, not regex syntax.
+      if ([regex]::Escape($name) -cne $token -or $name.Contains(',') -or $name.Trim() -cne $name -or $name.Length -eq 0) {
+        return [pscustomobject]@{ Editable=$false; Names=@() }
+      }
+      $names += $name
+    }
+    return [pscustomobject]@{ Editable=$true; Names=@($names) }
+  }
+  return [pscustomobject]@{ Editable=$false; Names=@() }
+}
+
 function Show-SettingsGui {
   Add-Type -AssemblyName System.Windows.Forms
   Add-Type -AssemblyName System.Drawing
@@ -80,8 +100,8 @@ function Show-SettingsGui {
     '.py','.php','.cs','.java','.kt','.go','.rs','.rb','.cpp','.c','.h','.sql'
   )
   $knownExclAlts = @(
-    '\.git','\.vs','node_modules','dist','build','bin','obj',
-    '\.vscode','\.idea','coverage','\.next','\.nuxt','out'
+    '.git','.vs','node_modules','dist','build','bin','obj',
+    '.vscode','.idea','coverage','.next','.nuxt','out'
   )
 
   $form = New-Object Windows.Forms.Form
@@ -127,16 +147,22 @@ $form.MinimumSize = New-Object System.Drawing.Size(820, 560)
   $form.Controls.Add($gEx)
 
   $clbEx = New-Object Windows.Forms.CheckedListBox
+  $clbEx.Name = 'FolderExclusions'
   $clbEx.Left = 12; $clbEx.Top = 22; $clbEx.Width = 370; $clbEx.Height = 300
   $clbEx.CheckOnClick = $true
   [void]$gEx.Controls.Add($clbEx)
 
   foreach ($x in $knownExclAlts) { [void]$clbEx.Items.Add($x) }
 
-  $rx = [string]$s.ExcludeRegex
+  $parsed = Get-EditableFolderExclusions ([string]$s.ExcludeRegex)
+  $excludeState = [pscustomobject]@{
+    Loaded=[string]$s.ExcludeRegex; Dirty=$false; Loading=$false
+    HasOpaque=(-not $parsed.Editable)
+    Opaque=$(if ($parsed.Editable) { '' } else { [string]$s.ExcludeRegex })
+  }
   for ($i=0; $i -lt $clbEx.Items.Count; $i++) {
     $tok = $clbEx.Items[$i].ToString()
-    if ($rx -like "*$tok*") { $clbEx.SetItemChecked($i, $true) }
+    if ($parsed.Names -contains $tok) { $clbEx.SetItemChecked($i, $true) }
   }
 
   $lblExCustom = New-Object Windows.Forms.Label
@@ -146,9 +172,15 @@ $lblExCustom.Text = "Additional folders to skip (comma-separated). Example: cach
   [void]$gEx.Controls.Add($lblExCustom)
 
   $tbExCustom = New-Object Windows.Forms.TextBox
+  $tbExCustom.Name = 'CustomFolderExclusions'
   $tbExCustom.Left = 12; $tbExCustom.Top = 352; $tbExCustom.Width = 370
-  $tbExCustom.Text = ""
+  $tbExCustom.Text = (@($parsed.Names) | Where-Object { $_ -notin $knownExclAlts }) -join ', '
   [void]$gEx.Controls.Add($tbExCustom)
+  $clbEx.Add_ItemCheck({ if (-not $excludeState.Loading) { $excludeState.Dirty = $true } })
+  $tbExCustom.Add_TextChanged({ if (-not $excludeState.Loading) { $excludeState.Dirty = $true } })
+  if (-not $parsed.Editable) {
+    $lblExCustom.Text = 'Additional folders (existing custom rule is retained).'
+  }
 
   $lblDot = New-Object Windows.Forms.Label
   $lblDot.Text = "Allowed dotfiles (comma-separated):"
@@ -189,17 +221,18 @@ $lblExCustom.Text = "Additional folders to skip (comma-separated). Example: cach
   }
 
   function Build-ExcludeRegex {
+    if (-not $excludeState.Dirty) { return $excludeState.Loaded }
     $alts = @()
     foreach ($item in $clbEx.CheckedItems) { $alts += $item.ToString() }
-$custom = $tbExCustom.Text.Trim()
-if ($custom) {
-  $customParts = $custom.Split(",") | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
-  $alts += $customParts
-}
-
-    $alts = $alts | Where-Object { $_ -ne "" } | Select-Object -Unique
-    if ($alts.Count -eq 0) { return $default.ExcludeRegex }
-    return '\\(' + ($alts -join '|') + ')(\\|$)'
+    $alts += $tbExCustom.Text.Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
+    $alts = @($alts | Select-Object -Unique | ForEach-Object { [regex]::Escape($_) })
+    $editable = if ($alts.Count -eq 0) { '(?!)' } else { '\\(' + ($alts -join '|') + ')(\\|$)' }
+    # Put a capture-free literal branch first: preserve opaque backreferences and trailing x-mode comments.
+    if ($excludeState.HasOpaque) {
+      $literal = if ($alts.Count -eq 0) { '(?!)' } else { '\\(?:' + ($alts -join '|') + ')(?:\\|$)' }
+      return '(?:' + $literal + ')|' + $excludeState.Opaque
+    }
+    return $editable
   }
 
   $btnReset.Add_Click({
@@ -208,9 +241,17 @@ if ($custom) {
       $idx = $clbExt.Items.IndexOf($e)
       if ($idx -ge 0) { $clbExt.SetItemChecked($idx, $true) }
     }
-    for ($i=0; $i -lt $clbEx.Items.Count; $i++) { $clbEx.SetItemChecked($i, $false) }
+    $excludeState.Loading = $true
+    $defaultFolders = Get-EditableFolderExclusions ([string]$default.ExcludeRegex)
+    for ($i=0; $i -lt $clbEx.Items.Count; $i++) { $clbEx.SetItemChecked($i, $defaultFolders.Names -contains $clbEx.Items[$i].ToString()) }
     $tbExtCustom.Text = ""
     $tbExCustom.Text = ""
+    $excludeState.Loaded = [string]$default.ExcludeRegex
+    $excludeState.Opaque = ''
+    $excludeState.HasOpaque = $false
+    $excludeState.Dirty = $false
+    $excludeState.Loading = $false
+    $lblExCustom.Text = 'Additional folders to skip (comma-separated). Example: cache, temp'
     $tbDot.Text = ($default.DotFilesAllow -join ", ")
     $status.Text = "Defaults loaded (not saved yet)."
   })
