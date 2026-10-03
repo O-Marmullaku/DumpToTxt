@@ -1,0 +1,12 @@
+{
+  "name": "dumptotxt",
+  "version": "2.0.0",
+  "description": "Install or update DumpToTxt for Windows",
+  "private": true,
+  "license": "UNLICENSED",
+  "repository": { "type": "git", "url": "https://github.com/O-Marmullaku/dumptotxt.git" },
+  "bin": { "dumptotxt": "bin/dumptotxt.cjs" },
+  "files": ["bin/", "release.json"],
+  "engines": { "node": ">=22" },
+  "scripts": { "test": "node --test ../../tests/Packaging/npm-launcher.test.cjs" }
+}

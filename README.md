@@ -12,6 +12,21 @@ DumpToTxt is a local Windows utility that packs a file or folder into one readab
 
 Lite does **not** include the C# review workspace, sensitive-data protection or additional formats. Full and Compact are generated from one source project, not maintained as parallel copies.
 
+## Install from PowerShell
+
+The npm launcher is implemented; the public npm package and matching GitHub
+release must be published before this command is available:
+
+```powershell
+npx dumptotxt@latest
+```
+
+Run it from any directory on Windows x64 with Node.js 22 or newer. It downloads
+the Full installer, checks its pinned SHA-256, and opens setup with administrator
+approval. For an existing installation, choose **Update or reinstall**.
+See [development](docs/development.md#npm-distribution) for package preparation
+and publication requirements.
+
 ## Develop
 
 Use Windows, the .NET 8 SDK and PowerShell 7 for the application and native tests. From the repository root:
@@ -37,4 +52,5 @@ DumpToTxt.sln Application, Core, Core tests, and native stress executable
 
 [Product](docs/product.md) owns behavior, compatibility, privacy boundaries and unsupported cases. [Architecture](docs/architecture.md) explains implementation ownership and consequential design rationale. [Development](docs/development.md) owns setup, verification, packaging and release acceptance. Source and executable tests establish implementation details; these documents do not certify an untested release.
 
-Public distribution is not cleared: this source contains no license grant. Choose a license and complete the documented Windows release checks before publishing binaries.
+DumpToTxt is proprietary; see [LICENSE](LICENSE). Public binary distribution
+still requires the documented signing and Windows release checks.

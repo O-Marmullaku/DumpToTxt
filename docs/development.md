@@ -107,4 +107,55 @@ Compile-only checks must not launch setup on the development machine. Use a disp
 
 Do not introduce another context action to expose presets: the application flags exist independently of the installer's single-action contract. Machine-wide installer labels and optional existing per-user label updates have distinct ownership.
 
-A public release additionally needs an owner-selected license, signing of the intended artifacts and deliberate release publication. This repository contains no license grant or proof that a candidate was signed, installed or externally approved. Do not convert absent evidence into a release-ready claim.
+A public release additionally needs signing of the intended artifacts and deliberate release publication. The owner selected proprietary / all rights reserved licensing; see [LICENSE](../LICENSE). This repository does not establish that a candidate was signed, installed or externally approved. Do not convert absent evidence into a release-ready claim.
+
+## npm distribution
+
+`packaging/npm` owns a dependency-free Node.js 22+ launcher for Windows x64.
+It is an installation/update entry point, not a headless export interface.
+There are no install lifecycle hooks. Running the command downloads the selected
+installer, checks its SHA-256 against the packaged manifest, and launches the
+existing elevated setup wizard. Full is the default. The installer remains
+responsible for registration, maintenance, settings, and runtime requirements.
+Temporary downloads are removed after setup exits or a failure occurs.
+
+Verify the launcher without installing:
+
+```powershell
+node --test tests/Packaging/npm-launcher.test.cjs
+pwsh -NoProfile -File tools/check.ps1 -SourceOnly
+```
+
+For a release candidate, build installers, complete signing and the Windows VM
+acceptance checks above, then stage the npm package from those exact binaries:
+
+```powershell
+pwsh -NoProfile -File tools/build.ps1 -Flavor all -Installer
+# Sign and verify the installers and complete VM acceptance before staging.
+pwsh -NoProfile -File tools/prepare-npm.ps1
+npm pack ./artifacts/npm --pack-destination ./artifacts
+```
+
+Staging derives the npm version from the application project and generates
+`artifacts/npm/release.json` with versioned GitHub URLs and the SHA-256 of each
+installer. It also writes `artifacts/packages/SHA256SUMS.txt`. Never edit these
+generated files by hand. Re-stage after any installer change, including signing.
+The source template deliberately has `private: true` until public binary
+distribution and release acceptance are cleared. `UNLICENSED` preserves the
+proprietary source policy; it is not an open-source license.
+
+Publication order is important: publish a public GitHub release named
+`v<application version>` containing all three `DumpToTxt-Setup-<flavor>.exe`
+assets and `SHA256SUMS.txt`; verify those public downloads against the staged
+manifest; then publish the matching npm package. Remove the template's private
+flag only once public distribution is cleared, then re-stage. Authenticate using
+`npm login`, inspect `npm publish ./artifacts/npm --dry-run`, and deliberately
+publish with `npm publish ./artifacts/npm --access public`. Never publish a
+package whose pinned installer release is missing or inaccessible.
+
+To keep the source private, host binaries in a separate public GitHub repository
+and stage with `tools/prepare-npm.ps1 -ReleaseRepository OWNER/REPOSITORY`.
+
+After publication, run `npx dumptotxt@latest` from outside the repository in a
+disposable Windows VM for fresh install and update acceptance. A dry-run or
+synthetic test does not establish public download, elevation, or installation.

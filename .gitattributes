@@ -10,3 +10,4 @@
 *.iss  text eol=crlf
 *.wav  binary
 *.sln  text eol=crlf
+*.cjs  text eol=lf
