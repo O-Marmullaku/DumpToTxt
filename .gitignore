@@ -1,6 +1,8 @@
 # Reproducible packages, generated fixtures, captures and test logs
 /artifacts/
 bin/
+!/packaging/npm/bin/
+!/packaging/npm/bin/*.cjs
 obj/
 TestResults/
 *.exe
