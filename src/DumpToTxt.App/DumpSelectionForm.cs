@@ -55,7 +55,7 @@ public sealed class DumpSelectionForm : Form
     private readonly Button _previewButton = new() { Text = "Preview output…", AutoSize = true, Height = 32 };
     private readonly ProgressBar _scanProgress = new()
     {
-        Style = ProgressBarStyle.Marquee,
+        Style = UiTheme.ActivityStyle,
         MarqueeAnimationSpeed = 24,
         AccessibleName = "Scanning activity",
     };
@@ -100,6 +100,7 @@ public sealed class DumpSelectionForm : Form
     public DumpSelectionForm(string targetPath, DumpConfig config, DumpReviewPreferences? preferences)
     {
         _targetPath = Path.GetFullPath(targetPath);
+        SuspendLayout();
         _config = config.Clone();
         if (preferences is not null)
             foreach (var pair in preferences.PathOverrides) _pathSelection.Set(pair.Key, false, pair.Value);
@@ -108,6 +109,7 @@ public sealed class DumpSelectionForm : Form
         MinimumSize = new Size(860, 580);
         StartPosition = FormStartPosition.CenterScreen;
         AutoScaleMode = AutoScaleMode.Dpi;
+        AutoScaleDimensions = new SizeF(96, 96);
         Font = UiTheme.UiFont();
         BackColor = UiTheme.Window;
         ForeColor = UiTheme.Text;
@@ -126,6 +128,7 @@ public sealed class DumpSelectionForm : Form
         _sensitive.SelectedIndexChanged += (_, _) => RefreshPreview();
         _refreshTimer.Tick += (_, _) => RefreshFromScan();
         Shown += (_, _) => { StartScan(); _tree.Focus(); };
+        ResumeLayout(true);
     }
 
     private void BuildUi()
@@ -369,7 +372,7 @@ public sealed class DumpSelectionForm : Form
         UiTheme.StyleSecondary(_previewBack);
         _previewBack.Click += (_, _) => ShowMap();
         previewHeader.Controls.AddRange(new Control[] { previewTitle, _previewBack });
-        previewHeader.Resize += (_, _) => _previewBack.Location = new Point(previewHeader.ClientSize.Width - _previewBack.Width - 14, 7);
+        previewHeader.Resize += (_, _) => _previewBack.Location = new Point(previewHeader.ClientSize.Width - _previewBack.Width - UiTheme.Px(previewHeader, 14), UiTheme.Px(previewHeader, 7));
         _preview.AccessibleName = "Output preview";
         previewLayout.Controls.Add(previewHeader, 0, 0);
         previewLayout.Controls.Add(_preview, 0, 1);
@@ -486,9 +489,10 @@ public sealed class DumpSelectionForm : Form
         panel.Controls.Add(actions);
         panel.Resize += (_, _) =>
         {
-            actions.Location = new Point(panel.ClientSize.Width - actions.PreferredSize.Width - 14, 10);
-            _validation.SetBounds(_skipNext.Right + 12, 10,
-                Math.Max(0, actions.Left - _skipNext.Right - 22), 34);
+            int Px(int value) => UiTheme.Px(panel, value);
+            actions.Location = new Point(panel.ClientSize.Width - actions.PreferredSize.Width - Px(14), Px(10));
+            _validation.SetBounds(_skipNext.Right + Px(12), Px(10),
+                Math.Max(0, actions.Left - _skipNext.Right - Px(22)), Px(34));
         };
         AcceptButton = _create;
         CancelButton = _cancel;

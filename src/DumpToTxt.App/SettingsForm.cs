@@ -163,6 +163,7 @@ public sealed class SettingsForm : Form
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(saveConfig);
         _saveConfig = saveConfig;
+        SuspendLayout();
         _initialTheme = UiTheme.CurrentKind;
         UiTheme.Apply(config.Theme);
         Text = "DumpToTxt";
@@ -172,6 +173,7 @@ public sealed class SettingsForm : Form
         MinimumSize = new Size(820, 550);
         StartPosition = FormStartPosition.CenterScreen;
         AutoScaleMode = AutoScaleMode.Dpi;
+        AutoScaleDimensions = new SizeF(96, 96);
         Font = UiTheme.UiFont();
         BackColor = UiTheme.Window;
         ForeColor = UiTheme.Text;
@@ -183,6 +185,7 @@ public sealed class SettingsForm : Form
         {
             if (!_themeAccepted) UiTheme.Apply(_initialTheme);
         };
+        ResumeLayout(true);
     }
 
     protected override void OnHandleCreated(EventArgs e)
@@ -340,8 +343,9 @@ public sealed class SettingsForm : Form
         panel.Controls.Add(divider);
         panel.Resize += (_, _) =>
         {
-            description.Width = Math.Max(100, panel.ClientSize.Width - 40);
-            divider.SetBounds(20, panel.ClientSize.Height - 1, Math.Max(0, panel.ClientSize.Width - 40), 1);
+            int Px(int value) => UiTheme.Px(panel, value);
+            description.Width = Math.Max(Px(100), panel.ClientSize.Width - Px(40));
+            divider.SetBounds(Px(20), panel.ClientSize.Height - Px(1), Math.Max(0, panel.ClientSize.Width - Px(40)), Px(1));
         };
         return panel;
     }
@@ -380,8 +384,10 @@ public sealed class SettingsForm : Form
         host.Controls.Add(_tabs);
         _tabs.Resize += (_, _) =>
         {
-            int width = Math.Max(120, (_tabs.ClientSize.Width - 48) / Math.Max(1, _tabs.TabCount));
-            if (_tabs.ItemSize.Width != width) _tabs.ItemSize = new Size(width, 34);
+            int Px(int value) => UiTheme.Px(_tabs, value);
+            int width = Math.Max(Px(120), (_tabs.ClientSize.Width - Px(48)) / Math.Max(1, _tabs.TabCount));
+            var size = new Size(width, Px(34));
+            if (_tabs.ItemSize != size) _tabs.ItemSize = size;
         };
         return host;
     }
@@ -410,8 +416,8 @@ public sealed class SettingsForm : Form
     private TabPage BuildContentTab()
     {
         var page = SettingsTab("Files");
-        var layout = SettingsTabLayout(330, 2);
-        layout.Dock = DockStyle.Fill;
+        var layout = SettingsTabLayout(380, 2);
+        page.Resize += (_, _) => layout.Height = Math.Max(layout.MinimumSize.Height, page.ClientSize.Height);
         layout.ColumnCount = 2;
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
@@ -495,19 +501,20 @@ public sealed class SettingsForm : Form
         section.Controls.AddRange(new Control[] { _cmbFormat, _cmbStyle, _cmbTarget, _tbOutDir, _btnBrowse });
         section.Resize += (_, _) =>
         {
-            int gap = 28;
-            int half = Math.Max(280, (section.ClientSize.Width - gap) / 2);
+            int Px(int value) => UiTheme.Px(section, value);
+            int gap = Px(28);
+            int half = Math.Max(Px(280), (section.ClientSize.Width - gap) / 2);
             int right = half + gap;
-            int leftControlWidth = Math.Max(180, half - 88);
-            int rightControlWidth = Math.Max(180, section.ClientSize.Width - right - 88);
-            _cmbFormat.SetBounds(88, 58, leftControlWidth, 31);
-            _cmbStyle.SetBounds(88, 92, leftControlWidth, 31);
+            int leftControlWidth = Math.Max(Px(180), half - Px(88));
+            int rightControlWidth = Math.Max(Px(180), section.ClientSize.Width - right - Px(88));
+            _cmbFormat.SetBounds(Px(88), Px(58), leftControlWidth, Px(31));
+            _cmbStyle.SetBounds(Px(88), Px(92), leftControlWidth, Px(31));
             destinationLabel.Left = right;
             _folderLabel.Left = right;
-            _cmbTarget.SetBounds(right + 88, 58, rightControlWidth, 31);
+            _cmbTarget.SetBounds(right + Px(88), Px(58), rightControlWidth, Px(31));
             _btnBrowse.Left = section.ClientSize.Width - _btnBrowse.Width;
-            _tbOutDir.SetBounds(right + 88, 92,
-                Math.Max(80, _btnBrowse.Left - (right + 88) - 8), 27);
+            _tbOutDir.SetBounds(right + Px(88), Px(92),
+                Math.Max(Px(80), _btnBrowse.Left - (right + Px(88)) - Px(8)), Px(27));
         };
         return section;
     }
@@ -520,7 +527,7 @@ public sealed class SettingsForm : Form
         _chkShowReview.Location = new Point(110, 96);
         _chkCompletionSound.Location = new Point(110, 120);
         section.Controls.AddRange(new Control[] { _cmbMode, _chkShowReview, _chkCompletionSound });
-        section.Resize += (_, _) => _cmbMode.Width = Math.Max(160, section.ClientSize.Width - _cmbMode.Left);
+        section.Resize += (_, _) => _cmbMode.Width = Math.Max(UiTheme.Px(section, 160), section.ClientSize.Width - _cmbMode.Left);
         return section;
     }
 
@@ -538,8 +545,9 @@ public sealed class SettingsForm : Form
         section.Resize += (_, _) =>
         {
             apply.Left = section.ClientSize.Width - apply.Width;
-            _cmbPreset.Width = Math.Max(140, apply.Left - _cmbPreset.Left - 12);
-            _cmbTheme.Width = Math.Min(190, Math.Max(140, section.ClientSize.Width - _cmbTheme.Left));
+            int Px(int value) => UiTheme.Px(section, value);
+            _cmbPreset.Width = Math.Max(Px(140), apply.Left - _cmbPreset.Left - Px(12));
+            _cmbTheme.Width = Math.Min(Px(190), Math.Max(Px(140), section.ClientSize.Width - _cmbTheme.Left));
         };
         return section;
     }
@@ -558,10 +566,11 @@ public sealed class SettingsForm : Form
         _fileTypePicker.Controls.AddRange(new Control[] { _tbExtSearch, searchDivider, _clbExt });
         _fileTypePicker.Resize += (_, _) =>
         {
-            _tbExtSearch.Width = Math.Max(80, _fileTypePicker.ClientSize.Width - 16);
-            searchDivider.SetBounds(0, 34, _fileTypePicker.ClientSize.Width, 1);
-            _clbExt.SetBounds(1, 35, Math.Max(80, _fileTypePicker.ClientSize.Width - 2),
-                Math.Max(60, _fileTypePicker.ClientSize.Height - 36));
+            int Px(int value) => UiTheme.Px(_fileTypePicker, value);
+            _tbExtSearch.Width = Math.Max(Px(80), _fileTypePicker.ClientSize.Width - Px(16));
+            searchDivider.SetBounds(0, Px(34), _fileTypePicker.ClientSize.Width, Px(1));
+            _clbExt.SetBounds(Px(1), Px(35), Math.Max(Px(80), _fileTypePicker.ClientSize.Width - Px(2)),
+                Math.Max(Px(60), _fileTypePicker.ClientSize.Height - Px(36)));
         };
         var custom = FieldHint("Other extensions", 220);
         _tbExtCustom.SetBounds(0, 241, 320, 27);
@@ -570,14 +579,15 @@ public sealed class SettingsForm : Form
         section.Controls.AddRange(new Control[] { _fileTypePicker, custom, _tbExtCustom, named, _tbDot });
         section.Resize += (_, _) =>
         {
-            int width = Math.Max(180, section.ClientSize.Width);
-            int listBottom = Math.Max(180, section.ClientSize.Height - 130);
+            int Px(int value) => UiTheme.Px(section, value);
+            int width = Math.Max(Px(180), section.ClientSize.Width);
+            int listBottom = Math.Max(Px(180), section.ClientSize.Height - Px(130));
             _fileTypePicker.Width = width;
-            _fileTypePicker.Height = Math.Max(122, listBottom - _fileTypePicker.Top);
-            custom.Top = listBottom + 8;
-            _tbExtCustom.Top = listBottom + 29;
-            named.Top = listBottom + 64;
-            _tbDot.Top = listBottom + 85;
+            _fileTypePicker.Height = Math.Max(Px(122), listBottom - _fileTypePicker.Top);
+            custom.Top = listBottom + Px(8);
+            _tbExtCustom.Top = listBottom + Px(29);
+            named.Top = listBottom + Px(64);
+            _tbDot.Top = listBottom + Px(85);
             _tbExtCustom.Width = width;
             _tbDot.Width = width;
         };
@@ -597,11 +607,12 @@ public sealed class SettingsForm : Form
         section.Controls.AddRange(new Control[] { _chkGitignore, _chkDumpignore, _clbExcl, additional, _tbExclCustom });
         section.Resize += (_, _) =>
         {
-            int width = Math.Max(180, section.ClientSize.Width);
+            int Px(int value) => UiTheme.Px(section, value);
+            int width = Math.Max(Px(180), section.ClientSize.Width);
             _clbExcl.Width = width;
-            _clbExcl.Height = Math.Max(100, section.ClientSize.Height - 168);
-            additional.Top = _clbExcl.Bottom + 8;
-            _tbExclCustom.Top = additional.Bottom + 4;
+            _clbExcl.Height = Math.Max(Px(100), section.ClientSize.Height - Px(168));
+            additional.Top = _clbExcl.Bottom + Px(8);
+            _tbExclCustom.Top = additional.Bottom + Px(4);
             _tbExclCustom.Width = width;
         };
         return section;
@@ -626,7 +637,9 @@ public sealed class SettingsForm : Form
         _pathRulesButton.Click += (_, _) =>
         {
             _pathRulesPanel.Visible = !_pathRulesPanel.Visible;
-            filesLayout.RowStyles[1].Height = _pathRulesPanel.Visible ? 190 : 40;
+            filesLayout.RowStyles[1].Height = UiTheme.Px(filesLayout, _pathRulesPanel.Visible ? 190 : 40);
+            filesLayout.MinimumSize = new Size(0, UiTheme.Px(filesLayout, _pathRulesPanel.Visible ? 530 : 380));
+            filesLayout.Height = Math.Max(filesLayout.MinimumSize.Height, filesLayout.Parent!.ClientSize.Height);
         };
         host.Controls.Add(_pathRulesButton, 0, 0);
 
@@ -651,7 +664,7 @@ public sealed class SettingsForm : Form
         var section = FlatSection(title, description);
         textBox.SetBounds(0, 58, 320, 100);
         section.Controls.Add(textBox);
-        section.Resize += (_, _) => textBox.SetBounds(0, 58, Math.Max(180, section.ClientSize.Width), Math.Max(52, section.ClientSize.Height - 58));
+        section.Resize += (_, _) => textBox.SetBounds(0, UiTheme.Px(section, 58), Math.Max(UiTheme.Px(section, 180), section.ClientSize.Width), Math.Max(UiTheme.Px(section, 52), section.ClientSize.Height - UiTheme.Px(section, 58)));
         return section;
     }
 
@@ -662,7 +675,7 @@ public sealed class SettingsForm : Form
         _cmbSecretScan.SetBounds(140, 58, 240, 31);
         _chkSecretEntropy.Location = new Point(0, 96);
         section.Controls.AddRange(new Control[] { _cmbSecretScan, _chkSecretEntropy });
-        section.Resize += (_, _) => _cmbSecretScan.Width = Math.Max(160, section.ClientSize.Width - _cmbSecretScan.Left);
+        section.Resize += (_, _) => _cmbSecretScan.Width = Math.Max(UiTheme.Px(section, 160), section.ClientSize.Width - _cmbSecretScan.Left);
         return section;
     }
 
@@ -695,12 +708,13 @@ public sealed class SettingsForm : Form
         });
         section.Resize += (_, _) =>
         {
-            int choiceWidth = Math.Max(160, section.ClientSize.Width - 160);
+            int Px(int value) => UiTheme.Px(section, value);
+            int choiceWidth = Math.Max(Px(160), section.ClientSize.Width - Px(160));
             _cmbTokenEnc.Width = choiceWidth;
             _numMaxTokens.Width = choiceWidth;
-            int width = Math.Max(240, section.ClientSize.Width);
-            _tbSensitiveValues.SetBounds(0, 153, width, 58);
-            _tbSecretAllow.SetBounds(0, 239, width, Math.Max(42, section.ClientSize.Height - 239));
+            int width = Math.Max(Px(240), section.ClientSize.Width);
+            _tbSensitiveValues.SetBounds(0, Px(153), width, Px(58));
+            _tbSecretAllow.SetBounds(0, Px(239), width, Math.Max(Px(42), section.ClientSize.Height - Px(239)));
         };
         return section;
     }
@@ -728,8 +742,8 @@ public sealed class SettingsForm : Form
         section.Controls.AddRange(new Control[] { helper, divider });
         section.Resize += (_, _) =>
         {
-            helper.Width = Math.Max(100, section.ClientSize.Width);
-            divider.SetBounds(0, 49, Math.Max(0, section.ClientSize.Width), 1);
+            helper.Width = Math.Max(UiTheme.Px(section, 100), section.ClientSize.Width);
+            divider.SetBounds(0, UiTheme.Px(section, 49), Math.Max(0, section.ClientSize.Width), UiTheme.Px(section, 1));
         };
         return section;
     }

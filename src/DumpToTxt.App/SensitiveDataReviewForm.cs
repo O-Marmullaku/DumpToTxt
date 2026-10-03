@@ -16,6 +16,7 @@ public sealed class SensitiveDataReviewForm : Form
     public SensitiveDataReviewForm(SensitiveDataReview review)
     {
         ArgumentNullException.ThrowIfNull(review);
+        SuspendLayout();
         Text = "DumpToTxt";
         ShowIcon = false;
         ShowInTaskbar = false;
@@ -25,11 +26,13 @@ public sealed class SensitiveDataReviewForm : Form
         StartPosition = FormStartPosition.CenterScreen;
         ClientSize = new Size(620, 560);
         AutoScaleMode = AutoScaleMode.Dpi;
+        AutoScaleDimensions = new SizeF(96, 96);
         Font = UiTheme.UiFont();
         BackColor = UiTheme.Window;
         ForeColor = UiTheme.Text;
 
         BuildUi(review);
+        ResumeLayout(true);
     }
 
     public SensitiveDataDecision Decision { get; private set; } = SensitiveDataDecision.Cancel;

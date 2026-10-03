@@ -22,6 +22,7 @@ public sealed class ExportProgressForm : Form
     public ExportProgressForm(string target, DumpConfig config, DumpContentSelection selection, TextWriter? textOutput = null)
     {
         _target = target;
+        SuspendLayout();
         _config = config.Clone();
         _selection = selection;
         _textOutput = textOutput;
@@ -30,6 +31,7 @@ public sealed class ExportProgressForm : Form
         MinimumSize = new Size(440, 215);
         StartPosition = FormStartPosition.CenterScreen;
         AutoScaleMode = AutoScaleMode.Dpi;
+        AutoScaleDimensions = new SizeF(96, 96);
         Font = UiTheme.UiFont();
         BackColor = UiTheme.Window;
         ForeColor = UiTheme.Text;
@@ -38,7 +40,7 @@ public sealed class ExportProgressForm : Form
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
         layout.Controls.Add(_status, 0, 0);
-        layout.Controls.Add(new ProgressBar { Dock = DockStyle.Fill, Style = ProgressBarStyle.Marquee, AccessibleName = "Export activity" }, 0, 1);
+        layout.Controls.Add(new ProgressBar { Dock = DockStyle.Fill, Style = UiTheme.ActivityStyle, AccessibleName = "Export activity" }, 0, 1);
         var footer = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft };
         UiTheme.StyleSecondary(_cancel);
         footer.Controls.Add(_cancel);
@@ -54,6 +56,7 @@ public sealed class ExportProgressForm : Form
                 _status.Text = $"{update.Phase}\r\n{update.FilesProcessed:N0} file(s) · {update.BytesProcessed:N0} bytes\r\n{update.Path}";
         };
         Shown += RunExport;
+        ResumeLayout(true);
     }
 
     private async void RunExport(object? sender, EventArgs e)

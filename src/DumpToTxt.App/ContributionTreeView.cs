@@ -192,6 +192,8 @@ internal sealed class ContributionTreeView : TreeView
         PreviewRequested?.Invoke(this, node);
     }
 
+    private int Px(int pixels) => UiTheme.Px(this, pixels);
+
     protected override void OnDrawNode(DrawTreeNodeEventArgs e)
     {
         if (e.Node is null || !_metrics.TryGetValue(e.Node, out RowMetrics? metrics))
@@ -216,8 +218,8 @@ internal sealed class ContributionTreeView : TreeView
         int checkX = branchX + 18;
         int iconX = checkX + 20;
         int nameX = iconX + 22;
-        int shareX = Math.Max(nameX + 80, ClientSize.Width - ShareColumnWidth);
-        int sizeX = Math.Max(nameX + 40, shareX - SizeColumnWidth);
+        int shareX = Math.Max(nameX + 80, ClientSize.Width - Px(ShareColumnWidth));
+        int sizeX = Math.Max(nameX + 40, shareX - Px(SizeColumnWidth));
 
         if (e.Node.Nodes.Count > 0) DrawExpander(e.Graphics, e.Node, branchX, row.Top + (row.Height / 2));
         DrawState(e.Graphics, state, new Rectangle(checkX, row.Top + ((row.Height - 16) / 2), 16, 16));
@@ -228,11 +230,11 @@ internal sealed class ContributionTreeView : TreeView
             new Rectangle(nameX, row.Top, Math.Max(20, sizeX - nameX - 8), row.Height), text,
             TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
         TextRenderer.DrawText(e.Graphics, metrics.Size, Font,
-            new Rectangle(sizeX, row.Top, Math.Max(0, shareX - sizeX - 12), row.Height), text,
+            new Rectangle(sizeX, row.Top, Math.Max(0, shareX - sizeX - Px(12)), row.Height), text,
             TextFormatFlags.VerticalCenter | TextFormatFlags.Right | TextFormatFlags.NoPrefix);
 
-        int barWidth = 36;
-        var bar = new Rectangle(shareX + 8, row.Top + ((row.Height - 4) / 2), barWidth, 4);
+        int barWidth = Px(36);
+        var bar = new Rectangle(shareX + Px(8), row.Top + ((row.Height - Px(4)) / 2), barWidth, Px(4));
         using (var track = new SolidBrush(UiTheme.Border)) e.Graphics.FillRectangle(track, bar);
         if (!excluded && metrics.Share > 0)
         {
@@ -241,7 +243,7 @@ internal sealed class ContributionTreeView : TreeView
             e.Graphics.FillRectangle(accent, fill);
         }
         TextRenderer.DrawText(e.Graphics, $"{metrics.Share:0.#}%", Font,
-            new Rectangle(bar.Right + 5, row.Top, Math.Max(0, ClientSize.Width - bar.Right - 11), row.Height), text,
+            new Rectangle(bar.Right + Px(5), row.Top, Math.Max(0, ClientSize.Width - bar.Right - Px(11)), row.Height), text,
             TextFormatFlags.VerticalCenter | TextFormatFlags.Right | TextFormatFlags.NoPrefix);
 
         if (selected && Focused)

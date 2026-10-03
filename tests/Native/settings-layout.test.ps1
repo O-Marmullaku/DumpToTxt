@@ -151,6 +151,7 @@ try {
 
     function New-WindowCapture {
         $rect = $window.Current.BoundingRectangle
+        $script:paletteCaptureBounds = $rect
         $bitmap = [System.Drawing.Bitmap]::new([int]$rect.Width, [int]$rect.Height)
         $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
         try {
@@ -167,8 +168,27 @@ try {
     }
 
     function Get-ScreenPixel([double]$x, [double]$y) {
-        $rect = $window.Current.BoundingRectangle
-        return $paletteCapture.GetPixel([int]($x - $rect.Left), [int]($y - $rect.Top))
+        $captured = $script:paletteCaptureBounds
+        if ($null -eq $captured) {
+            throw 'Cannot sample the Settings palette before capturing its window bounds.'
+        }
+
+        $live = $window.Current.BoundingRectangle
+        if ([Math]::Abs($live.Left - $captured.Left) -gt 0.5 -or
+            [Math]::Abs($live.Top - $captured.Top) -gt 0.5 -or
+            [Math]::Abs($live.Width - $captured.Width) -gt 0.5 -or
+            [Math]::Abs($live.Height - $captured.Height) -gt 0.5) {
+            throw "Cannot sample a stale Settings palette capture. Captured bounds: $captured; current bounds: $live. Capture the window again before sampling."
+        }
+
+        $pixelX = [int][Math]::Floor($x - $captured.Left)
+        $pixelY = [int][Math]::Floor($y - $captured.Top)
+        if ($pixelX -lt 0 -or $pixelY -lt 0 -or
+            $pixelX -ge $paletteCapture.Width -or $pixelY -ge $paletteCapture.Height) {
+            throw "Pixel sample ($x, $y) is outside the captured Settings frame. Captured bounds: $captured; bitmap: $($paletteCapture.Width)x$($paletteCapture.Height); mapped pixel: ($pixelX, $pixelY)."
+        }
+
+        return $paletteCapture.GetPixel($pixelX, $pixelY)
     }
 
     function Assert-Color([System.Drawing.Color]$color, [int]$red, [int]$green, [int]$blue, [string]$surface) {
@@ -250,6 +270,24 @@ try {
                 -not $element.Current.IsOffscreen) {
                 throw "$tabName shows an unnecessary page scrollbar at the default window size."
             }
+        }
+    }
+
+    function Assert-ControlWithinImmediateParent([string]$name, [string]$controlType, [string]$context) {
+        $control = Require-Named $name $controlType
+        $parent = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($control)
+        if ($null -eq $parent) {
+            throw "${context}: '$name' has no accessible immediate parent."
+        }
+
+        $bounds = $control.Current.BoundingRectangle
+        $parentBounds = $parent.Current.BoundingRectangle
+        if ($bounds.IsEmpty -or $parentBounds.IsEmpty -or
+            $bounds.Left -lt ($parentBounds.Left - 0.5) -or
+            $bounds.Top -lt ($parentBounds.Top - 0.5) -or
+            $bounds.Right -gt ($parentBounds.Right + 0.5) -or
+            $bounds.Bottom -gt ($parentBounds.Bottom + 0.5)) {
+            throw "${context}: '$name' bounds $bounds do not fit inside its immediate parent ($($parent.Current.ControlType.ProgrammaticName), '$($parent.Current.Name)') bounds $parentBounds."
         }
     }
 
@@ -362,6 +400,8 @@ try {
     }
     Assert-NoVisibleScrollBar 'General'
     Select-Tab 'Files'
+    Assert-ControlWithinImmediateParent 'Specific file names' 'ControlType.Edit' 'Collapsed Files tab'
+    Assert-ControlWithinImmediateParent 'Other folder names' 'ControlType.Edit' 'Collapsed Files tab'
     foreach ($name in @('File types', 'Folders to skip', 'Advanced path rules')) {
         Require-VisibleName $name | Out-Null
     }
@@ -403,6 +443,10 @@ try {
     Start-Sleep -Milliseconds 100
     Require-VisibleName 'Only scan these paths' | Out-Null
     Require-VisibleName 'Skip these paths' | Out-Null
+    $advanced.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Start-Sleep -Milliseconds 100
+    Assert-ControlWithinImmediateParent 'Specific file names' 'ControlType.Edit' 'Collapsed Files tab after closing path rules'
+    Assert-ControlWithinImmediateParent 'Other folder names' 'ControlType.Edit' 'Collapsed Files tab after closing path rules'
     Select-Tab 'Safety & limits'
     foreach ($name in @('Sensitive data', 'File limits', 'Token estimate')) {
         Require-VisibleName $name | Out-Null
@@ -458,7 +502,30 @@ try {
         }
         foreach ($tabName in @('General', 'Files', 'Safety & limits')) {
             Select-Tab $tabName
-            Assert-NoVisibleScrollBar "$tabName at minimum size"
+            if ($tabName -eq 'Files') {
+                # Files scrolls vertically at small sizes so fields are never clipped.
+                foreach ($element in (Get-All)) {
+                    if ($element.Current.ControlType.ProgrammaticName -eq 'ControlType.ScrollBar' -and
+                        -not $element.Current.IsOffscreen -and
+                        $element.Current.Orientation -eq [System.Windows.Automation.OrientationType]::Horizontal) {
+                        throw 'Files shows a horizontal scrollbar at minimum size.'
+                    }
+                }
+                Assert-ControlWithinImmediateParent 'Specific file names' 'ControlType.Edit' 'Collapsed Files tab at minimum size'
+                Assert-ControlWithinImmediateParent 'Other folder names' 'ControlType.Edit' 'Collapsed Files tab at minimum size'
+                foreach ($field in @('Specific file names', 'Other folder names')) {
+                    $edit = Require-Named $field 'ControlType.Edit'
+                    $edit.SetFocus()
+                    Start-Sleep -Milliseconds 100
+                    if ($edit.Current.IsOffscreen -or
+                        [System.Windows.Automation.AutomationElement]::FocusedElement.Current.Name -ne $field) {
+                        throw "Files field '$field' is not reachable by keyboard at minimum size."
+                    }
+                }
+            }
+            else {
+                Assert-NoVisibleScrollBar "$tabName at minimum size"
+            }
         }
         Select-Tab 'General'
         $destination = Select-Choice 'Destination' 'File'

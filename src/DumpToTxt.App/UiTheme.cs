@@ -1,10 +1,23 @@
 using System.Drawing;
+using System.Runtime.InteropServices;
 using DumpToTxt.Core;
 
 namespace DumpToTxt.App;
 
 internal static class UiTheme
 {
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SystemParametersInfo(uint action, uint parameter,
+        [MarshalAs(UnmanagedType.Bool)] out bool enabled, uint flags);
+
+    public static ProgressBarStyle ActivityStyle =>
+        SystemParametersInfo(0x1042, 0, out bool enabled, 0) && enabled
+            ? ProgressBarStyle.Marquee : ProgressBarStyle.Continuous;
+
+    public static int Px(Control control, int logicalPixels) =>
+        (int)Math.Round(logicalPixels * control.DeviceDpi / 96d);
+
     private sealed record ThemePalette(
         Color Window,
         Color Surface,
