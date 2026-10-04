@@ -109,6 +109,24 @@ Do not introduce another context action to expose presets: the application flags
 
 A public release normally additionally needs signing of the intended artifacts and deliberate release publication. The owner requested immediate npm distribution of v2.0.0; that release uses the current unsigned installers and discloses their signature status and remaining VM limitations. See [its acceptance record](releases/v2.0.0-windows-acceptance.md). The owner selected proprietary / all rights reserved licensing; see [LICENSE](../LICENSE). Do not convert absent evidence into a signed or fully accepted release claim.
 
+## PowerShell distribution
+
+Root `install.ps1` is the public Windows PowerShell 5.1+ install/update entry
+point for Full, without Node.js. It resolves the latest public GitHub release,
+validates the asset URL and release SHA-256 digest, downloads to an owned
+temporary directory, verifies the file before elevating setup, and removes the
+download after setup exits. It does not change PowerShell execution policy.
+
+Run the focused synthetic check after changing the bootstrap:
+
+```powershell
+powershell -NoProfile -File tests/Packaging/powershell-install.test.ps1
+```
+
+The public command uses the raw GitHub URL documented in the README. Keep a
+checksum-bearing Full installer in every latest release. Synthetic checks do
+not establish real setup/elevation acceptance.
+
 ## npm distribution
 
 `packaging/npm` owns a dependency-free Node.js 22+ launcher for Windows x64.

@@ -17,6 +17,17 @@ Lite does **not** include the C# review workspace, sensitive-data protection or 
 Install or update from any directory in PowerShell:
 
 ```powershell
+irm https://raw.githubusercontent.com/O-Marmullaku/DumpToTxt/main/install.ps1 | iex
+```
+
+This installs Full on Windows x64 using Windows PowerShell 5.1 or newer; Node.js
+is not required. The script checks the installer against GitHub's release SHA-256
+before opening setup. Accept the administrator prompt. For an existing install,
+choose **Update or reinstall**.
+
+If Node.js 22 or newer is already installed, you can also use:
+
+```powershell
 npx dumptotxt@latest
 ```
 
