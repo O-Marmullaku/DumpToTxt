@@ -14,8 +14,7 @@ Lite does **not** include the C# review workspace, sensitive-data protection or 
 
 ## Install from PowerShell
 
-The npm launcher is implemented; the public npm package and matching GitHub
-release must be published before this command is available:
+Install or update from any directory in PowerShell:
 
 ```powershell
 npx dumptotxt@latest
@@ -24,6 +23,17 @@ npx dumptotxt@latest
 Run it from any directory on Windows x64 with Node.js 22 or newer. It downloads
 the Full installer, checks its pinned SHA-256, and opens setup with administrator
 approval. For an existing installation, choose **Update or reinstall**.
+
+Or keep the launcher installed globally:
+
+```powershell
+npm install -g dumptotxt
+dumptotxt
+```
+
+Update the global launcher with `npm install -g dumptotxt@latest`, then run
+`dumptotxt`. The current installers are unsigned; Windows may show an unknown
+publisher or SmartScreen prompt.
 See [development](docs/development.md#npm-distribution) for package preparation
 and publication requirements.
 
@@ -53,4 +63,4 @@ DumpToTxt.sln Application, Core, Core tests, and native stress executable
 [Product](docs/product.md) owns behavior, compatibility, privacy boundaries and unsupported cases. [Architecture](docs/architecture.md) explains implementation ownership and consequential design rationale. [Development](docs/development.md) owns setup, verification, packaging and release acceptance. Source and executable tests establish implementation details; these documents do not certify an untested release.
 
 DumpToTxt is proprietary; see [LICENSE](LICENSE). Public binary distribution
-still requires the documented signing and Windows release checks.
+uses the release process and evidence described in the development documentation.

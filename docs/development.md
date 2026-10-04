@@ -107,7 +107,7 @@ Compile-only checks must not launch setup on the development machine. Use a disp
 
 Do not introduce another context action to expose presets: the application flags exist independently of the installer's single-action contract. Machine-wide installer labels and optional existing per-user label updates have distinct ownership.
 
-A public release additionally needs signing of the intended artifacts and deliberate release publication. The owner selected proprietary / all rights reserved licensing; see [LICENSE](../LICENSE). This repository does not establish that a candidate was signed, installed or externally approved. Do not convert absent evidence into a release-ready claim.
+A public release normally additionally needs signing of the intended artifacts and deliberate release publication. The owner requested immediate npm distribution of v2.0.0; that release uses the current unsigned installers and discloses their signature status and remaining VM limitations. See [its acceptance record](releases/v2.0.0-windows-acceptance.md). The owner selected proprietary / all rights reserved licensing; see [LICENSE](../LICENSE). Do not convert absent evidence into a signed or fully accepted release claim.
 
 ## npm distribution
 
@@ -140,18 +140,22 @@ Staging derives the npm version from the application project and generates
 `artifacts/npm/release.json` with versioned GitHub URLs and the SHA-256 of each
 installer. It also writes `artifacts/packages/SHA256SUMS.txt`. Never edit these
 generated files by hand. Re-stage after any installer change, including signing.
-The source template deliberately has `private: true` until public binary
-distribution and release acceptance are cleared. `UNLICENSED` preserves the
-proprietary source policy; it is not an open-source license.
+The source package is publishable. `UNLICENSED` preserves the proprietary source
+policy; it is not an open-source license. Publication remains a deliberate action.
 
 Publication order is important: publish a public GitHub release named
 `v<application version>` containing all three `DumpToTxt-Setup-<flavor>.exe`
 assets and `SHA256SUMS.txt`; verify those public downloads against the staged
-manifest; then publish the matching npm package. Remove the template's private
-flag only once public distribution is cleared, then re-stage. Authenticate using
+manifest; then publish the matching npm package. Authenticate using
 `npm login`, inspect `npm publish ./artifacts/npm --dry-run`, and deliberately
 publish with `npm publish ./artifacts/npm --access public`. Never publish a
 package whose pinned installer release is missing or inaccessible.
+
+If direct publishing rejects the session's 2FA authentication, use
+`npm stage publish ./artifacts/npm --access public` (npm 11.15+), wait for
+registry validation, then approve that exact version in the account's
+**Staged Packages** page with 2FA. A staged package is not yet installable;
+verify the public `latest` version after approval before announcing availability.
 
 To keep the source private, host binaries in a separate public GitHub repository
 and stage with `tools/prepare-npm.ps1 -ReleaseRepository OWNER/REPOSITORY`.

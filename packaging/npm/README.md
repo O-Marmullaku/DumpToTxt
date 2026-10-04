@@ -11,6 +11,19 @@ installer, verifies its SHA-256 checksum, and opens setup. Accept the Windows
 administrator prompt. If already installed, select **Update or reinstall**.
 The installer adds DumpToTxt to Explorer's context menu.
 
+To keep the launcher installed globally:
+
+```powershell
+npm install -g dumptotxt
+dumptotxt
+```
+
+Update the global launcher with `npm install -g dumptotxt@latest`, then run
+`dumptotxt` and choose **Update or reinstall**.
+
+The current installers are unsigned, so Windows may show an unknown publisher
+or SmartScreen prompt.
+
 Optional editions:
 
 ```powershell

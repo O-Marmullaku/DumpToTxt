@@ -42,4 +42,4 @@ $package | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $destination 'packag
 $assets.GetEnumerator() | ForEach-Object { "$($_.Value.sha256)  DumpToTxt-Setup-$($_.Key).exe" } |
     Set-Content (Join-Path $root 'artifacts/packages/SHA256SUMS.txt') -Encoding utf8NoBOM
 Write-Host "Staged npm package: $destination"
-Write-Host 'This does not publish or establish release acceptance. The source package is private until distribution is cleared.'
+Write-Host 'Staging does not publish or establish release acceptance.'
