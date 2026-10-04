@@ -123,7 +123,10 @@ Run the focused synthetic check after changing the bootstrap:
 powershell -NoProfile -File tests/Packaging/powershell-install.test.ps1
 ```
 
-The public command uses the raw GitHub URL documented in the README. Keep a
+The public command is `irm https://marmullaku.ch/dumptotxt | iex`. The
+extensionless `dumptotxt` file in `O-Marmullaku/website` (GitHub Pages, main/root)
+loads this repository's `main/install.ps1` from raw GitHub, keeping the bootstrap
+owned here. Verify that the domain returns script text after website changes. Keep a
 checksum-bearing Full installer in every latest release. Synthetic checks do
 not establish real setup/elevation acceptance.
 

@@ -17,7 +17,7 @@ Lite does **not** include the C# review workspace, sensitive-data protection or 
 Install or update from any directory in PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/O-Marmullaku/DumpToTxt/main/install.ps1 | iex
+irm https://marmullaku.ch/dumptotxt | iex
 ```
 
 This installs Full on Windows x64 using Windows PowerShell 5.1 or newer; Node.js
