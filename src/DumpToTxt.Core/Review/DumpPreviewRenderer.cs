@@ -124,7 +124,7 @@ public static class DumpPreviewRenderer
                 read += count;
             }
             if (read > MaxSafetyBytes || read > allowed) return "[Preview withheld: file changed beyond the preview limit]";
-            var encoding = TextFileClassifier.DetectTextEncoding(bytes.AsSpan(0, read), out int bomLength);
+            var encoding = TextFileClassifier.DetectTextEncoding(bytes.AsSpan(0, read), out int bomLength, path);
             string text = encoding.GetString(bytes, bomLength, read - bomLength);
             cancellationToken.ThrowIfCancellationRequested();
             var findings = SecretScanner.Scan(text, cfg.SecretScanEntropy,

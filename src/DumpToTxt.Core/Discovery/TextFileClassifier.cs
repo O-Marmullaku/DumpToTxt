@@ -1,14 +1,15 @@
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace DumpToTxt.Core;
 
 /// <summary>Bounded file-head classifier shared by preview discovery and dump binary handling.</summary>
 public static class TextFileClassifier
 {
-    private const int SniffBytes = 8000;
+    internal const int SniffBytes = 8000;
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
-    /// <summary>True for Unicode text. Unreadable or unsupported text encodings are reported explicitly.</summary>
+    /// <summary>True for supported text. Unreadable or unsupported text encodings are reported explicitly.</summary>
     public static bool IsTextLike(string path, CancellationToken cancellationToken = default)
     {
         ReadHead(path, cancellationToken, out var bytes, out int read, out bool completeHead);
@@ -23,11 +24,11 @@ public static class TextFileClassifier
         }
         if (controls * 100 > read * 5) return false;
 
-        try { StrictUtf8.GetDecoder().GetCharCount(bytes, 0, read, flush: completeHead); }
+        try { DetectTextEncoding(bytes.AsSpan(0, read), out _, path).GetDecoder().GetCharCount(bytes, 0, read, flush: completeHead); }
         catch (DecoderFallbackException)
         {
             // Distinguish unsupported ANSI text from binary instead of silently corrupting it as UTF-8.
-            throw new InvalidDataException($"Cannot read '{path}' as supported text. It may be binary or use an unsupported encoding. Text files must use UTF-8 or Unicode with a byte-order mark.");
+            throw new InvalidDataException($"Cannot read '{path}' as supported text. It may be binary or use an unsupported encoding. Use UTF-8, Unicode with a byte-order mark, or a supported Python encoding declaration.");
         }
         return true;
     }
@@ -80,8 +81,8 @@ public static class TextFileClassifier
             throw new IOException($"File link content was not read: '{path}'. Select the original file instead.");
     }
 
-    /// <summary>Shared lossless decoding policy: UTF-8 by default; UTF-16/32 require a BOM.</summary>
-    public static Encoding DetectTextEncoding(ReadOnlySpan<byte> head, out int bomLength)
+    /// <summary>Strict decoding: Unicode BOM, Python encoding declaration, or UTF-8 by default.</summary>
+    public static Encoding DetectTextEncoding(ReadOnlySpan<byte> head, out int bomLength, string? path = null)
     {
         bomLength = 0;
         if (head.StartsWith(new byte[] { 0x00, 0x00, 0xFE, 0xFF })) { bomLength = 4; return new UTF32Encoding(true, false, true); }
@@ -89,6 +90,41 @@ public static class TextFileClassifier
         if (head.StartsWith(new byte[] { 0xEF, 0xBB, 0xBF })) { bomLength = 3; return StrictUtf8; }
         if (head.StartsWith(new byte[] { 0xFE, 0xFF })) { bomLength = 2; return new UnicodeEncoding(true, false, true); }
         if (head.StartsWith(new byte[] { 0xFF, 0xFE })) { bomLength = 2; return new UnicodeEncoding(false, false, true); }
+        if (Path.GetExtension(path)?.Equals(".py", StringComparison.OrdinalIgnoreCase) == true
+            || Path.GetExtension(path)?.Equals(".pyw", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            // Python source declares its encoding in a comment on either of the first two lines.
+            string prefix = Encoding.ASCII.GetString(head[..Math.Min(head.Length, SniffBytes)]);
+            using var lines = new StringReader(prefix);
+            for (int i = 0; i < 2 && lines.ReadLine() is { } line; i++)
+            {
+                var match = Regex.Match(line, @"^[ \t\f]*#.*?coding[:=][ \t]*([-_.a-zA-Z0-9]+)",
+                    RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+                if (match.Success)
+                {
+                    string name = match.Groups[1].Value.ToLowerInvariant().Replace('_', '-');
+                    if (name is "latin-1" or "latin1" or "iso-latin-1") name = "iso-8859-1";
+                    if (name is "utf8" or "utf-8") return StrictUtf8;
+                    try
+                    {
+                        Encoding encoding;
+                        if (name.StartsWith("cp", StringComparison.Ordinal) && int.TryParse(name.AsSpan(2), out int codePage))
+                            encoding = CodePagesEncodingProvider.Instance.GetEncoding(codePage,
+                                EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback)
+                                ?? Encoding.GetEncoding(codePage, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
+                        else
+                            encoding = CodePagesEncodingProvider.Instance.GetEncoding(name,
+                                EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback)
+                                ?? Encoding.GetEncoding(name, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
+                        if (encoding.GetString("# coding: ascii\n"u8) != "# coding: ascii\n")
+                            throw new InvalidDataException($"Python encoding must preserve ASCII source: {name}");
+                        return encoding;
+                    }
+                    catch (ArgumentException ex) { throw new InvalidDataException($"Unsupported Python encoding: {name}", ex); }
+                }
+                if (!Regex.IsMatch(line, @"^[ \t\f]*(#|$)")) break;
+            }
+        }
         return StrictUtf8;
     }
 

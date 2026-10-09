@@ -6,6 +6,46 @@ namespace DumpToTxt.Tests;
 
 public sealed class DumpPreviewTests
 {
+    [Theory]
+    [InlineData("# coding: latin-1\n", 28591)]
+    [InlineData("#!/usr/bin/python\n# -*- coding: cp1252 -*-\n", 1252)]
+    [InlineData("# coding=cp1251\n", 1251)]
+    public async Task DeclaredPythonEncodingWorksAcrossScanPreviewAndExport(string header, int codePage)
+    {
+        using var tree = new TempTree();
+        var encoding = CodePagesEncodingProvider.Instance.GetEncoding(codePage) ?? Encoding.GetEncoding(codePage);
+        string text = header + (codePage == 1251 ? "# Привет\n" : "# café\n");
+        tree.Bytes("hexdump.py", encoding.GetBytes(text));
+        var cfg = DumpConfig.CreateDefault();
+        cfg.OutputTarget = OutputTarget.Stdout;
+        var state = new DumpPreviewScanState();
+        await DumpPreviewScanner.ScanAsync(tree.Root, cfg, state, default);
+        Assert.Equal(0, state.Drain().DiagnosticCount);
+        var snapshot = state.Snapshot();
+        Assert.Single(snapshot.Entries);
+        var selection = DumpContentSelection.FromMode(DumpSelectionMode.Thorough, cfg);
+        Assert.Contains(text.TrimEnd(), DumpPreviewRenderer.Render(snapshot, cfg, selection, "hexdump.py"));
+        Assert.Contains(text.TrimEnd(), new DumpEngine().Run(tree.Root, cfg, contentSelection: selection).Text);
+
+        // Even a cap inside the declaration must use the full file's encoding.
+        cfg.MaxFileSizeBytes = 3;
+        Assert.Contains(header[..3], new DumpEngine().Run(tree.Root, cfg, contentSelection: selection).Text);
+    }
+
+    [Theory]
+    [InlineData("# coding: nonexistent-codec\n", "test.py")]
+    [InlineData("# coding: utf-16\n", "test.py")]
+    [InlineData("# coding: utf-32\n", "test.py")]
+    [InlineData("# coding: latin-1\n", "test.txt")]
+    [InlineData("print('first')\n# coding: latin-1\n", "test.py")]
+    [InlineData("# first\n# second\n# coding: latin-1\n", "test.py")]
+    public void UnsupportedOrMisplacedDeclarationsDoNotEnableLenientDecoding(string header, string file)
+    {
+        using var tree = new TempTree();
+        tree.Bytes(file, Encoding.Latin1.GetBytes(header + "# café"));
+        Assert.Throws<InvalidDataException>(() => TextFileClassifier.IsTextLike(tree.Path(file)));
+    }
+
     [Fact]
     public async Task Scan_UnsupportedEncodingKeepsInventoryAndContinuesToOtherFiles()
     {

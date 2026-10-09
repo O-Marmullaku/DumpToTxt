@@ -52,21 +52,21 @@ internal sealed class StagedContent : IDisposable
             var bytes = new byte[32768];
             var chars = new char[32768];
             int headLength = 0;
-            while (headLength < Math.Min(4, size))
+            while (headLength < Math.Min(TextFileClassifier.SniffBytes, size))
             {
-                int read = input.Read(bytes, headLength, 4 - headLength);
+                int read = input.Read(bytes, headLength, (int)Math.Min(TextFileClassifier.SniffBytes, size) - headLength);
                 if (read == 0) throw new IOException($"File ended unexpectedly while reading its encoding: {source}");
                 headLength += read;
             }
             long remaining = byteLimit, characterCount = 0;
             int includedHead = (int)Math.Min(remaining, headLength);
-            TextFileClassifier.DetectTextEncoding(bytes.AsSpan(0, headLength), out int fullBomLength);
-            Encoding encoding = TextFileClassifier.DetectTextEncoding(bytes.AsSpan(0, includedHead), out int bomLength);
+            Encoding encoding = TextFileClassifier.DetectTextEncoding(bytes.AsSpan(0, headLength), out int fullBomLength, source);
+            int bomLength = fullBomLength;
             if (clipped && includedHead < fullBomLength)
             {
                 // StreamReader historically inferred encoding from the capped bytes themselves.
                 // An incomplete BOM therefore follows its lenient fallback, not the full-file BOM.
-                encoding = (Encoding)encoding.Clone();
+                encoding = (Encoding)TextFileClassifier.DetectTextEncoding(bytes.AsSpan(0, includedHead), out bomLength).Clone();
                 encoding.DecoderFallback = new DecoderReplacementFallback("\uFFFD");
             }
             Decoder decoder = encoding.GetDecoder();
