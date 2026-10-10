@@ -51,20 +51,17 @@ internal static class Program
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     static void Capture()
     {
-        string fixture = Path.Combine(Output, "weekend-project");
+        string fixture = Path.Combine(Output, "sample-weather-app");
         Directory.CreateDirectory(Path.Combine(fixture, "src"));
-        Directory.CreateDirectory(Path.Combine(fixture, "docs"));
-        File.WriteAllText(Path.Combine(fixture, "README.md"), "# Weekend project\n\nA small weather dashboard.\n\n## Run locally\n\nnpm install\nnpm run dev\n");
-        File.WriteAllText(Path.Combine(fixture, "package.json"), "{\n  \"name\": \"weekend-project\",\n  \"private\": true,\n  \"scripts\": { \"dev\": \"vite\" }\n}\n");
-        File.WriteAllText(Path.Combine(fixture, "src", "main.js"), "const city = document.querySelector('#city');\nconst weather = document.querySelector('#weather');\n\nexport function showWeather(forecast) {\n  city.textContent = forecast.city;\n  weather.textContent = `${forecast.temperature} °C`;\n}\n");
-        File.WriteAllText(Path.Combine(fixture, "src", "styles.css"), "body {\n  margin: 0;\n  font-family: system-ui, sans-serif;\n  background: #f7f7f7;\n  color: #242424;\n}\n\nmain { max-width: 48rem; margin: 4rem auto; }\n");
-        File.WriteAllText(Path.Combine(fixture, "docs", "notes.md"), "# Next steps\n\n- Add the five-day forecast.\n- Remember the selected city.\n- Show a clear message when offline.\n");
+        File.WriteAllText(Path.Combine(fixture, "README.md"), "# Sample Weather App\nShows the forecast for a selected city.\n");
+        File.WriteAllText(Path.Combine(fixture, "cities.json"), "{ \"cities\": [\"Zurich\", \"London\", \"Tokyo\"] }\n");
+        File.WriteAllText(Path.Combine(fixture, "src", "forecast.js"), "export function forecast(city) {\n  return `${city}: 22 C, sunny`;\n}\n");
         typeof(DumpSelectionForm).Assembly.GetType("ApplicationConfiguration", true)!.GetMethod("Initialize")!.Invoke(null, null);
         var theme = typeof(DumpSelectionForm).Assembly.GetType("DumpToTxt.App.UiTheme", true)!;
         theme.GetMethod("Apply", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!.Invoke(null, new object?[] { UiThemeKind.Graphite, null });
         var config = DumpConfig.CreateDefault();
         config.Theme = UiThemeKind.Graphite;
-        config.Style = OutputStyle.Markdown;
+        config.Style = OutputStyle.Plain;
         config.PlayCompletionSound = false;
         using var form = new DumpSelectionForm(fixture, config);
         form.Show();
@@ -73,9 +70,14 @@ internal static class Program
         if (Field<Label>(form, "_validation").Text.Length != 0) throw new InvalidOperationException("Fixture scan reported an issue.");
         Field<TreeView>(form, "_tree").ExpandAll(); Application.DoEvents();
         Save(form, "review.png");
-        Field<Button>(form, "_previewButton").PerformClick();
-        PumpUntil(() => Field<RichTextBox>(form, "_preview").Text.Contains("# Weekend project"), "preview");
-        Save(form, "preview.png");
+        var result = new DumpEngine().Run(fixture, config, Path.Combine(Output, "export"));
+        if (result.Cancelled || result.FilesIncluded != 3 || result.OutputPath is null)
+            throw new InvalidOperationException("Sample export did not include all three files.");
+        string text = File.ReadAllText(result.OutputPath);
+        foreach (string file in Directory.GetFiles(fixture, "*", SearchOption.AllDirectories))
+            if (!text.Contains(File.ReadAllText(file).TrimEnd()))
+                throw new InvalidOperationException("Sample output is missing file content.");
+        File.Copy(result.OutputPath, Path.Combine(Output, "sample-weather-app.txt"), true);
         File.AppendAllText(Path.Combine(Output, "capture.log"), "Closing form\n");
         form.Close();
         File.AppendAllText(Path.Combine(Output, "capture.log"), "Closed form\n");

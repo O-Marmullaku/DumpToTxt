@@ -33,7 +33,7 @@ This applies to `website/`. The native application's palettes remain owned by
 `UiTheme.cs`.
 
 The page starts with a literal explanation, Windows download, and a real app
-capture. A second capture shows the output preview. A compact comparison table
+capture beside an image of its actual text export. A compact comparison table
 explains the workflows of DumpToTxt, Repomix and Gitingest. Extra installation
 options stay in a disclosure. Avoid feature essays and illustrative app mockups.
 
@@ -42,11 +42,11 @@ selection and links on hover. Keep visible keyboard focus (3px outline, 4px offs
 underlined inline links, and selected text with white type on blue.
 
 Center the page in a 1120px wrapper with 40px desktop gutters, 24px below 900px,
-and 18px below 620px. The hero screenshot is limited to its native width. Preserve
+and 18px below 620px. The two-image hero can span 1440px; neither image exceeds its native width. Preserve
 image proportions and provide full-size links. Screenshot shadow: `0 14px 40px #20202018`.
 Primary buttons have a 50px minimum height, 6px corners and 14px / 22px padding.
 
-On narrow screens, stack headline and download, then stack preview copy and image.
+On narrow screens, stack headline and download, then stack the app screenshot and output image.
 The comparison table scrolls horizontally inside a labelled, keyboard-focusable
 region with a visible mobile scroll hint. Never let it widen the page itself.
 

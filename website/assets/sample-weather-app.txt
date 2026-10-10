@@ -1,0 +1,41 @@
+﻿============================================================
+DumpToTxt — Plain output
+============================================================
+Root: F:\WORK\Creations\DumpToTXT\artifacts\website\sample-weather-app
+Files: 3
+Total size: 173 B
+Total tokens: 46 (o200k_base)
+
+----- Directory structure -----
+├── src/
+│   └── forecast.js
+├── cities.json
+└── README.md
+
+----- Largest files by tokens -----
+ 1. src\forecast.js  (18 tokens)
+ 2. cities.json  (15 tokens)
+ 3. README.md  (13 tokens)
+
+----- Token tree -----
+├── src/  (18 tokens)
+│   └── forecast.js  (18 tokens)
+├── cities.json  (15 tokens)
+└── README.md  (13 tokens)
+
+----- Secret scan (Warn) -----
+No secrets detected.
+
+----- Files -----
+
+================ File: cities.json (15 tokens) ================
+{ "cities": ["Zurich", "London", "Tokyo"] }
+
+================ File: README.md (13 tokens) ================
+# Sample Weather App
+Shows the forecast for a selected city.
+
+================ File: src\forecast.js (18 tokens) ================
+export function forecast(city) {
+  return `${city}: 22 C, sunny`;
+}

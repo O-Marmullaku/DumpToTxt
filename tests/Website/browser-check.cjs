@@ -35,6 +35,11 @@ const server = http.createServer(async (request, response) => {
         await image.evaluate(img => img.decode());
         assert.ok(await image.evaluate(img => img.naturalWidth > 600));
       }
+      const [left, right] = await Promise.all([page.locator('.app-shot').nth(0).boundingBox(), page.locator('.app-shot').nth(1).boundingBox()]);
+      assert.ok(name === 'desktop' ? right.x > left.x && right.y === left.y : right.y > left.y);
+      const exported = await page.request.get(url + '/assets/sample-weather-app.txt');
+      assert.equal(exported.status(), 200);
+      assert.ok((await exported.text()).includes('export function forecast(city)'));
       assert.equal(await page.getByRole('columnheader', { name: 'Repomix', exact: true }).count(), 1);
       await page.getByText('Other installers & PowerShell', { exact: true }).click();
       assert.equal(await page.locator('details').getAttribute('open'), '');

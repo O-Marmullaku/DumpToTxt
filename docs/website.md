@@ -15,7 +15,7 @@ The site extends the application's light Graphite identity: pale gray canvas,
 white surfaces, charcoal type and actions, restrained blue focus and selection.
 It is a download page for Windows users evaluating a local project-export tool.
 The first view shows the real Windows review window alongside a literal workflow
-and download. A second capture shows the actual output preview. Keep copy short;
+and download. The adjacent image renders the actual generated `.txt` file, with a full-file link. Keep copy short;
 the app screenshots explain the product. The comparison links primary competitor
 documentation and distinguishes workflows without claiming exclusive capabilities.
 Preserve keyboard focus, narrow touch-browser layouts, and no-JavaScript downloads.
@@ -58,20 +58,21 @@ setting owns the domain; a source `CNAME` file is not required.
 
 ## App screenshots
 
-`tests/WebsiteCapture` captures the real production review form and Markdown
-preview using a sample project. Run from the repository root on Windows:
+`tests/WebsiteCapture` captures the real production review form and exports a sample weather project as text. Run from the repository root on Windows:
 
 ```powershell
 dotnet run --project tests/WebsiteCapture/Capture.csproj -c Release
+node tests/Website/capture-output.cjs
 ```
 
 The launcher creates a separate desktop and starts its own process there. The
 child asserts it is not on the input desktop before creating forms. It never
-switches desktops, drives user input, saves preferences, or invokes export.
-It waits for completed scanning and preview content, then uses `PrintWindow`
+switches desktops, drives user input, saves preferences, or exports outside its fixture output directory.
+It waits for completed scanning, then uses `PrintWindow`
 to capture the live client area at the default size. Window-manager chrome is
 omitted because a noninteractive desktop does not compose its shadows.
 
-Inspect `artifacts/website/review.png` and `preview.png` before copying them to
+The browser capture renders the unedited generated text; it does not imitate a text editor.
+Inspect `artifacts/website/review.png`, `output.png`, and `sample-weather-app.txt` before copying them to
 `website/assets/`. `capture.log` records isolation and image hashes. These are
 current-source UI captures, not installer acceptance. Keep fixtures synthetic.
