@@ -19,7 +19,7 @@
       "code": { "displayName": "Code", "purpose": "Commands and output examples." }
     },
     "shadows": [
-      { "name": "example", "value": "0 16px 50px #20202012", "purpose": "Subtle separation for the interactive product example." }
+      { "name": "example", "value": "0 14px 40px #20202018", "purpose": "Subtle separation for real application screenshots." }
     ],
     "breakpoints": [
       { "name": "mobile", "value": "620px" },
@@ -30,13 +30,13 @@
   "components": [],
   "narrative": {
     "northStar": "Light Graphite",
-    "overview": "The website carries the application's light Graphite identity into a quiet, readable download page. Pale gray canvas, white example surfaces, charcoal actions and text, and restrained blue interaction cues keep attention on the product and its download choices. This document applies to website/; the native application's palette remains owned by UiTheme.cs.",
-    "keyCharacteristics": ["Graphite neutrals", "Restrained blue interaction cues", "Responsive, readable product example"],
+    "overview": "The website carries the application's light Graphite identity into a quiet, readable download page. Pale gray canvas, real application screenshots, charcoal actions and text, and restrained blue interaction cues keep attention on the product and its download choices. This document applies to website/; the native application's palette remains owned by UiTheme.cs.",
+    "keyCharacteristics": ["Graphite neutrals", "Restrained blue interaction cues", "Screenshot-first product explanation"],
     "rules": [
       { "name": "Website Scope Rule", "body": "These tokens describe website/ only; UiTheme.cs owns native application palettes.", "section": "colors" },
       { "name": "Focus Rule", "body": "Keep visible keyboard focus with the established blue outline.", "section": "components" }
     ],
     "dos": ["Do keep most of each page in the graphite neutral palette.", "Do retain visible keyboard focus and responsive layouts."],
-    "donts": ["Don't invent a new brand palette for the website.", "Don't treat the illustrative example as a native-app screenshot."]
+    "donts": ["Don't invent a new brand palette for the website.", "Don't replace actual app screenshots with mockups."]
   }
 }
