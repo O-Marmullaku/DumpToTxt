@@ -16,7 +16,7 @@ colors:
 typography:
   body:
     fontFamily: '"Segoe UI", system-ui, sans-serif'
-    fontSize: "15px"
+    fontSize: "16px"
     lineHeight: 1.65
   display:
     fontFamily: '"Segoe UI", system-ui, sans-serif'
@@ -72,7 +72,7 @@ Segoe UI with system sans-serif fallback keeps the page native to its Windows au
 ### Hierarchy
 - Display: 650 weight, `clamp(44px, 5.9vw, 76px)`, 1.07 line height, tight tracking.
 - Section headings: `clamp(31px, 3.4vw, 43px)`, 600 weight.
-- Body: 15px base with 1.65 line height; supporting copy generally uses muted color and narrower measure.
+- Body: browser-default 16px base with 1.65 line height; supporting copy generally uses muted color and narrower measure.
 - Code: 12px monospace with 1.5–1.65 line height.
 
 ## Layout

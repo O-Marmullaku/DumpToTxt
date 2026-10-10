@@ -29,4 +29,3 @@ test('downloads work as direct links without JavaScript and page anchors resolve
   for (const [, anchor] of html.matchAll(/href="#([^"]+)"/g)) assert.ok(html.includes(`id="${anchor}"`), anchor);
   assert.ok(html.includes('irm https://dumptotxt.com/install.ps1 | iex'));
 });
-
