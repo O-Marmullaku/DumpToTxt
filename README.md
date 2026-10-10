@@ -2,6 +2,9 @@
 
 DumpToTxt is a local Windows utility that packs a file or folder into one readable artifact. Start it from Explorer's context menu, review what contributes to the result, and create text, Markdown, JSON, XML or a navigable Word document. Launching without a target opens settings.
 
+[Visit dumptotxt.com](https://dumptotxt.com/) for downloads and an interactive example.
+The static website and GitHub Pages deployment are described in [website development](docs/website.md).
+
 ## Editions
 
 | Edition | Implementation | Runtime requirement |

@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-10T00:00:00Z",
+  "title": "Design System: DumpToTxt Website",
+  "extensions": {
+    "colorMeta": {
+      "canvas": { "role": "neutral", "displayName": "Pale Graphite Canvas", "canonical": "#f7f7f7" },
+      "surface": { "role": "neutral", "displayName": "White Surface", "canonical": "#ffffff" },
+      "surface-subtle": { "role": "neutral", "displayName": "Near White", "canonical": "#fafafa" },
+      "text": { "role": "neutral", "displayName": "Charcoal Text", "canonical": "#202020" },
+      "text-muted": { "role": "neutral", "displayName": "Muted Gray", "canonical": "#626262" },
+      "line": { "role": "neutral", "displayName": "Divider Gray", "canonical": "#dedede" },
+      "action": { "role": "primary", "displayName": "Graphite Action", "canonical": "#2d2d2d" },
+      "focus": { "role": "secondary", "displayName": "Focus Blue", "canonical": "#1967d2" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Hero headline." },
+      "body": { "displayName": "Body", "purpose": "Product and supporting copy." },
+      "code": { "displayName": "Code", "purpose": "Commands and output examples." }
+    },
+    "shadows": [
+      { "name": "example", "value": "0 16px 50px #20202012", "purpose": "Subtle separation for the interactive product example." }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "620px" },
+      { "name": "compact", "value": "900px" },
+      { "name": "wide", "value": "1450px" }
+    ]
+  },
+  "components": [],
+  "narrative": {
+    "northStar": "Light Graphite",
+    "overview": "The website carries the application's light Graphite identity into a quiet, readable download page. Pale gray canvas, white example surfaces, charcoal actions and text, and restrained blue interaction cues keep attention on the product and its download choices. This document applies to website/; the native application's palette remains owned by UiTheme.cs.",
+    "keyCharacteristics": ["Graphite neutrals", "Restrained blue interaction cues", "Responsive, readable product example"],
+    "rules": [
+      { "name": "Website Scope Rule", "body": "These tokens describe website/ only; UiTheme.cs owns native application palettes.", "section": "colors" },
+      { "name": "Focus Rule", "body": "Keep visible keyboard focus with the established blue outline.", "section": "components" }
+    ],
+    "dos": ["Do keep most of each page in the graphite neutral palette.", "Do retain visible keyboard focus and responsive layouts."],
+    "donts": ["Don't invent a new brand palette for the website.", "Don't treat the illustrative example as a native-app screenshot."]
+  }
+}
