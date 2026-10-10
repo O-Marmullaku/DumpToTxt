@@ -32,7 +32,7 @@ rounded:
 This applies to `website/`. The native application's palettes remain owned by
 `UiTheme.cs`.
 
-The page starts with a literal explanation, Windows download, and a real app
+The page leads with right-click, file selection, and clipboard-or-file output, with concise numbered steps and output icons. It includes a Windows download and a real app
 capture beside an image of its actual text export. A compact comparison table
 explains the workflows of DumpToTxt, Repomix and Gitingest. Extra installation
 options stay in a disclosure. Avoid feature essays and illustrative app mockups.
