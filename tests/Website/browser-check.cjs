@@ -33,9 +33,9 @@ const server = http.createServer(async (request, response) => {
       for (const image of await page.locator('.app-shot img').all()) {
         await image.scrollIntoViewIfNeeded();
         await image.evaluate(img => img.decode());
-        assert.ok(await image.evaluate(img => img.naturalWidth > 600));
+        assert.ok(await image.evaluate(img => img.naturalWidth > 100));
       }
-      const [left, right] = await Promise.all([page.locator('.app-shot').nth(0).boundingBox(), page.locator('.app-shot').nth(1).boundingBox()]);
+      const [left, right] = await Promise.all([page.locator('.workflow > li').nth(0).boundingBox(), page.locator('.workflow > li').nth(2).boundingBox()]);
       assert.ok(name === 'desktop' ? right.x > left.x && right.y === left.y : right.y > left.y);
       const exported = await page.request.get(url + '/assets/sample-weather-app.txt');
       assert.equal(exported.status(), 200);
@@ -57,7 +57,7 @@ const server = http.createServer(async (request, response) => {
     const page = await context.newPage();
     await page.goto(url);
     assert.equal(await page.getByRole('link', { name: 'Download for Windows', exact: true }).count(), 1);
-    assert.equal(await page.locator('.app-shot img').count(), 2);
+    assert.equal(await page.locator('.app-shot img').count(), 3);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.keyboard.press('Tab');
     assert.equal(await page.locator(':focus').textContent(), 'Skip to content');

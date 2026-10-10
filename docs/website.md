@@ -14,10 +14,11 @@ a second bootstrap script. Generated staging stays under `artifacts/`.
 The site extends the application's light Graphite identity: pale gray canvas,
 white surfaces, charcoal type and actions, restrained blue focus and selection.
 It is a download page for Windows users evaluating a local project-export tool.
-The first view shows the real Windows review window alongside a literal workflow
-and download. The adjacent image renders the actual generated `.txt` file, with a full-file link. Keep copy short;
-the app screenshots explain the product. The comparison links primary competitor
-documentation and distinguishes workflows without claiming exclusive capabilities.
+The hero integrates three real visuals directly into the numbered workflow:
+the installed Windows Shell context menu, the production file-selection window,
+and the unedited generated text export. Each image opens full-size. Keep the
+captions short; do not detach the screenshots from their steps or replace them
+with recreated menus or icons. The comparison links primary competitor sources.
 Preserve keyboard focus, narrow touch-browser layouts, and no-JavaScript downloads.
 
 Keep product claims grounded in `product.md` and the released application.
@@ -76,3 +77,11 @@ The browser capture renders the unedited generated text; it does not imitate a t
 Inspect `artifacts/website/review.png`, `output.png`, and `sample-weather-app.txt` before copying them to
 `website/assets/`. `capture.log` records isolation and image hashes. These are
 current-source UI captures, not installer acceptance. Keep fixtures synthetic.
+
+To refresh the installed Shell menu as well, add `-- --shell` to the .NET command.
+This requires an existing DumpToTxt installation and leaves registration unchanged.
+The helper requests the real folder context menu from Windows Shell, displays it
+on the isolated desktop, highlights DumpToTxt using the native menu API, and
+captures the popup with `PrintWindow`. It never invokes a menu command. Inspect
+`artifacts/website/context-menu.png` before copying it to `website/assets/`.
+The capture shows the classic context menu; other installed Shell entries can vary.

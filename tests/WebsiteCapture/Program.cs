@@ -14,7 +14,7 @@ internal static class Program
     static int Main(string[] args)
     {
         Directory.CreateDirectory(Output);
-        if (args.Length == 2 && args[0] == "--capture") {
+        if (args.Length >= 2 && args[0] == "--capture") {
             nint input = Native.OpenInputDesktop(0, false, 1);
             if (input == 0) throw new Win32Exception(Marshal.GetLastWin32Error());
             try {
@@ -22,7 +22,7 @@ internal static class Program
                 if (actual != args[1] || actual == DesktopName(input)) throw new InvalidOperationException("Desktop isolation failed.");
                 File.WriteAllText(Path.Combine(Output, "capture.log"), "Isolated desktop: " + actual + "\n");
             } finally { Native.CloseDesktop(input); }
-            try { Capture(); File.AppendAllText(Path.Combine(Output, "capture.log"), "Capture complete\n"); } catch(Exception ex) { File.AppendAllText(Path.Combine(Output, "capture.log"), ex.ToString()); return 1; }
+            try { Capture(args.Contains("--shell")); File.AppendAllText(Path.Combine(Output, "capture.log"), "Capture complete\n"); } catch(Exception ex) { File.AppendAllText(Path.Combine(Output, "capture.log"), ex.ToString()); return 1; }
             return 0;
         }
         // Start on a separate desktop before STA/WinForms can create any window handles.
@@ -31,7 +31,7 @@ internal static class Program
         if (desktop == 0) throw new Win32Exception(Marshal.GetLastWin32Error());
         try {
             var startup = new Native.Startup { cb = Marshal.SizeOf<Native.Startup>(), desktop = "winsta0\\" + name };
-            var command = new StringBuilder("\"" + Environment.ProcessPath + "\" --capture " + name);
+            var command = new StringBuilder("\"" + Environment.ProcessPath + "\" --capture " + name + (args.Contains("--shell") ? " --shell" : ""));
             if (!Native.CreateProcess(null, command, 0, 0, false, 0x08000000, 0, null, ref startup, out var process)) throw new Win32Exception(Marshal.GetLastWin32Error());
             try {
                 if (Native.WaitForSingleObject(process.process, 60000) != 0) {
@@ -49,7 +49,7 @@ internal static class Program
         return name.ToString();
     }
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-    static void Capture()
+    static void Capture(bool includeShell)
     {
         string fixture = Path.Combine(Output, "sample-weather-app");
         Directory.CreateDirectory(Path.Combine(fixture, "src"));
@@ -70,6 +70,7 @@ internal static class Program
         if (Field<Label>(form, "_validation").Text.Length != 0) throw new InvalidOperationException("Fixture scan reported an issue.");
         Field<TreeView>(form, "_tree").ExpandAll(); Application.DoEvents();
         Save(form, "review.png");
+        if (includeShell) ShellMenuCapture.Capture(fixture, Path.Combine(Output, "context-menu.png"), form);
         var result = new DumpEngine().Run(fixture, config, Path.Combine(Output, "export"));
         if (result.Cancelled || result.FilesIncluded != 3 || result.OutputPath is null)
             throw new InvalidOperationException("Sample export did not include all three files.");

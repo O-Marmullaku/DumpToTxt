@@ -31,33 +31,27 @@
     <ol class="workflow" aria-label="How DumpToTxt works">
       <li>
         <h2><span>1</span> Right-click in Explorer</h2>
-        <p>A file, a folder, or empty space inside a folder.</p>
-        <div class="explorer-action"><img src="assets/DumpToTxt.ico" width="24" height="24" alt=""><strong>Create dump with DumpToTxt</strong></div>
+        <p>On a file, a folder, or inside a folder.</p>
+        <figure class="app-shot menu-shot">
+          <a href="assets/context-menu.png" aria-label="Open the actual Windows context menu screenshot"><img src="assets/context-menu.png" width="279" height="490" alt="Actual Windows Shell context menu with the installed DumpToTxt action." fetchpriority="high"></a>
+        </figure>
       </li>
-      <li>
-        <h2><span>2</span> Choose what to include</h2>
-        <p>Check the files you want in your dump.</p>
-        <a class="workflow-link" href="#file-picker">See the file picker below <span aria-hidden="true">↓</span></a>
+      <li id="file-picker">
+        <h2><span>2</span> Choose your files</h2>
+        <p>Check what you want to include.</p>
+        <figure class="app-shot">
+          <a href="assets/review.png" aria-label="Open full-size screenshot of Create dump"><img src="assets/review.png" width="920" height="620" alt="The real Create dump window with README.md, cities.json and src/forecast.js selected." fetchpriority="high"></a>
+        </figure>
       </li>
       <li>
         <h2><span>3</span> Use it anywhere</h2>
-        <div class="output-choices" aria-label="Copy to clipboard or save a text file">
-          <div><svg viewBox="0 0 40 44" aria-hidden="true"><path d="M13 8H7v32h26V8h-6M14 4h12v8H14zM13 22h14M13 29h10"/></svg><span>Copy to clipboard</span></div>
-          <span class="or">or</span>
-          <div><svg viewBox="0 0 40 44" aria-hidden="true"><path d="M8 3h16l9 9v29H8zM24 3v10h9M14 23h13M14 29h13"/></svg><span>Save a .txt file</span></div>
-        </div>
+        <p>Copy to clipboard or save a .txt file.</p>
+        <figure class="app-shot">
+          <a href="assets/output.png" aria-label="Open full-size image of the exported text file"><img src="assets/output.png" width="920" height="850" alt="The actual sample-weather-app.txt export: directory tree and contents of all three selected files." fetchpriority="high"></a>
+          <figcaption><a href="assets/sample-weather-app.txt">Open the actual .txt file</a></figcaption>
+        </figure>
       </li>
     </ol>
-    <div class="example-pair">
-      <figure class="app-shot" id="file-picker">
-        <figcaption><strong>Create dump</strong><span>Pick the files from your project.</span></figcaption>
-        <a href="assets/review.png" aria-label="Open full-size screenshot of Create dump"><img src="assets/review.png" width="920" height="620" alt="The real Create dump window with the sample weather project's README.md, cities.json and src/forecast.js selected for a text export." fetchpriority="high"></a>
-      </figure>
-      <figure class="app-shot">
-        <figcaption><strong>sample-weather-app.txt</strong><a href="assets/sample-weather-app.txt">Open the actual file</a></figcaption>
-        <a href="assets/output.png" aria-label="Open full-size image of the exported text file"><img src="assets/output.png" width="920" height="850" alt="Actual text exported from the same sample project, containing the directory tree, token counts and all three files' contents." fetchpriority="high"></a>
-      </figure>
-    </div>
     <p class="example-note">Sample project · Real app and generated output · TXT, Markdown, JSON, XML or Word</p>
   </section>
   <section class="wrap comparison" id="compare">
