@@ -36,6 +36,9 @@ const server = http.createServer(async (request, response) => {
       assert.equal(await page.locator('.demo-cursor').evaluate(el => el.getAnimations()[0].effect.getKeyframes().length), 49);
       await page.waitForFunction(() => document.querySelector('#walkthrough').dataset.beat === '3');
       assert.equal(await page.locator('.file-count').textContent(), '3');
+      const advanced = await page.locator('.advanced-label').boundingBox();
+      const pickerFooter = await page.locator('.picker-bottom').boundingBox();
+      assert.ok(advanced.y + advanced.height <= pickerFooter.y, 'Advanced settings fits above footer');
       await page.waitForFunction(() => document.querySelector('#walkthrough').classList.contains('format-open'));
       assert.equal(await page.locator('.format-options').isVisible(), true);
       await page.waitForFunction(() => document.querySelector('#walkthrough').classList.contains('preview-open'));
