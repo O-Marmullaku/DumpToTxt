@@ -34,22 +34,27 @@
           <h2><button class="step" data-step="0" type="button"><span>1</span> Right-click in Explorer</button></h2>
           <p>Start with a file or folder.</p>
           <div class="scene explorer" aria-hidden="true">
-            <div class="window-title">File Explorer <span>− &nbsp; □ &nbsp; ×</span></div>
-            <div class="breadcrumb">Projects <span>/</span> weather-app</div>
-            <div class="folder-row" data-target="folder"><svg viewBox="0 0 24 24"><path d="M3 7V5h7l2 2h9v13H3Z"/></svg><b>weather-app</b><span>File folder</span></div>
-            <div class="context-menu"><div>Open</div><div class="menu-action" data-target="menu"><img src="assets/DumpToTxt.ico" alt="">Create dump with DumpToTxt</div><div>Properties</div></div>
+            <div class="window-title"><span class="window-name"><svg class="folder-icon" viewBox="0 0 24 24"><path d="M2 6h8l2 2h10v13H2Z"/></svg>File Explorer</span><span>− &nbsp; □ &nbsp; ×</span></div>
+            <div class="explorer-toolbar">New <span>Cut &nbsp; Copy &nbsp; Rename</span><span>Sort</span></div>
+            <div class="breadcrumb">Projects <span>›</span> weather-app</div>
+            <div class="explorer-body"><aside>Home<br>Desktop<br>Documents<br><b>Projects</b></aside><div class="explorer-files"><div class="explorer-columns">Name <span>Type</span></div><div class="folder-row" data-target="folder"><svg class="folder-icon" viewBox="0 0 24 24"><path d="M2 6h8l2 2h10v13H2Z"/></svg><b>weather-app</b></div><div class="context-menu"><div>Open</div><div class="menu-action" data-target="menu"><img src="assets/DumpToTxt.ico" alt="">Create dump with DumpToTxt</div><div>Copy as path</div><div>Properties</div></div></div></div>
           </div>
         </li>
         <li id="file-picker">
           <h2><button class="step" data-step="1" type="button"><span>2</span> Choose your files</button></h2>
-          <p>Keep just what you need.</p>
+          <p>Choose content, format, and destination.</p>
           <div class="scene picker" aria-hidden="true">
-            <div class="window-title">Create dump <span>− &nbsp; □ &nbsp; ×</span></div>
-            <div class="picker-path">weather-app</div>
-            <div class="file-row"><i class="check checked"></i>README.md <small>Text</small></div>
-            <div class="file-row optional"><i class="check" data-target="check"></i>cities.json <small>JSON</small></div>
-            <div class="file-row"><i class="check checked"></i>src/forecast.js <small>JavaScript</small></div>
-            <div class="picker-bottom"><span><b class="file-count">3</b> files selected</span><span class="mini-button" data-target="create">Create dump</span></div>
+            <div class="window-title"><span class="window-name"><img src="assets/DumpToTxt.ico" alt="">Create dump</span><span>− &nbsp; □ &nbsp; ×</span></div>
+            <div class="review-workspace">
+              <aside class="review-settings"><b>weather-app</b><label>Save as</label><div class="select-field" data-target="format">Clean text (.txt)<span>⌄</span></div><div class="format-options"><div>Clean text (.txt)</div><div>Markdown (.md)</div><div>JSON (.json)</div><div>XML (.xml)</div><div>Word (.docx)</div></div><label>Layout</label><div class="select-field">Standard<span>⌄</span></div><label>Send to</label><div class="radio-choice selected">Save to file</div><div class="radio-choice">Copy to clipboard</div><label>Start with</label><div class="select-field">Essential<span>⌄</span></div><div class="advanced-label">Advanced settings ›</div></aside>
+              <div class="review-main"><div class="review-status"><b>Scan complete</b><span class="preview-button" data-target="preview">Preview output</span></div><div class="scan-info"><span class="file-count">3</span> files selected</div><div class="tree-heading">Name <span>Text size</span></div><div class="file-row optional"><i class="check" data-target="check"></i><span>cities.json</span><small>44 B</small></div><div class="file-row"><i class="check checked"></i><span>README.md</span><small>61 B</small></div><div class="file-row"><i class="check checked"></i><svg class="folder-icon" viewBox="0 0 24 24"><path d="M2 6h8l2 2h10v13H2Z"/></svg><span>src</span><small>68 B</small></div><div class="file-row child"><i class="check checked"></i><span>forecast.js</span><small>68 B</small></div><div class="preview-pane"><b>Output preview</b><pre>weather-app/
+├─ cities.json
+├─ README.md
+└─ src/forecast.js
+
+# Weather app</pre></div></div>
+            </div>
+            <div class="picker-bottom"><span>Local files · Your choices</span><span class="mini-button" data-target="create">Create dump</span></div>
           </div>
         </li>
         <li>

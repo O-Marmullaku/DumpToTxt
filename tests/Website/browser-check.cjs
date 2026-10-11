@@ -33,10 +33,15 @@ const server = http.createServer(async (request, response) => {
       await page.waitForFunction(() => document.querySelector('#walkthrough').classList.contains('playing'));
       await page.getByRole('button', {name: '2 Choose your files'}).click();
       assert.equal(await page.locator('#walkthrough').getAttribute('data-beat'), '2');
+      assert.equal(await page.locator('.demo-cursor').evaluate(el => el.getAnimations()[0].effect.getKeyframes().length), 49);
       await page.waitForFunction(() => document.querySelector('#walkthrough').dataset.beat === '3');
       assert.equal(await page.locator('.file-count').textContent(), '3');
+      await page.waitForFunction(() => document.querySelector('#walkthrough').classList.contains('format-open'));
+      assert.equal(await page.locator('.format-options').isVisible(), true);
+      await page.waitForFunction(() => document.querySelector('#walkthrough').classList.contains('preview-open'));
+      assert.equal(await page.locator('.preview-pane').isVisible(), true);
       await page.getByRole('button', {name: '3 Copy or save'}).click();
-      await page.waitForFunction(() => document.querySelector('#walkthrough').dataset.beat === '6');
+      await page.waitForFunction(() => document.querySelector('#walkthrough').dataset.beat === '10');
       assert.equal(await page.locator('.copy-result').textContent(), 'Copied to clipboard');
       await page.locator('#motion').click();
       assert.equal(await page.locator('#motion').getAttribute('aria-pressed'), 'false');

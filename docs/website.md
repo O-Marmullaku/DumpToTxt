@@ -11,11 +11,12 @@ a second bootstrap script. Generated staging stays under `artifacts/`.
 
 ## Design direction
 
-The site extends the application's light Graphite identity: pale gray canvas,
+The site extends the application's light Graphite identity: white canvas,
 white surfaces, charcoal type and actions, restrained blue focus and selection.
 It is a download page for Windows users evaluating a local project-export tool.
 The hero uses three compact, illustrative animated scenes: Explorer's context
-menu, a file checklist, and the resulting text. A single cursor demonstrates
+menu, the review settings and file tree, and the resulting text.
+The review scene demonstrates format choices and an explicitly opened preview. A single cursor demonstrates
 one action at a time with restrained motion and blue selection accents.
 Short numbered headings remain readable without JavaScript. On narrow screens,
 the animated scenes share one area; static scenes stack. Provide replay and a
