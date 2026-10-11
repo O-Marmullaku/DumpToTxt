@@ -2,7 +2,7 @@
 name: DumpToTxt Website
 description: Animated walkthrough Windows download page in the app's light Graphite style.
 colors:
-  canvas: "#ffffff"
+  canvas: "#f7f7f7"
   surface: "#ffffff"
   text: "#202020"
   text-muted: "#626262"
@@ -38,15 +38,12 @@ one action at a time with restrained motion and blue selection accents.
 Short numbered headings remain readable without JavaScript. On narrow screens,
 the animated scenes share one area; static scenes stack. Provide replay and a
 persisted website-owned animation toggle. Keep a link to the actual sample export.
-Use white Windows surfaces, Graphite neutrals, Segoe UI, and charcoal actions.
-Explorer keeps its navigation pane, toolbar, yellow folders and context menu.
-Cursor travel follows curved paths with smooth acceleration and deceleration. Blue is reserved for focus,
+Use Graphite neutrals, Segoe UI, and charcoal actions. Blue is reserved for focus,
 selection and links on hover. Keep visible keyboard focus (3px outline, 4px offset),
 underlined inline links, and selected text with white type on blue.
 
 Center the page in a 1120px wrapper with 40px desktop gutters, 24px below 900px,
-and 18px below 620px. The three-step hero spans up to 1440px, with a wider middle scene for the real
-review layout: settings sidebar, nested file tree and explicitly opened preview.
+and 18px below 620px. The three-step hero stays inside the 1120px wrapper.
 Primary buttons have a 50px minimum height, 6px corners and 14px / 22px padding.
 
 On narrow screens, stack headline and download, then use one shared scene area while animations are enabled.
