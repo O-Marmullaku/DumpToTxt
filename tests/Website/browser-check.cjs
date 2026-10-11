@@ -29,27 +29,7 @@ const server = http.createServer(async (request, response) => {
       const context = await browser.newContext({ viewport: { width, height }, isMobile: name === 'mobile', hasTouch: name === 'mobile' });
       const page = await context.newPage();
       page.on('pageerror', error => errors.push(error.message));
-      await page.emulateMedia({ reducedMotion: 'reduce' });
       await page.goto(url);
-      await page.locator('#motion-toggle').waitFor({ state: 'visible' });
-      assert.equal(await page.locator('#motion-toggle').getAttribute('aria-pressed'), 'true');
-      await page.evaluate(() => document.getAnimations().forEach(animation => { animation.pause(); animation.currentTime = 4500; }));
-      assert.equal(await page.locator('.selection-before').evaluate(el => getComputedStyle(el).opacity), '0');
-      await page.screenshot({ path: path.join(captures, `${name}-motion.png`), fullPage: true });
-      await page.locator('#motion-replay').click();
-      await page.locator('footer').scrollIntoViewIfNeeded();
-      await page.waitForFunction(() => document.getAnimations().every(animation => animation.playState !== 'running'));
-      await page.locator('.workflow').scrollIntoViewIfNeeded();
-      await page.waitForFunction(() => document.getAnimations().some(animation => animation.playState === 'running'));
-      await page.locator('#motion-toggle').click();
-      assert.equal(await page.evaluate(() => document.getAnimations().length), 0);
-      await page.reload();
-      await page.locator('#motion-toggle').waitFor({ state: 'visible' });
-      assert.equal(await page.locator('#motion-toggle').textContent(), 'Animations off');
-      await page.locator('#motion-toggle').click();
-      await page.locator('#motion-replay').click();
-      assert.ok(await page.evaluate(() => document.getAnimations().some(animation => animation.currentTime < 1000)));
-      await page.locator('#motion-toggle').click();
       for (const image of await page.locator('.app-shot img').all()) {
         await image.scrollIntoViewIfNeeded();
         await image.evaluate(img => img.decode());
@@ -83,7 +63,7 @@ const server = http.createServer(async (request, response) => {
     assert.equal(await page.locator(':focus').textContent(), 'Skip to content');
     await context.close();
     assert.deepEqual(errors, []);
-    console.log('PASS: motion replay, persisted on/off, OS-setting independence, offscreen pause/resume, desktop/mobile real screenshot loading, comparison, installer details, copy feedback, overflow, no-JS downloads and keyboard entry.');
+    console.log('PASS: desktop/mobile real screenshot loading, comparison, installer details, copy feedback, overflow, no-JS downloads and keyboard entry.');
     console.log(`Screenshots: ${captures}`);
   } finally {
     if (browser) await browser.close();

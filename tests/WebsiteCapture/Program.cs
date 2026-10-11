@@ -70,11 +70,6 @@ internal static class Program
         if (Field<Label>(form, "_validation").Text.Length != 0) throw new InvalidOperationException("Fixture scan reported an issue.");
         Field<TreeView>(form, "_tree").ExpandAll(); Application.DoEvents();
         Save(form, "review.png");
-        var first = Field<TreeView>(form, "_tree").Nodes[0];
-        var toggle = typeof(DumpSelectionForm).GetMethod("ToggleNode", Private)!;
-        toggle.Invoke(form, new object[] { first });
-        Save(form, "review-before.png");
-        toggle.Invoke(form, new object[] { first });
         if (includeShell) ShellMenuCapture.Capture(fixture, Path.Combine(Output, "context-menu.png"), form);
         var result = new DumpEngine().Run(fixture, config, Path.Combine(Output, "export"));
         if (result.Cancelled || result.FilesIncluded != 3 || result.OutputPath is null)

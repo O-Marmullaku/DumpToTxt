@@ -55,8 +55,3 @@ region with a visible mobile scroll hint. Never let it widen the page itself.
 Keep copy concise and claims sourced. No invented testimonials, usage counts,
 benchmarks, or competitor limitations. Any animation must have a website-owned
 control independent of operating-system preferences. Downloads work without JavaScript.
-
-Motion: one cursor-led demonstration across the three real screenshots. Click
-rings acknowledge the menu, checkbox and Create actions. The output sharpens
-when generated. Keep the end state visible, provide Replay and Animations on/off,
-and pause when offscreen. No repeated section entrances or motion dependency.
