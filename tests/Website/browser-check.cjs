@@ -30,13 +30,31 @@ const server = http.createServer(async (request, response) => {
       const page = await context.newPage();
       page.on('pageerror', error => errors.push(error.message));
       await page.goto(url);
-      for (const image of await page.locator('.app-shot img').all()) {
-        await image.scrollIntoViewIfNeeded();
-        await image.evaluate(img => img.decode());
-        assert.ok(await image.evaluate(img => img.naturalWidth > 100));
-      }
-      const [left, right] = await Promise.all([page.locator('.workflow > li').nth(0).boundingBox(), page.locator('.workflow > li').nth(2).boundingBox()]);
-      assert.ok(name === 'desktop' ? right.x > left.x && right.y === left.y : right.y > left.y);
+      await page.waitForFunction(() => document.querySelector('#walkthrough').classList.contains('playing'));
+      await page.getByRole('button', {name: '2 Choose your files'}).click();
+      assert.equal(await page.locator('#walkthrough').getAttribute('data-beat'), '2');
+      await page.waitForFunction(() => document.querySelector('#walkthrough').dataset.beat === '3');
+      assert.equal(await page.locator('.file-count').textContent(), '3');
+      await page.getByRole('button', {name: '3 Copy or save'}).click();
+      await page.waitForFunction(() => document.querySelector('#walkthrough').dataset.beat === '6');
+      assert.equal(await page.locator('.copy-result').textContent(), 'Copied to clipboard');
+      await page.locator('#motion').click();
+      assert.equal(await page.locator('#motion').getAttribute('aria-pressed'), 'false');
+      await page.reload();
+      assert.equal(await page.locator('#motion').getAttribute('aria-pressed'), 'false');
+      await page.emulateMedia({reducedMotion: 'reduce'});
+      await page.locator('#motion').click();
+      assert.equal(await page.locator('#motion').getAttribute('aria-pressed'), 'true');
+      await page.locator('#replay').click();
+      assert.equal(await page.locator('#walkthrough').getAttribute('data-beat'), '0');
+      await page.setViewportSize({width, height: 500});
+      await page.locator('footer').scrollIntoViewIfNeeded();
+      await page.waitForTimeout(200);
+      const pausedBeat = await page.locator('#walkthrough').getAttribute('data-beat');
+      await page.waitForTimeout(1800);
+      assert.equal(await page.locator('#walkthrough').getAttribute('data-beat'), pausedBeat);
+      await page.setViewportSize({width, height});
+      await page.locator('#walkthrough').scrollIntoViewIfNeeded();
       const exported = await page.request.get(url + '/assets/sample-weather-app.txt');
       assert.equal(exported.status(), 200);
       assert.ok((await exported.text()).includes('export function forecast(city)'));
@@ -48,7 +66,8 @@ const server = http.createServer(async (request, response) => {
       assert.match(await page.locator('#copy-status').textContent(), /Command copied|Copy unavailable/);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       await page.reload();
-      await page.locator('.app-shot img').first().evaluate(img => img.decode());
+      await page.getByRole('button', {name: '2 Choose your files'}).click();
+      await page.waitForFunction(() => document.querySelector('#walkthrough').dataset.beat === '3');
       await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({ path: path.join(captures, `${name}.png`), fullPage: true });
       await context.close();
@@ -57,13 +76,13 @@ const server = http.createServer(async (request, response) => {
     const page = await context.newPage();
     await page.goto(url);
     assert.equal(await page.getByRole('link', { name: 'Download for Windows', exact: true }).count(), 1);
-    assert.equal(await page.locator('.app-shot img').count(), 3);
+    assert.equal(await page.locator('.scene').count(), 3);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.keyboard.press('Tab');
     assert.equal(await page.locator(':focus').textContent(), 'Skip to content');
     await context.close();
     assert.deepEqual(errors, []);
-    console.log('PASS: desktop/mobile real screenshot loading, comparison, installer details, copy feedback, overflow, no-JS downloads and keyboard entry.');
+    console.log('PASS: desktop/mobile animated scenes, replay, persistent motion toggle, OS-independent motion, comparison, installer details, copy feedback, overflow, no-JS downloads and keyboard entry.');
     console.log(`Screenshots: ${captures}`);
   } finally {
     if (browser) await browser.close();

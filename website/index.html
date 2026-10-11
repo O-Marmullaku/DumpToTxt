@@ -28,31 +28,43 @@
       <div><h1>Right-click a folder.<br>Copy or save its contents.</h1></div>
       <div class="hero-download"><a class="button" href="https://github.com/O-Marmullaku/DumpToTxt/releases/latest/download/DumpToTxt-Setup-full.exe">Download for Windows <span aria-hidden="true">↓</span></a><p class="meta">v2.0.0 · Windows x64 · Runtime included</p></div>
     </div>
-    <ol class="workflow" aria-label="How DumpToTxt works">
-      <li>
-        <h2><span>1</span> Right-click in Explorer</h2>
-        <p>On a file, a folder, or inside a folder.</p>
-        <figure class="app-shot menu-shot">
-          <a href="assets/context-menu.png" aria-label="Open the actual Windows context menu screenshot"><img src="assets/context-menu.png" width="279" height="490" alt="Actual Windows Shell context menu with the installed DumpToTxt action." fetchpriority="high"></a>
-        </figure>
-      </li>
-      <li id="file-picker">
-        <h2><span>2</span> Choose your files</h2>
-        <p>Check what you want to include.</p>
-        <figure class="app-shot">
-          <a href="assets/review.png" aria-label="Open full-size screenshot of Create dump"><img src="assets/review.png" width="920" height="620" alt="The real Create dump window with README.md, cities.json and src/forecast.js selected." fetchpriority="high"></a>
-        </figure>
-      </li>
-      <li>
-        <h2><span>3</span> Use it anywhere</h2>
-        <p>Copy to clipboard or save a .txt file.</p>
-        <figure class="app-shot">
-          <a href="assets/output.png" aria-label="Open full-size image of the exported text file"><img src="assets/output.png" width="920" height="850" alt="The actual sample-weather-app.txt export: directory tree and contents of all three selected files." fetchpriority="high"></a>
-          <figcaption><a href="assets/sample-weather-app.txt">Open the actual .txt file</a></figcaption>
-        </figure>
-      </li>
-    </ol>
-    <p class="example-note">Sample project · Real app and generated output · TXT, Markdown, JSON, XML or Word</p>
+    <div class="walkthrough" id="walkthrough">
+      <ol class="workflow" aria-label="How DumpToTxt works">
+        <li>
+          <h2><button class="step" data-step="0" type="button"><span>1</span> Right-click in Explorer</button></h2>
+          <p>Start with a file or folder.</p>
+          <div class="scene explorer" aria-hidden="true">
+            <div class="window-title">File Explorer <span>− &nbsp; □ &nbsp; ×</span></div>
+            <div class="breadcrumb">Projects <span>/</span> weather-app</div>
+            <div class="folder-row" data-target="folder"><svg viewBox="0 0 24 24"><path d="M3 7V5h7l2 2h9v13H3Z"/></svg><b>weather-app</b><span>File folder</span></div>
+            <div class="context-menu"><div>Open</div><div class="menu-action" data-target="menu"><img src="assets/DumpToTxt.ico" alt="">Create dump with DumpToTxt</div><div>Properties</div></div>
+          </div>
+        </li>
+        <li id="file-picker">
+          <h2><button class="step" data-step="1" type="button"><span>2</span> Choose your files</button></h2>
+          <p>Keep just what you need.</p>
+          <div class="scene picker" aria-hidden="true">
+            <div class="window-title">Create dump <span>− &nbsp; □ &nbsp; ×</span></div>
+            <div class="picker-path">weather-app</div>
+            <div class="file-row"><i class="check checked"></i>README.md <small>Text</small></div>
+            <div class="file-row optional"><i class="check" data-target="check"></i>cities.json <small>JSON</small></div>
+            <div class="file-row"><i class="check checked"></i>src/forecast.js <small>JavaScript</small></div>
+            <div class="picker-bottom"><span><b class="file-count">3</b> files selected</span><span class="mini-button" data-target="create">Create dump</span></div>
+          </div>
+        </li>
+        <li>
+          <h2><button class="step" data-step="2" type="button"><span>3</span> Copy or save</button></h2>
+          <p>One document. Ready to use.</p>
+          <div class="scene output" aria-hidden="true">
+            <div class="window-title">weather-app.txt <span>− &nbsp; □ &nbsp; ×</span></div>
+            <div class="document"><span class="code-muted">----- Directory structure -----</span><br>weather-app/<br>├─ README.md<br>├─ cities.json<br>└─ src/forecast.js<br><br><span class="code-muted">----- README.md -----</span><br># Weather app</div>
+            <div class="output-bottom"><span class="copy-result">Ready to use</span><span class="mini-button" data-target="copy">Copy</span><span class="save-button">Save .txt</span></div>
+          </div>
+        </li>
+      </ol>
+      <svg class="demo-cursor" aria-hidden="true" viewBox="0 0 24 28"><path d="M3 2v21l6-6 5 9 4-2-5-9 9-1Z"/></svg>
+      <div class="demo-footer"><p>Illustrated walkthrough · <a href="assets/sample-weather-app.txt">See a real .txt export</a></p><div class="demo-controls" hidden><button id="replay" type="button">Replay</button><button id="motion" type="button" aria-pressed="true">Animations on</button></div></div>
+    </div>
   </section>
   <section class="wrap comparison" id="compare">
     <h2>DumpToTxt vs. Repomix vs. Gitingest</h2>

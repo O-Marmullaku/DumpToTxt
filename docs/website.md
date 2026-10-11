@@ -14,11 +14,12 @@ a second bootstrap script. Generated staging stays under `artifacts/`.
 The site extends the application's light Graphite identity: pale gray canvas,
 white surfaces, charcoal type and actions, restrained blue focus and selection.
 It is a download page for Windows users evaluating a local project-export tool.
-The hero integrates three real visuals directly into the numbered workflow:
-the installed Windows Shell context menu, the production file-selection window,
-and the unedited generated text export. Each image opens full-size. Keep the
-captions short; do not detach the screenshots from their steps or replace them
-with recreated menus or icons. The comparison links primary competitor sources.
+The hero uses three compact, illustrative animated scenes: Explorer's context
+menu, a file checklist, and the resulting text. A single cursor demonstrates
+one action at a time with restrained motion and blue selection accents.
+Short numbered headings remain readable without JavaScript. On narrow screens,
+the animated scenes share one area; static scenes stack. Provide replay and a
+persisted website-owned animation toggle. Keep a link to the actual sample export.
 Preserve keyboard focus, narrow touch-browser layouts, and no-JavaScript downloads.
 
 Keep product claims grounded in `product.md` and the released application.
