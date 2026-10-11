@@ -85,3 +85,10 @@ on the isolated desktop, highlights DumpToTxt using the native menu API, and
 captures the popup with `PrintWindow`. It never invokes a menu command. Inspect
 `artifacts/website/context-menu.png` before copying it to `website/assets/`.
 The capture shows the classic context menu; other installed Shell entries can vary.
+
+The walkthrough uses a single 10.5-second cursor sequence over real captures:
+menu click, checkbox change, Create dump, then the output comes into focus.
+`review-before.png` is captured with one file unchecked, not painted over the
+screenshot. Animations default on, ignore OS motion preferences, pause offscreen
+or when the document is hidden, and have a persistent site-owned off switch and
+replay button. Static screenshots remain readable without JavaScript.
