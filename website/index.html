@@ -29,40 +29,132 @@
       <div class="hero-download"><a class="button" href="https://github.com/O-Marmullaku/DumpToTxt/releases/latest/download/DumpToTxt-Setup-full.exe">Download for Windows <span aria-hidden="true">↓</span></a><p class="meta">v2.0.0 · Windows x64 · Runtime included</p></div>
     </div>
     <div class="walkthrough" id="walkthrough">
-      <ol class="workflow" aria-label="How DumpToTxt works">
-        <li>
-          <h2><button class="step" data-step="0" type="button"><span>1</span> Right-click in Explorer</button></h2>
-          <p>Start with a file or folder.</p>
-          <div class="scene explorer" aria-hidden="true">
-            <div class="window-title">File Explorer <span>− &nbsp; □ &nbsp; ×</span></div>
-            <div class="breadcrumb">Projects <span>/</span> weather-app</div>
-            <div class="folder-row" data-target="folder"><svg viewBox="0 0 24 24"><path d="M3 7V5h7l2 2h9v13H3Z"/></svg><b>weather-app</b><span>File folder</span></div>
-            <div class="context-menu"><div>Open</div><div class="menu-action" data-target="menu"><img src="assets/DumpToTxt.ico" alt="">Create dump with DumpToTxt</div><div>Properties</div></div>
-          </div>
-        </li>
-        <li id="file-picker">
-          <h2><button class="step" data-step="1" type="button"><span>2</span> Choose your files</button></h2>
-          <p>Keep just what you need.</p>
-          <div class="scene picker" aria-hidden="true">
-            <div class="window-title">Create dump <span>− &nbsp; □ &nbsp; ×</span></div>
-            <div class="picker-path">weather-app</div>
-            <div class="file-row"><i class="check checked"></i>README.md <small>Text</small></div>
-            <div class="file-row optional"><i class="check" data-target="check"></i>cities.json <small>JSON</small></div>
-            <div class="file-row"><i class="check checked"></i>src/forecast.js <small>JavaScript</small></div>
-            <div class="picker-bottom"><span><b class="file-count">3</b> files selected</span><span class="mini-button" data-target="create">Create dump</span></div>
-          </div>
-        </li>
-        <li>
-          <h2><button class="step" data-step="2" type="button"><span>3</span> Copy or save</button></h2>
-          <p>One document. Ready to use.</p>
-          <div class="scene output" aria-hidden="true">
-            <div class="window-title">weather-app.txt <span>− &nbsp; □ &nbsp; ×</span></div>
-            <div class="document"><span class="code-muted">----- Directory structure -----</span><br>weather-app/<br>├─ README.md<br>├─ cities.json<br>└─ src/forecast.js<br><br><span class="code-muted">----- README.md -----</span><br># Weather app</div>
-            <div class="output-bottom"><span class="copy-result">Ready to use</span><span class="mini-button" data-target="copy">Copy</span><span class="save-button">Save .txt</span></div>
-          </div>
-        </li>
-      </ol>
-      <svg class="demo-cursor" aria-hidden="true" viewBox="0 0 24 28"><path d="M3 2v21l6-6 5 9 4-2-5-9 9-1Z"/></svg>
+      <div class="stage">
+        <ol class="steps" aria-label="How DumpToTxt works">
+          <li class="view">
+            <h2><button class="step" type="button" data-step="0"><span>1</span>Right-click a folder</button></h2>
+            <div class="frame" data-step="0" aria-label="Replay step 1">
+              <div class="scene explorer picked menu-open" aria-hidden="true">
+                <div class="win">
+                  <div class="tabbar"><span class="tab"><i class="fold"></i>Projects<s>✕</s></span><span class="plus">+</span><span class="wc">─&ensp;☐&ensp;✕</span></div>
+                  <div class="addr"><span class="arrows">←&ensp;→&ensp;↑&ensp;⟳</span><span class="path"><i class="fold"></i>›&nbsp; This PC&nbsp; ›&nbsp; Data (F:)&nbsp; ›&nbsp; Projects</span><span class="search">Search Projects</span></div>
+                  <div class="cmd"><span><b class="new">+</b> New ⌄</span><i class="sep"></i><span class="tools"><svg viewBox="0 0 16 16"><circle cx="4" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><path d="M5.5 10.5 12 2M10.5 10.5 4 2"/></svg><svg viewBox="0 0 16 16"><rect x="5" y="2" width="8" height="10" rx="1"/><path d="M3 5v8a1 1 0 0 0 1 1h6"/></svg><svg viewBox="0 0 16 16"><rect x="2" y="5" width="12" height="6" rx="1"/><path d="M5 8h4"/></svg><svg viewBox="0 0 16 16"><path d="M3 4h10M6 4V2h4v2M4.5 4l.7 10h5.6l.7-10"/></svg></span><i class="sep"></i><span>⇅ Sort ⌄</span><span>☰ View ⌄</span><span>···</span></div>
+                  <div class="body">
+                    <div class="nav">
+                      <span><svg viewBox="0 0 16 16"><path d="M2.5 7.5 8 3l5.5 4.5V13h-11Z" fill="#6c8ebf"/></svg>Home</span>
+                      <hr>
+                      <span><svg viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="8.5" rx="1" fill="#2b7cd3"/><path d="M6 14h4" stroke="#555"/></svg>Desktop</span>
+                      <span><svg viewBox="0 0 16 16"><path d="M8 2v8M4.5 7 8 10.5 11.5 7M3 13.5h10" stroke="#2e9b4f" stroke-width="1.8" fill="none"/></svg>Downloads</span>
+                      <span><svg viewBox="0 0 16 16"><path d="M4 1.5h5.5L12.5 4.5V14.5H4Z" fill="#7a8fa6"/></svg>Documents</span>
+                      <span><svg viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="1.5" fill="#4aa0dd"/><circle cx="11" cy="6" r="1.5" fill="#ffe08a"/></svg>Pictures</span>
+                      <hr>
+                      <span class="pc"><svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="9" rx="1" fill="#4d7fb8"/><path d="M5 14h6" stroke="#555"/></svg>This PC</span>
+                    </div>
+                    <div class="list">
+                      <div class="cols"><span>Name</span><span>Date modified</span><span>Type</span></div>
+                      <div class="row"><span><i class="fold"></i>assets</span><span>02.10.2026</span><span>File folder</span></div>
+                      <div class="row"><span><i class="fold"></i>notes</span><span>08.10.2026</span><span>File folder</span></div>
+                      <div class="row target"><span><i class="fold"></i>weather-app</span><span>12.10.2026</span><span>File folder</span></div>
+                      <div class="row"><span><i class="fold"></i>website</span><span>11.10.2026</span><span>File folder</span></div>
+                      <div class="row"><span><i class="doc"></i>todo.txt</span><span>09.10.2026</span><span>Text Document</span></div>
+                    </div>
+                  </div>
+                  <div class="status">5 items<span class="selinfo">1 item selected</span></div>
+                </div>
+                <div class="cmenu">
+                  <b>Open</b><span>Pin to Quick access</span><span class="dump hot"><img src="assets/DumpToTxt.ico" alt="">Create dump with DumpToTxt</span>
+                  <hr><span>Cut</span><span>Copy</span><span>Copy as path</span>
+                  <hr><span>Properties</span>
+                </div>
+              </div>
+            </div>
+          </li>
+          <li>
+            <h2><button class="step" type="button" data-step="1"><span>2</span>Pick what goes in</button></h2>
+            <div class="frame" data-step="1" aria-label="Replay step 2">
+              <div class="scene review" aria-hidden="true">
+                <div class="win">
+                  <div class="titlebar"><img src="assets/DumpToTxt.ico" alt="">Create dump — DumpToTxt<span class="wc">─&ensp;☐&ensp;✕</span></div>
+                  <div class="rbody">
+                    <div class="rail">
+                      <b class="rpath">F:\Projects\weather-app</b><small>Selected folder</small><hr>
+                      <label>SAVE AS</label><span class="select">Clean text (.txt)</span>
+                      <label>LAYOUT</label><span class="select">Standard</span>
+                      <label>SEND TO</label>
+                      <span class="radio on">Save to file <em>Desktop</em></span>
+                      <span class="radio">Copy to clipboard</span>
+                    </div>
+                    <div class="main">
+                      <div class="mhead"><span><b class="scan">Scan complete</b><small class="sum">173 B selected · 4 paths</small></span><span class="btn">Preview output…</span></div>
+                      <div class="cols"><span>NAME ▲</span><span>TEXT SIZE</span><span>SHARE</span></div>
+                      <div class="trow"><i class="cb"></i><i class="file"></i><span class="name">cities.json</span><span>44 B</span><span class="share" style="--s:25.4" data-b="0.0"><i></i><em>25.4%</em></span></div>
+                      <div class="trow"><i class="cb"></i><i class="file"></i><span class="name">README.md</span><span>61 B</span><span class="share" style="--s:35.3" data-b="47.3"><i></i><em>35.3%</em></span></div>
+                      <div class="trow"><span class="chev">⌄</span><i class="cb"></i><i class="fold"></i><span class="name">src</span><span>68 B</span><span class="share" style="--s:39.3" data-b="52.7"><i></i><em>39.3%</em></span></div>
+                      <div class="trow child"><i class="cb"></i><i class="file"></i><span class="name">forecast.js</span><span>68 B</span><span class="share" style="--s:39.3" data-b="52.7"><i></i><em>39.3%</em></span></div>
+                    </div>
+                  </div>
+                  <div class="rfoot"><span><i class="box"></i>Skip this screen next time</span><span class="btn">Cancel</span><span class="btn dark create">Create dump</span></div>
+                </div>
+                <div class="progress"><div class="titlebar"><img src="assets/DumpToTxt.ico" alt="">Creating dump — DumpToTxt</div><p>Preparing dump…</p><span class="bar"><i></i></span><span class="btn">Cancel</span></div>
+              </div>
+            </div>
+          </li>
+          <li>
+            <h2><button class="step" type="button" data-step="2"><span>3</span>Get one text file</button></h2>
+            <div class="frame" data-step="2" aria-label="Replay step 3">
+              <div class="scene notepad" aria-hidden="true">
+                <div class="win">
+                  <div class="tabbar"><span class="tab"><svg viewBox="0 0 16 16"><path d="M3.5 1.5h7l2 2v11h-9Z" fill="#fff" stroke="#3b7fd6"/><path d="M5.5 6h5M5.5 8.5h5M5.5 11h3" stroke="#3b7fd6"/></svg>weather-app-dump-14-32.txt<s>✕</s></span><span class="plus">+</span><span class="wc">─&ensp;☐&ensp;✕</span></div>
+                  <div class="npmenu"><span>File</span><span>Edit</span><span>View</span><span class="gear">⚙</span></div>
+                  <div class="text"><pre>============================================================
+DumpToTxt — Plain output
+============================================================
+Root: F:\Projects\weather-app
+Files: 3
+Total size: 173 B
+Total tokens: 46 (o200k_base)
+
+----- Directory structure -----
+├── src/
+│   └── forecast.js
+├── cities.json
+└── README.md
+
+----- Largest files by tokens -----
+ 1. src\forecast.js  (18 tokens)
+ 2. cities.json  (15 tokens)
+ 3. README.md  (13 tokens)
+
+----- Token tree -----
+├── src/  (18 tokens)
+│   └── forecast.js  (18 tokens)
+├── cities.json  (15 tokens)
+└── README.md  (13 tokens)
+
+----- Secret scan (Warn) -----
+No secrets detected.
+
+----- Files -----
+
+================ File: cities.json (15 tokens) ================
+{ "cities": ["Zurich", "London", "Tokyo"] }
+
+================ File: README.md (13 tokens) ================
+# Sample Weather App
+Shows the forecast for a selected city.
+
+================ File: src\forecast.js (18 tokens) ================
+export function forecast(city) {
+  return `${city}: 22 C, sunny`;
+}</pre></div>
+                  <div class="npstatus"><span>Ln 1, Col 1</span><span>100%</span><span>Windows (CRLF)</span><span>UTF-8 with BOM</span></div>
+                </div>
+              </div>
+            </div>
+          </li>
+        </ol>
+        <div class="cursor-layer" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 2l14 9-6.5 1.5L15 20l-3 1.4-3.3-7.4L4 18z"/></svg></div>
+      </div>
       <div class="demo-footer"><p>Illustrated walkthrough · <a href="assets/sample-weather-app.txt">See a real .txt export</a></p><div class="demo-controls" hidden><button id="replay" type="button">Replay</button><button id="motion" type="button" aria-pressed="true">Animations on</button></div></div>
     </div>
   </section>

@@ -32,11 +32,14 @@ rounded:
 This applies to `website/`. The native application's palettes remain owned by
 `UiTheme.cs`.
 
-The hero uses three compact, illustrative animated scenes: Explorer's context
-menu, a file checklist, and the resulting text. A single cursor demonstrates
-one action at a time with restrained motion and blue selection accents.
-Short numbered headings remain readable without JavaScript. On narrow screens,
-the animated scenes share one area; static scenes stack. Provide replay and a
+The hero uses three miniature, recognisable Windows scenes: a Windows 11 File
+Explorer with the classic context menu, the app's real review window, and
+Notepad opening the dump. Each is laid out on a 360x270 reference and scales as
+one picture. A single cursor travels between them on curved paths, clicking as a
+person would; only the playing step is in full colour. Clicking a step or card
+replays it. Short numbered headings and static scenes remain readable without
+JavaScript. Below 980px the animated scenes share one card under the step list;
+static scenes stack. Provide replay and a
 persisted website-owned animation toggle. Keep a link to the actual sample export.
 Use Graphite neutrals, Segoe UI, and charcoal actions. Blue is reserved for focus,
 selection and links on hover. Keep visible keyboard focus (3px outline, 4px offset),
