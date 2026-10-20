@@ -9,7 +9,7 @@
     <RootNamespace>DumpToTxt.App</RootNamespace>
     <AssemblyName>DumpToTxt</AssemblyName>
     <ApplicationIcon>..\..\packaging\assets\DumpToTxt.ico</ApplicationIcon>
-    <Version>2.0.0</Version>
+    <Version>2.1.0</Version>
     <FileVersion>$(Version).0</FileVersion>
     <AssemblyVersion>$(Version).0</AssemblyVersion>
     <Product>DumpToTxt</Product>
