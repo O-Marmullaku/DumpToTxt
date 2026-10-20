@@ -23,17 +23,17 @@ public static class OutputStyleCatalog
     {
         OutputStyle.Markdown or OutputStyle.MarkdownAi or OutputStyle.MarkdownCompact => OutputFormatKind.Markdown,
         OutputStyle.Json or OutputStyle.JsonCompact => OutputFormatKind.Json,
-        OutputStyle.Xml or OutputStyle.XmlCompact => OutputFormatKind.Xml,
+        OutputStyle.Xml or OutputStyle.XmlCompact or OutputStyle.Repomix => OutputFormatKind.Xml,
         OutputStyle.Docx => OutputFormatKind.Word,
         _ => OutputFormatKind.Text,
     };
 
     public static IReadOnlyList<OutputStyle> Layouts(OutputFormatKind format) => format switch
     {
-        OutputFormatKind.Text => new[] { OutputStyle.Plain, OutputStyle.Classic },
+        OutputFormatKind.Text => new[] { OutputStyle.Plain, OutputStyle.Classic, OutputStyle.Gitingest },
         OutputFormatKind.Markdown => new[] { OutputStyle.Markdown, OutputStyle.MarkdownAi, OutputStyle.MarkdownCompact },
         OutputFormatKind.Json => new[] { OutputStyle.Json, OutputStyle.JsonCompact },
-        OutputFormatKind.Xml => new[] { OutputStyle.Xml, OutputStyle.XmlCompact },
+        OutputFormatKind.Xml => new[] { OutputStyle.Xml, OutputStyle.XmlCompact, OutputStyle.Repomix },
         OutputFormatKind.Word => new[] { OutputStyle.Docx },
         _ => new[] { OutputStyle.Plain },
     };
@@ -53,6 +53,8 @@ public static class OutputStyleCatalog
         OutputStyle.Json or OutputStyle.Xml => "Readable",
         OutputStyle.JsonCompact or OutputStyle.XmlCompact => "Compact",
         OutputStyle.Docx => "Navigable",
+        OutputStyle.Repomix => "Repomix-style",
+        OutputStyle.Gitingest => "Gitingest-style",
         _ => style.ToString(),
     };
 

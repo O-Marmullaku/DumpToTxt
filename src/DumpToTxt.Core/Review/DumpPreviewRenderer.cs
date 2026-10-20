@@ -34,6 +34,8 @@ public static class DumpPreviewRenderer
         }
         var fileArray = files.ToArray();
 
+        if (cfg.Style == OutputStyle.Repomix) return Repomix(fileArray);
+        if (cfg.Style == OutputStyle.Gitingest) return Gitingest(fileArray);
         return OutputStyleCatalog.Format(cfg.Style) switch
         {
             OutputFormatKind.Markdown => Markdown(fileArray, cfg.Style),
@@ -91,6 +93,25 @@ public static class DumpPreviewRenderer
         var doc = new XDocument(new XElement("dumpPreview",
             files.Select(x => new XElement("file", new XAttribute("path", x.Entry.RelativePath), x.Content))));
         return doc.ToString(compact ? SaveOptions.DisableFormatting : SaveOptions.None);
+    }
+
+    private static string Repomix((DumpPreviewEntry Entry, string Content)[] files)
+    {
+        var sb = new StringBuilder("Repomix-style preview\n\n<files>\n");
+        foreach (var file in files)
+            sb.Append("<file path=\"").Append(file.Entry.RelativePath.Replace('\\', '/')).Append("\">\n")
+              .Append(file.Content.Trim()).Append("\n</file>\n\n");
+        return sb.Append("</files>\n").ToString();
+    }
+
+    private static string Gitingest((DumpPreviewEntry Entry, string Content)[] files)
+    {
+        var sb = new StringBuilder("Gitingest-style preview\n");
+        string separator = new('=', 48);
+        foreach (var file in files)
+            sb.Append('\n').Append(separator).Append("\nFILE: ").Append(file.Entry.RelativePath.Replace('\\', '/'))
+              .Append('\n').Append(separator).Append('\n').Append(file.Content).Append("\n\n");
+        return sb.ToString();
     }
 
     private static string Word((DumpPreviewEntry Entry, string Content)[] files)

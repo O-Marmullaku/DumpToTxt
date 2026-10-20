@@ -3,69 +3,50 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DumpToTxt — Right-click. Select. Copy or save.</title>
-  <meta name="description" content="Right-click a folder, choose your files, and export one document. A local Windows app with a file picker and output preview. Compare DumpToTxt, Repomix and Gitingest.">
+  <title>DumpToTxt — Dump any repo into a .txt</title>
+  <meta name="description" content="Dump any repo, file or folder into one .txt, .md or .json, or straight to your clipboard. Right-click in Explorer. A local Windows app; no Node.js or terminal needed.">
   <link rel="canonical" href="https://dumptotxt.com/">
   <link rel="icon" href="assets/DumpToTxt.ico">
   <meta name="theme-color" content="#f7f7f7">
-  <meta property="og:title" content="DumpToTxt — Right-click. Select. Copy or save.">
-  <meta property="og:description" content="Right-click in Explorer. Choose files. Copy to clipboard or save a file.">
+  <meta property="og:title" content="DumpToTxt — Dump any repo into a .txt">
+  <meta property="og:description" content="Dump any repo, file or folder into one .txt, .md or .json, or straight to your clipboard.">
   <meta property="og:image" content="https://dumptotxt.com/assets/review.png">
   <meta property="og:url" content="https://dumptotxt.com/">
   <meta property="og:type" content="website">
   <link rel="stylesheet" href="styles.css">
+  <script>document.documentElement.classList.add('js')</script>
   <script src="app.js" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="wrap site-header">
   <a class="brand" href="#"><img src="assets/DumpToTxt.ico" width="30" height="30" alt="">DumpToTxt</a>
-  <nav aria-label="Main navigation"><a href="#compare">Compare</a><a href="#download">Download</a><a href="https://github.com/O-Marmullaku/DumpToTxt">GitHub</a></nav>
+  <nav aria-label="Main navigation"><a href="https://github.com/O-Marmullaku/DumpToTxt">GitHub</a></nav>
 </header>
 <main id="main">
   <section class="wrap hero">
     <div class="hero-top">
-      <div><h1>Right-click a folder.<br>Copy or save its contents.</h1></div>
-      <div class="hero-download"><a class="button" href="https://github.com/O-Marmullaku/DumpToTxt/releases/latest/download/DumpToTxt-Setup-full.exe">Download for Windows <span aria-hidden="true">↓</span></a><p class="meta">v2.0.0 · Windows x64 · Runtime included</p></div>
+      <div><h1>Dump any repo into a .txt</h1><p class="sub">Or any file or folder into <code>.md</code> <code>.json</code> or straight to your <code>clipboard</code></p></div>
+      <div class="hero-download"><a class="button" href="https://github.com/O-Marmullaku/DumpToTxt/releases/latest/download/DumpToTxt-Setup-full.exe"><svg class="win-logo" viewBox="0 0 16 16" aria-hidden="true"><path d="M0 0h7.5v7.5H0zM8.5 0H16v7.5H8.5zM0 8.5h7.5V16H0zM8.5 8.5H16V16H8.5z"/></svg>Download for Windows</a><p class="meta">v2.0.0 · Windows x64 · Nothing else to install</p></div>
     </div>
     <div class="walkthrough" id="walkthrough">
       <div class="stage">
         <ol class="steps" aria-label="How DumpToTxt works">
           <li class="view">
-            <h2><button class="step" type="button" data-step="0"><span>1</span>Right-click a folder</button></h2>
+            <h2><button class="step" type="button" data-step="0"><span>1</span>Right-click in Explorer</button></h2>
             <div class="frame" data-step="0" aria-label="Replay step 1">
               <div class="scene explorer picked menu-open" aria-hidden="true">
                 <div class="win">
-                  <div class="tabbar"><span class="tab"><i class="fold"></i>Projects<s>✕</s></span><span class="plus">+</span><span class="wc">─&ensp;☐&ensp;✕</span></div>
-                  <div class="addr"><span class="arrows">←&ensp;→&ensp;↑&ensp;⟳</span><span class="path"><i class="fold"></i>›&nbsp; This PC&nbsp; ›&nbsp; Data (F:)&nbsp; ›&nbsp; Projects</span><span class="search">Search Projects</span></div>
-                  <div class="cmd"><span><b class="new">+</b> New ⌄</span><i class="sep"></i><span class="tools"><svg viewBox="0 0 16 16"><circle cx="4" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><path d="M5.5 10.5 12 2M10.5 10.5 4 2"/></svg><svg viewBox="0 0 16 16"><rect x="5" y="2" width="8" height="10" rx="1"/><path d="M3 5v8a1 1 0 0 0 1 1h6"/></svg><svg viewBox="0 0 16 16"><rect x="2" y="5" width="12" height="6" rx="1"/><path d="M5 8h4"/></svg><svg viewBox="0 0 16 16"><path d="M3 4h10M6 4V2h4v2M4.5 4l.7 10h5.6l.7-10"/></svg></span><i class="sep"></i><span>⇅ Sort ⌄</span><span>☰ View ⌄</span><span>···</span></div>
-                  <div class="body">
-                    <div class="nav">
-                      <span><svg viewBox="0 0 16 16"><path d="M2.5 7.5 8 3l5.5 4.5V13h-11Z" fill="#6c8ebf"/></svg>Home</span>
-                      <hr>
-                      <span><svg viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="8.5" rx="1" fill="#2b7cd3"/><path d="M6 14h4" stroke="#555"/></svg>Desktop</span>
-                      <span><svg viewBox="0 0 16 16"><path d="M8 2v8M4.5 7 8 10.5 11.5 7M3 13.5h10" stroke="#2e9b4f" stroke-width="1.8" fill="none"/></svg>Downloads</span>
-                      <span><svg viewBox="0 0 16 16"><path d="M4 1.5h5.5L12.5 4.5V14.5H4Z" fill="#7a8fa6"/></svg>Documents</span>
-                      <span><svg viewBox="0 0 16 16"><rect x="1.5" y="3" width="13" height="10" rx="1.5" fill="#4aa0dd"/><circle cx="11" cy="6" r="1.5" fill="#ffe08a"/></svg>Pictures</span>
-                      <hr>
-                      <span class="pc"><svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="9" rx="1" fill="#4d7fb8"/><path d="M5 14h6" stroke="#555"/></svg>This PC</span>
-                    </div>
-                    <div class="list">
-                      <div class="cols"><span>Name</span><span>Date modified</span><span>Type</span></div>
-                      <div class="row"><span><i class="fold"></i>assets</span><span>02.10.2026</span><span>File folder</span></div>
-                      <div class="row"><span><i class="fold"></i>notes</span><span>08.10.2026</span><span>File folder</span></div>
-                      <div class="row target"><span><i class="fold"></i>weather-app</span><span>12.10.2026</span><span>File folder</span></div>
-                      <div class="row"><span><i class="fold"></i>website</span><span>11.10.2026</span><span>File folder</span></div>
-                      <div class="row"><span><i class="doc"></i>todo.txt</span><span>09.10.2026</span><span>Text Document</span></div>
-                    </div>
+                  <div class="tabbar"><span class="tab"><i class="fold"></i>Projects</span><span class="wc">─&ensp;☐&ensp;<span class="x">✕</span></span></div>
+                  <div class="addr"><span class="arrows">←&ensp;→</span><span class="path"><i class="fold"></i>Projects</span></div>
+                  <div class="list">
+                    <div class="row"><i class="fold"></i>assets</div>
+                    <div class="row target"><i class="fold"></i>weather-app</div>
+                    <div class="row"><i class="fold"></i>website</div>
+                    <div class="row"><i class="doc"></i>todo.txt</div>
                   </div>
-                  <div class="status">5 items<span class="selinfo">1 item selected</span></div>
                 </div>
-                <div class="cmenu">
-                  <b>Open</b><span>Pin to Quick access</span><span class="dump hot"><img src="assets/DumpToTxt.ico" alt="">Create dump with DumpToTxt</span>
-                  <hr><span>Cut</span><span>Copy</span><span>Copy as path</span>
-                  <hr><span>Properties</span>
-                </div>
+                <div class="cmenu"><span>Open</span><span class="dump hot"><img src="assets/DumpToTxt.ico" alt="">Create dump with DumpToTxt</span><span>Copy</span><hr><span>Properties</span></div>
               </div>
             </div>
           </li>
@@ -74,80 +55,48 @@
             <div class="frame" data-step="1" aria-label="Replay step 2">
               <div class="scene review" aria-hidden="true">
                 <div class="win">
-                  <div class="titlebar"><img src="assets/DumpToTxt.ico" alt="">Create dump — DumpToTxt<span class="wc">─&ensp;☐&ensp;✕</span></div>
-                  <div class="rbody">
-                    <div class="rail">
-                      <b class="rpath">F:\Projects\weather-app</b><small>Selected folder</small><hr>
-                      <label>SAVE AS</label><span class="select">Clean text (.txt)</span>
-                      <label>LAYOUT</label><span class="select">Standard</span>
-                      <label>SEND TO</label>
-                      <span class="radio on">Save to file <em>Desktop</em></span>
-                      <span class="radio">Copy to clipboard</span>
-                    </div>
-                    <div class="main">
-                      <div class="mhead"><span><b class="scan">Scan complete</b><small class="sum">173 B selected · 4 paths</small></span><span class="btn">Preview output…</span></div>
-                      <div class="cols"><span>NAME ▲</span><span>TEXT SIZE</span><span>SHARE</span></div>
-                      <div class="trow"><i class="cb"></i><i class="file"></i><span class="name">cities.json</span><span>44 B</span><span class="share" style="--s:25.4" data-b="0.0"><i></i><em>25.4%</em></span></div>
-                      <div class="trow"><i class="cb"></i><i class="file"></i><span class="name">README.md</span><span>61 B</span><span class="share" style="--s:35.3" data-b="47.3"><i></i><em>35.3%</em></span></div>
-                      <div class="trow"><span class="chev">⌄</span><i class="cb"></i><i class="fold"></i><span class="name">src</span><span>68 B</span><span class="share" style="--s:39.3" data-b="52.7"><i></i><em>39.3%</em></span></div>
-                      <div class="trow child"><i class="cb"></i><i class="file"></i><span class="name">forecast.js</span><span>68 B</span><span class="share" style="--s:39.3" data-b="52.7"><i></i><em>39.3%</em></span></div>
-                    </div>
-                  </div>
-                  <div class="rfoot"><span><i class="box"></i>Skip this screen next time</span><span class="btn">Cancel</span><span class="btn dark create">Create dump</span></div>
+                  <div class="titlebar"><img src="assets/DumpToTxt.ico" alt="">Create dump<span class="wc">─&ensp;☐&ensp;<span class="x">✕</span></span></div>
+                  <div class="mhead"><b>weather-app</b><small class="sum">3 files · 173 B</small></div>
+                  <div class="trow drop"><i class="cb"></i><i class="file"></i><span class="name">cities.json</span><span>44 B</span></div>
+                  <div class="trow"><i class="cb"></i><i class="file"></i><span class="name">README.md</span><span>61 B</span></div>
+                  <div class="trow"><i class="cb"></i><i class="file"></i><span class="name">src/forecast.js</span><span>68 B</span></div>
+                  <div class="rfoot"><span class="switch"><span class="to-file">.txt file</span><i class="track"><i></i></i><span class="to-clip">Clipboard</span></span><span class="btn dark create">Create dump</span></div>
+                  <span class="toast">✓ Copied to clipboard</span>
                 </div>
-                <div class="progress"><div class="titlebar"><img src="assets/DumpToTxt.ico" alt="">Creating dump — DumpToTxt</div><p>Preparing dump…</p><span class="bar"><i></i></span><span class="btn">Cancel</span></div>
               </div>
             </div>
           </li>
           <li>
-            <h2><button class="step" type="button" data-step="2"><span>3</span>Get one text file</button></h2>
+            <h2><button class="step" type="button" data-step="2"><span>3</span>Use it anywhere</button></h2>
             <div class="frame" data-step="2" aria-label="Replay step 3">
-              <div class="scene notepad" aria-hidden="true">
-                <div class="win">
-                  <div class="tabbar"><span class="tab"><svg viewBox="0 0 16 16"><path d="M3.5 1.5h7l2 2v11h-9Z" fill="#fff" stroke="#3b7fd6"/><path d="M5.5 6h5M5.5 8.5h5M5.5 11h3" stroke="#3b7fd6"/></svg>weather-app-dump-14-32.txt<s>✕</s></span><span class="plus">+</span><span class="wc">─&ensp;☐&ensp;✕</span></div>
-                  <div class="npmenu"><span>File</span><span>Edit</span><span>View</span><span class="gear">⚙</span></div>
-                  <div class="text"><pre>============================================================
-DumpToTxt — Plain output
-============================================================
-Root: F:\Projects\weather-app
-Files: 3
-Total size: 173 B
-Total tokens: 46 (o200k_base)
-
------ Directory structure -----
+              <div class="scene result fresh" aria-hidden="true">
+                <div class="win notepad">
+                  <div class="tabbar"><span class="tab"><svg viewBox="0 0 16 16"><path d="M3.5 1.5h7l2 2v11h-9Z" fill="#fff" stroke="#3b7fd6"/><path d="M5.5 6h5M5.5 8.5h5M5.5 11h3" stroke="#3b7fd6"/></svg>weather-app-dump.txt</span><span class="wc">─&ensp;☐&ensp;<span class="x">✕</span></span></div>
+                  <div class="text"><pre>----- Directory structure -----
 ├── src/
 │   └── forecast.js
 ├── cities.json
 └── README.md
 
------ Largest files by tokens -----
- 1. src\forecast.js  (18 tokens)
- 2. cities.json  (15 tokens)
- 3. README.md  (13 tokens)
-
------ Token tree -----
-├── src/  (18 tokens)
-│   └── forecast.js  (18 tokens)
-├── cities.json  (15 tokens)
-└── README.md  (13 tokens)
-
------ Secret scan (Warn) -----
-No secrets detected.
-
------ Files -----
-
-================ File: cities.json (15 tokens) ================
-{ "cities": ["Zurich", "London", "Tokyo"] }
-
-================ File: README.md (13 tokens) ================
+===== File: README.md =====
 # Sample Weather App
-Shows the forecast for a selected city.
+Shows the forecast for a city.
 
-================ File: src\forecast.js (18 tokens) ================
+===== File: src\forecast.js =====
 export function forecast(city) {
   return `${city}: 22 C, sunny`;
 }</pre></div>
-                  <div class="npstatus"><span>Ln 1, Col 1</span><span>100%</span><span>Windows (CRLF)</span><span>UTF-8 with BOM</span></div>
+                </div>
+                <div class="win chat">
+                  <div class="tabbar"><span class="tab"><i class="bot"></i>ChatGPT</span><span class="wc">─&ensp;☐&ensp;<span class="x">✕</span></span></div>
+                  <div class="addr"><span class="arrows">←&ensp;→</span><span class="path">chatgpt.com</span></div>
+                  <div class="convo">
+                    <p class="hello">What can I help with?</p>
+                    <div class="sent"><span class="pasted"><b>Pasted text</b><code>----- Directory structure -----<br>├── src/</code></span><span class="msg">why am i such a bad programmer?</span></div>
+                    <span class="dots"><i></i><i></i><i></i></span>
+                  </div>
+                  <kbd class="keys">Ctrl + V</kbd>
+                  <div class="composer"><span class="pasted"><b>Pasted text</b><code>----- Directory structure -----<br>├── src/</code></span><span class="line"><span class="typed"></span><span class="send">↑</span></span></div>
                 </div>
               </div>
             </div>
@@ -155,35 +104,44 @@ export function forecast(city) {
         </ol>
         <div class="cursor-layer" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 2l14 9-6.5 1.5L15 20l-3 1.4-3.3-7.4L4 18z"/></svg></div>
       </div>
-      <div class="demo-footer"><p>Illustrated walkthrough · <a href="assets/sample-weather-app.txt">See a real .txt export</a></p><div class="demo-controls" hidden><button id="replay" type="button">Replay</button><button id="motion" type="button" aria-pressed="true">Animations on</button></div></div>
     </div>
   </section>
   <section class="wrap comparison" id="compare">
-    <h2>DumpToTxt vs. Repomix vs. Gitingest</h2>
-    <p class="compare-hint">Scroll sideways to compare all three.</p>
-    <div class="table-scroll" role="region" aria-label="Tool comparison" tabindex="0">
-      <table>
-        <caption class="sr-only">Compare workflows, inputs and output formats</caption>
-        <thead><tr><th scope="col">Choose by workflow</th><th scope="col">DumpToTxt</th><th scope="col">Repomix</th><th scope="col">Gitingest</th></tr></thead>
-        <tbody>
-          <tr><th scope="row">A good fit for</th><td><strong>Picking local files in a Windows app</strong></td><td>Automating repository exports</td><td>Turning a GitHub URL into text</td></tr>
-          <tr><th scope="row">How you use it</th><td>Explorer menu, file checkboxes, preview</td><td>CLI, web, MCP, GitHub Actions</td><td>Web, CLI, Python library</td></tr>
-          <tr><th scope="row">Input</th><td>Local files and folders</td><td>Local folders and remote repositories</td><td>Repository URLs; local folders via CLI or Python</td></tr>
-          <tr><th scope="row">Output</th><td>TXT, Markdown, JSON, XML, <strong>Word</strong></td><td>TXT, Markdown, JSON, XML</td><td>Text digest</td></tr>
-        </tbody>
-      </table>
+    <h2>Why not just use Repomix?</h2>
+    <div class="versus">
+      <figure>
+        <figcaption>With Repomix <span class="aside">(based on a true story)</span></figcaption>
+        <div class="term" aria-label="Command Prompt"><div class="tbar"><span class="ttab"><i></i>Command Prompt</span><span class="tplus">+&ensp;⌄</span><span class="wc">─&ensp;☐&ensp;<span class="x">✕</span></span></div><pre>C:\Projects\weather-app&gt; npx <u>repomxi</u><img class="lol" src="assets/laugh.webp" alt="">
+npm <em>error</em> code E404
+npm <em>error</em> 404 'repomxi@*' is not in this registry.
+
+C:\Projects\weather-app&gt; npx <u>rpemoix</u><span class="lol">😹</span>
+npm <em>error</em> code E404
+npm <em>error</em> 404 'rpemoix@*' is not in this registry.
+
+C:\Projects\weather-app&gt; why is this so hard
+learn to type little bro hahahahaha
+<em>error</em> code: YOU-SUCK
+
+<span class="live">C:\Projects\weather-app&gt;<span class="cmd"></span><b class="caret"></b></span></pre><input class="tin" aria-label="Type a command" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" hidden></div>
+      </figure>
+      <figure>
+        <figcaption>With DumpToTxt</figcaption>
+        <div class="click" aria-hidden="true"><div class="xbar"><span class="xtab"><i class="fold"></i>Projects<b>✕</b></span><span class="xplus">+</span><span class="wc">─&ensp;☐&ensp;<span class="x">✕</span></span></div><div class="xnav"><span class="xarr">←&ensp;→&ensp;↑&ensp;⟳</span><span class="xaddr">›&ensp;This PC&ensp;›&ensp;Local Disk (C:)&ensp;›&ensp;Projects</span><span class="xsearch">Search Projects</span></div><div class="xcmd"><span>⊕ New ⌄</span><i></i><span>✂</span><span>⧉</span><span>⎘</span><i></i><span>⇅ Sort ⌄</span><span>☰ View ⌄</span><span>⋯</span></div><div class="xbody"><div class="xside"><span>⌂&ensp;Home</span><span><i class="fold"></i>Desktop</span><span><i class="fold"></i>Downloads</span><span><i class="fold"></i>Documents</span><span class="on">🖥&ensp;This PC</span></div><div class="xlist"><span class="xhead"><b>Name</b><b>Date modified</b><b>Type</b></span><span><b><i class="fold"></i>budget-tracker</b><b>02/10/2026 18:41</b><b>File folder</b></span><span class="item"><b><i class="fold"></i>weather-app</b><b>13/10/2026 09:12</b><b>File folder</b></span><span><b><i class="fold"></i>portfolio-site</b><b>28/09/2026 21:05</b><b>File folder</b></span><span><b><i class="fold"></i>discord-bot</b><b>11/09/2026 16:37</b><b>File folder</b></span></div></div><div class="xstatus">4 items&emsp;1 item selected</div><span class="menu"><span class="def">Open</span><span>Pin to Quick access</span><span class="hot"><img src="assets/DumpToTxt.ico" alt="">Create dump with DumpToTxt<svg class="xcur" viewBox="0 0 24 24"><path d="M4 2l14 9-6.5 1.5L15 20l-3 1.4-3.3-7.4L4 18z"/></svg></span><span>Open with Code</span><hr><span>Cut</span><span>Copy</span><hr><span>Properties</span></span></div><img class="wow" src="assets/wow-cat.png" alt="" aria-hidden="true">
+      </figure>
     </div>
-    <p class="sources">Sources: <a href="https://repomix.com/guide/">Repomix guide</a>, <a href="https://repomix.com/guide/output">output formats</a>, <a href="https://github.com/coderamp-labs/gitingest#readme">Gitingest README</a>. Checked October 10, 2026. DumpToTxt features shown are Full / Compact.</p>
+    <p class="fair"><strong>Btw:</strong> tick exactly the files and folders you want and DumpToTxt remembers them for next time. Or start from the Repomix or Gitingest defaults and tweak from there. Text, Markdown, XML or JSON, with token counts.</p>
   </section>
   <section class="wrap download-section" id="download">
-    <div class="download-heading"><h2>Get DumpToTxt.</h2><a class="button" href="https://github.com/O-Marmullaku/DumpToTxt/releases/latest/download/DumpToTxt-Setup-full.exe">Download Full <span aria-hidden="true">↓</span></a></div>
-    <p class="meta">Windows x64. Full includes the .NET runtime. Installers are unsigned; Windows may show a publisher warning.</p>
-    <details><summary>Other installers &amp; PowerShell</summary>
-      <p><a href="https://github.com/O-Marmullaku/DumpToTxt/releases/latest/download/DumpToTxt-Setup-compact.exe">Compact</a> — same app; requires .NET 8 Desktop Runtime (x64).</p>
-      <p><a href="https://github.com/O-Marmullaku/DumpToTxt/releases/latest/download/DumpToTxt-Setup-lite.exe">Lite</a> — Classic text only; no review window or sensitive-data protection.</p>
-      <div class="command"><code id="install-command">irm https://dumptotxt.com/install.ps1 | iex</code><button id="copy-command" type="button" hidden>Copy</button></div>
-      <p id="copy-status" role="status"></p>
-    </details>
+    <h2>Get DumpToTxt.</h2>
+    <p class="meta">Not sure? Get Full. Windows x64. Windows may warn about an unknown publisher; that’s expected.</p>
+    <div class="dl">
+      <a class="dl-card main" href="https://github.com/O-Marmullaku/DumpToTxt/releases/latest/download/DumpToTxt-Setup-full.exe"><em>Recommended</em><b>Full <span aria-hidden="true">↓</span></b><span>Just works. Everything it needs is included, so the download is bigger.</span></a>
+      <a class="dl-card" href="https://github.com/O-Marmullaku/DumpToTxt/releases/latest/download/DumpToTxt-Setup-compact.exe"><b>Compact <span aria-hidden="true">↓</span></b><span>The same app, smaller download. Only works if the Microsoft .NET 8 Desktop Runtime is already on your PC.</span></a>
+      <a class="dl-card" href="https://github.com/O-Marmullaku/DumpToTxt/releases/latest/download/DumpToTxt-Setup-lite.exe"><b>Lite <span aria-hidden="true">↓</span></b><span>Bare-bones. Saves plain text only: no file picker, and it won’t hide passwords or API keys.</span></a>
+    </div>
+    <div class="command"><span class="ps">PowerShell</span><code id="install-command">irm https://dumptotxt.com/install.ps1 | iex</code><button id="copy-command" type="button" hidden>Copy</button></div>
+    <p id="copy-status" role="status"></p>
   </section>
 </main>
 <footer class="wrap"><span>Made by <a href="https://marmullaku.ch">Osman Marmullaku</a></span><a href="https://github.com/O-Marmullaku/DumpToTxt/releases">Release notes</a><a href="https://github.com/O-Marmullaku/DumpToTxt/issues">Support</a></footer>

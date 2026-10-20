@@ -15,6 +15,7 @@ test('sample export contains the same named files and real file bodies', () => {
   for (const name of ['README.md', 'cities.json', 'forecast.js']) assert.ok(output.includes(name));
   assert.ok(output.includes('export function forecast(city)'));
   assert.ok(output.includes('----- Directory structure -----'));
+  // The walkthrough's Notepad shows lines from the real export.
   const html = readFileSync(new URL('../../website/index.html', import.meta.url), 'utf8');
-  assert.ok(html.includes('href="assets/sample-weather-app.txt"'));
+  for (const line of ['----- Directory structure -----', 'export function forecast(city) {']) assert.ok(html.includes(line), line);
 });

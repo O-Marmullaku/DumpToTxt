@@ -23,4 +23,8 @@ public enum OutputStyle
     XmlCompact,
     /// <summary>Navigable Microsoft Word Open XML document.</summary>
     Docx,
+    /// <summary>Repomix's default XML-tagged pack (<c>repomix-output.xml</c> layout).</summary>
+    Repomix,
+    /// <summary>Gitingest's default text digest (<c>digest.txt</c> layout).</summary>
+    Gitingest,
 }

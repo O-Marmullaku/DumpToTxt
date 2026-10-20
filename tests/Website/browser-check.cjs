@@ -17,6 +17,9 @@ const server = http.createServer(async (request, response) => {
   } catch { response.writeHead(404).end(); }
 });
 
+// Which step cards are lit, e.g. '2' or '23' during a handover.
+const lit = page => page.evaluate(() => [...document.querySelectorAll('.steps > li')].map((li, i) => li.classList.contains('now') ? i + 1 : '').join(''));
+
 (async () => {
   await fs.mkdir(captures, { recursive: true });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -29,45 +32,54 @@ const server = http.createServer(async (request, response) => {
       const context = await browser.newContext({ viewport: { width, height }, isMobile: name === 'mobile', hasTouch: name === 'mobile' });
       const page = await context.newPage();
       page.on('pageerror', error => errors.push(error.message));
+      // Animation ignores the OS motion setting.
+      await page.emulateMedia({ reducedMotion: 'reduce' });
       await page.goto(url);
       await page.waitForFunction(() => document.querySelector('#walkthrough').classList.contains('playing'));
-      await page.getByRole('button', {name: '2 Choose your files'}).click();
-      assert.equal(await page.locator('#walkthrough').getAttribute('data-beat'), '2');
-      await page.waitForFunction(() => document.querySelector('#walkthrough').dataset.beat === '3');
-      assert.equal(await page.locator('.file-count').textContent(), '3');
-      await page.getByRole('button', {name: '3 Copy or save'}).click();
-      await page.waitForFunction(() => document.querySelector('#walkthrough').dataset.beat === '6');
-      assert.equal(await page.locator('.copy-result').textContent(), 'Copied to clipboard');
-      await page.locator('#motion').click();
-      assert.equal(await page.locator('#motion').getAttribute('aria-pressed'), 'false');
-      await page.reload();
-      assert.equal(await page.locator('#motion').getAttribute('aria-pressed'), 'false');
-      await page.emulateMedia({reducedMotion: 'reduce'});
-      await page.locator('#motion').click();
-      assert.equal(await page.locator('#motion').getAttribute('aria-pressed'), 'true');
-      await page.locator('#replay').click();
-      assert.equal(await page.locator('#walkthrough').getAttribute('data-beat'), '0');
-      await page.setViewportSize({width, height: 500});
-      await page.locator('footer').scrollIntoViewIfNeeded();
-      await page.waitForTimeout(200);
-      const pausedBeat = await page.locator('#walkthrough').getAttribute('data-beat');
-      await page.waitForTimeout(1800);
-      assert.equal(await page.locator('#walkthrough').getAttribute('data-beat'), pausedBeat);
-      await page.setViewportSize({width, height});
-      await page.locator('#walkthrough').scrollIntoViewIfNeeded();
-      const exported = await page.request.get(url + '/assets/sample-weather-app.txt');
-      assert.equal(exported.status(), 200);
-      assert.ok((await exported.text()).includes('export function forecast(city)'));
-      assert.equal(await page.getByRole('columnheader', { name: 'Repomix', exact: true }).count(), 1);
-      await page.getByText('Other installers & PowerShell', { exact: true }).click();
-      assert.equal(await page.locator('details').getAttribute('open'), '');
+      assert.equal(await page.locator('#walkthrough .demo-controls, #motion, #replay').count(), 0);
+      await page.waitForFunction(() => document.querySelector('.steps > li').classList.contains('now'));
+      // No dump exists before step 2 makes one: Notepad is hidden until then.
+      assert.equal(await page.locator('.result .notepad').evaluate(e => getComputedStyle(e).visibility), 'hidden');
+      // Pass 1 (.txt file): the review flips the switch to .txt file, then Notepad comes to the front.
+      await page.getByRole('button', { name: '2 Pick what goes in' }).click();
+      await page.waitForFunction(() => document.querySelectorAll('.steps > li')[1].classList.contains('now')); // starts after layout settles
+      assert.equal(await lit(page), '2');
+      await page.waitForFunction(() => document.querySelector('.review').classList.contains('excluded'));
+      assert.equal(await page.locator('.review .sum').textContent(), '2 files · 129 B');
+      await page.waitForFunction(() => document.querySelectorAll('.steps > li.now').length === 2); // Create dump hands over at once
+      assert.equal(await lit(page), '23');
+      await page.waitForFunction(() => getComputedStyle(document.querySelector('.result .notepad')).visibility === 'visible');
+      assert.equal(await page.locator('.review').evaluate(e => e.classList.contains('clip')), false);
+      // One window per pass: a .txt file opens Notepad only.
+      const shown = sel => page.locator(sel).evaluate(e => getComputedStyle(e).visibility);
+      assert.equal(await shown('.result .chat'), 'hidden');
+      // With one card, the earlier steps stay behind like windows on one desktop.
+      for (const i of [0, 1]) assert.equal(await page.locator('.steps > li .frame').nth(i).evaluate(e => getComputedStyle(e).visibility), 'visible');
+      // Pass 2 (Clipboard): ChatGPT opens instead of Notepad, then the question is sent.
+      await page.waitForFunction(() => document.querySelector('.review').classList.contains('copied'), null, { timeout: 30000 });
+      await page.waitForFunction(() => document.querySelector('.chat').classList.contains('sent-on'), null, { timeout: 15000 });
+      assert.equal(await shown('.result .notepad'), 'hidden');
+      assert.ok(await page.evaluate(() => [...questions.real, ...questions.silly].includes(document.querySelector('.chat .msg').textContent)));
+      // Between passes the dimmed cards settle to a fresh start.
+      await page.waitForFunction(() => !document.querySelector('.review').classList.contains('copied'), null, { timeout: 10000 });
+      assert.equal(await page.evaluate(() => document.querySelector('.chat').classList.contains('sent-on')), true); // card 3 isn't reset between passes
+      assert.equal(await page.locator('.step', { hasText: 'Use it anywhere' }).count(), 1);
+      assert.equal(await page.getByRole('heading', { name: 'Why not just use Repomix?' }).count(), 1);
+      // The terminal takes commands; spelling Repomix right stops the laughing.
+      // The Repomix story replays once the terminal is in view; typing waits until it's done.
+      assert.ok(!(await page.locator('.term pre').textContent()).includes('YOU-SUCK'));
+      await page.locator('.term').scrollIntoViewIfNeeded();
+      await page.waitForFunction(() => !document.querySelector('.tin').disabled, null, { timeout: 30000 });
+      assert.ok((await page.locator('.term pre').textContent()).includes('YOU-SUCK'));
+      await page.locator('.term pre').click();
+      for (const command of ['dir', 'npx repomix']) await page.keyboard.type(command + '\n');
+      const said = await page.locator('.term pre').textContent();
+      for (const line of ["'dir' is not recognized", '...wait, you spelled it right?']) assert.ok(said.includes(line), line);
+      assert.equal(await page.locator('.term img.lol').count(), 0);
       await page.locator('#copy-command').click();
       await page.waitForFunction(() => document.querySelector('#copy-status').textContent.length > 0);
       assert.match(await page.locator('#copy-status').textContent(), /Command copied|Copy unavailable/);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-      await page.reload();
-      await page.getByRole('button', {name: '2 Choose your files'}).click();
-      await page.waitForFunction(() => document.querySelector('#walkthrough').dataset.beat === '3');
       await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({ path: path.join(captures, `${name}.png`), fullPage: true });
       await context.close();
@@ -82,7 +94,7 @@ const server = http.createServer(async (request, response) => {
     assert.equal(await page.locator(':focus').textContent(), 'Skip to content');
     await context.close();
     assert.deepEqual(errors, []);
-    console.log('PASS: desktop/mobile animated scenes, replay, persistent motion toggle, OS-independent motion, comparison, installer details, copy feedback, overflow, no-JS downloads and keyboard entry.');
+    console.log('PASS: desktop/mobile walkthrough (.txt and clipboard passes, handover, fresh restart, step replay), OS-independent motion, Repomix section, installer details, copy feedback, overflow, no-JS downloads and keyboard entry.');
     console.log(`Screenshots: ${captures}`);
   } finally {
     if (browser) await browser.close();

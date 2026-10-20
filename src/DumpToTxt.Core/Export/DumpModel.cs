@@ -76,6 +76,10 @@ public sealed class DumpModel
     /// changes (OnlyGitChanged mode) rather than being illegible/excluded — selects the Classic note text.</summary>
     public bool SingleFileSkippedUnchanged { get; init; }
 
+    /// <summary>Commit counts per root-relative <c>/</c> path from recent history, gathered only for the
+    /// Repomix-style layout (which orders files by them). Null when not gathered or not a repository root.</summary>
+    public IReadOnlyDictionary<string, int>? GitChangeCounts { get; init; }
+
     public long TotalSize
     {
         get

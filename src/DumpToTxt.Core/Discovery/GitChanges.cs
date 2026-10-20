@@ -72,6 +72,38 @@ public static class GitChanges
         catch { return null; }
     }
 
+    /// <summary>How often each path appears in the last <paramref name="maxCommits"/> commits, keyed by its
+    /// root-relative <c>/</c> path — Repomix's file-order signal. Like Repomix, only a folder that is itself a
+    /// repository root (has <c>.git</c>) is consulted; otherwise, or when git is unavailable, null.</summary>
+    public static Dictionary<string, int>? ChangeCounts(string root, int maxCommits = 100,
+        CancellationToken cancellationToken = default)
+    {
+        FilesystemSafety.EnsureDirectoryPath(root);
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            string dotGit = Path.Combine(root, ".git");
+            if (!Directory.Exists(dotGit) && !File.Exists(dotGit)) return null;
+            string? executable = FindGitExecutable();
+            if (executable is null) return null;
+            string? log = Run(executable, root,
+                ["-c", "core.quotepath=false", "log", "--no-show-signature", "--no-ext-diff", "--no-textconv",
+                 "--pretty=format:", "--name-only", "-n", maxCommits.ToString(System.Globalization.CultureInfo.InvariantCulture)],
+                [], cancellationToken);
+            if (log is null) return null;
+            var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (string line in log.Split('\n'))
+            {
+                string path = line.TrimEnd('\r');
+                if (path.Length == 0) continue;
+                counts[path] = counts.TryGetValue(path, out int n) ? n + 1 : 1;
+            }
+            return counts;
+        }
+        catch (OperationCanceledException) { throw; }
+        catch { return null; }
+    }
+
     private static string? FindGitExecutable()
     {
         // Never let the selected repository (or a relative PATH entry) supply our executable.

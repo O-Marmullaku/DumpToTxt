@@ -32,15 +32,23 @@ rounded:
 This applies to `website/`. The native application's palettes remain owned by
 `UiTheme.cs`.
 
-The hero uses three miniature, recognisable Windows scenes: a Windows 11 File
-Explorer with the classic context menu, the app's real review window, and
-Notepad opening the dump. Each is laid out on a 360x270 reference and scales as
+The hero uses three miniature, recognisable but minimal scenes: File Explorer
+with the right-click menu, the review window, and the result. A ".txt file /
+Clipboard" toggle in the review window flips each pass: .txt file ends with
+Notepad opening the dump by itself; Clipboard opens nothing, so the cursor clicks
+the browser behind Notepad to bring it forward, pastes into ChatGPT and types a
+question. Step 3 keeps one title for both ("Use it anywhere"). Windows stay open
+and stack rather than disappearing, so no card is ever empty. Clicking a
+"Create dump" starts the next step at once, both cards lit for a moment.
+Show only what the action needs. Each is laid out on a 360x270 reference and scales as
 one picture. A single cursor travels between them on curved paths, clicking as a
 person would; only the playing step is in full colour. Clicking a step or card
 replays it. Short numbered headings and static scenes remain readable without
 JavaScript. Below 980px the animated scenes share one card under the step list;
-static scenes stack. Provide replay and a
-persisted website-owned animation toggle. Keep a link to the actual sample export.
+static scenes stack. No footer controls under the walkthrough (owner decision):
+it always plays, and clicking a step replays it. Between passes the copy notice
+fades; nothing else visibly snaps back (windows rewind under their own fade-in).
+The ChatGPT question is random: usually a real one, 5% a silly one.
 Use Graphite neutrals, Segoe UI, and charcoal actions. Blue is reserved for focus,
 selection and links on hover. Keep visible keyboard focus (3px outline, 4px offset),
 underlined inline links, and selected text with white type on blue.
@@ -50,9 +58,10 @@ and 18px below 620px. The three-step hero stays inside the 1120px wrapper.
 Primary buttons have a 50px minimum height, 6px corners and 14px / 22px padding.
 
 On narrow screens, stack headline and download, then use one shared scene area while animations are enabled.
-The comparison table scrolls horizontally inside a labelled, keyboard-focusable
-region with a visible mobile scroll hint. Never let it widen the page itself.
+The comparison is "Why not just use Repomix?": a Command Prompt with some good-natured failed tries next to one right-click, then a
+fair line on when Repomix or Gitingest fits better, with dated sources.
 
 Keep copy concise and claims sourced. No invented testimonials, usage counts,
-benchmarks, or competitor limitations. Any animation must have a website-owned
-control independent of operating-system preferences. Downloads work without JavaScript.
+benchmarks, or competitor limitations. Animation ignores operating-system motion
+preferences. Downloads work without JavaScript. The headline must stay true for
+files, folders and folder backgrounds.

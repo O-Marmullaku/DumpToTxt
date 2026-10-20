@@ -14,18 +14,12 @@ a second bootstrap script. Generated staging stays under `artifacts/`.
 The site extends the application's light Graphite identity: pale gray canvas,
 white surfaces, charcoal type and actions, restrained blue focus and selection.
 It is a download page for Windows users evaluating a local project-export tool.
-The hero uses three compact, illustrative animated scenes: Explorer's context
-menu, a file checklist, and the resulting text. A single cursor demonstrates
-one action at a time with restrained motion and blue selection accents.
-Short numbered headings remain readable without JavaScript. On narrow screens,
-the animated scenes share one area; static scenes stack. Provide replay and a
-persisted website-owned animation toggle. Keep a link to the actual sample export.
+The hero walkthrough and comparison section are specified in `DESIGN.md`.
 Preserve keyboard focus, narrow touch-browser layouts, and no-JavaScript downloads.
 
 Keep product claims grounded in `product.md` and the released application.
 No fabricated testimonials, adoption figures, benchmarks, or open-source claims.
-Animations, if introduced, must use a site-owned control rather than the OS
-motion preference. No analytics or uploads are needed for this site.
+Animations ignore the OS motion preference. No analytics or uploads are needed for this site.
 
 ## Develop and publish
 

@@ -49,6 +49,8 @@ public sealed class DumpEngine
             [OutputStyle.XmlCompact] = new XmlFormatter(OutputStyle.XmlCompact),
             [OutputStyle.Json] = new JsonFormatter(),
             [OutputStyle.JsonCompact] = new JsonFormatter(OutputStyle.JsonCompact),
+            [OutputStyle.Repomix] = new RepomixFormatter(),
+            [OutputStyle.Gitingest] = new GitingestFormatter(),
         };
 
     /// <summary>
@@ -176,7 +178,7 @@ public sealed class DumpEngine
                 if (!file.IsBinary && !file.ContentOmitted)
                 {
                     using var reader = StagedContent.OpenReader(file.SourceContentPath!);
-                    TextWriter canonical = cfg.Style is OutputStyle.Xml or OutputStyle.XmlCompact or OutputStyle.Docx
+                    TextWriter canonical = cfg.Style is OutputStyle.Xml or OutputStyle.XmlCompact or OutputStyle.Repomix or OutputStyle.Docx
                         ? new XmlSafeWriter(writer) : writer;
                     var findings = cfg.SecretScan is SecretScanMode.Warn or SecretScanMode.Off
                         ? file.Secrets.Where(s => s.AlwaysRedact).ToArray() : file.Secrets;
@@ -319,6 +321,8 @@ public sealed class DumpEngine
             Files = files,
             SkippedSingleFile = skipped,
             SingleFileSkippedUnchanged = skippedUnchanged,
+            GitChangeCounts = cfg.Style == OutputStyle.Repomix && !isFile
+                ? GitChanges.ChangeCounts(root, cancellationToken: cancellationToken) : null,
         };
     }
 
