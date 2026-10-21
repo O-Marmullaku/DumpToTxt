@@ -2,7 +2,7 @@
 *{box-sizing:border-box;scrollbar-color:#999 #eee;scrollbar-width:thin}
 body{margin:0}h1,h2,p,figure{margin:0}a{color:inherit;text-underline-offset:4px}a:hover{color:#1967d2}::selection{background:#1967d2;color:white}:focus-visible{outline:3px solid var(--focus);outline-offset:4px}html{scroll-padding-top:28px}.wrap{width:min(1120px,calc(100% - 80px));margin-inline:auto}
 .skip{position:absolute;top:-100px;left:16px;padding:12px;background:white;z-index:2}.skip:focus{top:10px}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
-.site-header{display:flex;align-items:center;justify-content:space-between;min-height:84px;border-bottom:1px solid var(--line)}.brand{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:650;text-decoration:none}nav{display:flex;gap:28px;font-size:14px}nav a{text-decoration:none}
+.site-header{display:flex;align-items:center;justify-content:space-between;min-height:84px}.brand{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:650;text-decoration:none}nav{display:flex;gap:28px;font-size:14px}nav a{text-decoration:none}
 .hero{padding-top:44px}.hero-top{display:flex;align-items:center;justify-content:space-between;gap:32px;margin-bottom:32px}h1{font-size:clamp(34px,4vw,52px);line-height:1.08;letter-spacing:-.035em;font-weight:650}h2{font-size:clamp(26px,3vw,36px);line-height:1.15;letter-spacing:-.025em;font-weight:600}.lede{font-size:17px;margin-top:18px;color:#515151}.sub{margin-top:14px;font-size:18px;line-height:1.5;color:#2d2d2d}.sub code{padding:2px 7px;border:1px solid #dcdcdc;border-radius:5px;background:#fff;font:15px "Cascadia Mono",Consolas,monospace}.button{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:52px;background:linear-gradient(#3a3a3a,#1f1f1f);color:#fff;padding:14px 26px;border-radius:12px;text-decoration:none;font-size:15px;font-weight:600;white-space:nowrap;box-shadow:inset 0 1px 0 #ffffff26,0 1px 2px #0003,0 8px 24px -8px #0006;transition:transform .15s,box-shadow .15s}.win-logo{width:16px;height:16px;fill:currentColor}.button:hover{color:white;transform:translateY(-1px);box-shadow:inset 0 1px 0 #ffffff26,0 2px 4px #0003,0 14px 30px -10px #0007}.button:active{transform:none;background:#111}.meta{font-size:12px;line-height:1.6;color:var(--muted)}.hero-download .meta{margin-top:12px}.hero-download{flex-shrink:0}
 .app-shot img{display:block;width:100%;height:auto;background:#eee}.app-shot>a{display:block;box-shadow:0 14px 40px #20202018}.app-shot figcaption{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--muted);margin-top:16px}.app-shot figcaption span:first-child{color:#202020;font-weight:600}
 .comparison{padding-block:50px 64px;border-top:1px solid var(--line)}.comparison h2{margin-bottom:12px}.sources{font-size:12px;color:var(--muted);line-height:1.7;margin-top:18px;max-width:95ch}
@@ -14,7 +14,7 @@ body{margin:0}h1,h2,p,figure{margin:0}a{color:inherit;text-underline-offset:4px}
 
 /* Walkthrough: three miniature Windows scenes on a 360x270 reference (sizes in em off a container-width
    font, positions in %), so each scales as one picture. One page cursor plays them in turn (app.js). */
-.hero.wrap{padding-bottom:40px}.walkthrough{border-top:1px solid var(--line);padding-top:26px}
+.hero.wrap{padding-bottom:40px}.walkthrough{padding-top:26px}
 .stage{position:relative}
 .steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
 .steps>li{position:relative;min-width:0;display:grid;grid-template-rows:auto 1fr;gap:14px}
@@ -33,7 +33,7 @@ body{margin:0}h1,h2,p,figure{margin:0}a{color:inherit;text-underline-offset:4px}
 .scene svg{display:block}.scene hr{border:0;border-top:1px solid #e3e3e3;margin:.35em 0}
 .win{position:absolute;inset:4%;display:flex;flex-direction:column;overflow:hidden;background:#fff;border:1px solid #0002;border-radius:.7em;box-shadow:0 .5em 1.8em #0003}
 .wc{margin-left:auto;color:#333;font-size:.85em;white-space:nowrap;padding-right:.6em}
-.scene .x{display:inline-block;padding:.15em .45em;margin-right:-.45em;border-radius:.25em;transition:background .1s,color .1s}.scene .x.hot{background:#c42b1c;color:#fff}
+.scene .x{display:inline-block;padding:.15em .45em;margin-right:-.45em;border-radius:.25em;transition:background .1s,color .1s}
 .fold{position:relative;display:inline-block;flex:none;width:1.3em;height:.95em;margin-top:.15em;border-radius:.12em;background:linear-gradient(#ffd660,#f5bd2f)}
 .fold::before{content:"";position:absolute;left:0;top:-.2em;width:.6em;height:.35em;border-radius:.12em .12em 0 0;background:#e6a419}
 .doc,.file{display:inline-block;flex:none;width:.95em;height:1.2em;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 16'%3E%3Cpath d='M1 .5h6.5L11 4v11.5H1Z' fill='%23fff' stroke='%23777'/%3E%3Cpath d='M7.5.5V4H11' fill='none' stroke='%23777'/%3E%3C/svg%3E") center/contain no-repeat}
@@ -81,7 +81,7 @@ body{margin:0}h1,h2,p,figure{margin:0}a{color:inherit;text-underline-offset:4px}
 .track{position:relative;width:2.4em;height:1.35em;border-radius:1em;background:#2b2b2b}
 .track i{position:absolute;left:.18em;top:.18em;width:1em;height:1em;border-radius:50%;background:#fff;transition:transform .25s cubic-bezier(.3,.7,.3,1)}
 .review.clip .track i{transform:translateX(1.05em)}
-.toast{position:absolute;left:50%;bottom:4.4em;translate:-50% .5em;padding:.45em .9em;border-radius:.4em;background:#2b2b2b;color:#fff;font-size:.9em;white-space:nowrap;opacity:0;transition:opacity .25s,translate .25s}
+.toast{position:absolute;left:50%;bottom:4.4em;translate:-50% .5em;padding:.35em .8em;border:1px solid #e3e3e3;border-radius:.4em;background:#fff;color:#555;font-size:.85em;box-shadow:0 .2em .6em #0001;white-space:nowrap;opacity:0;transition:opacity .25s,translate .25s}
 .review.copied .toast{opacity:1;translate:-50% 0}
 
 /* 3b. ChatGPT in a browser: paste the dump, type a question, send. */
@@ -133,8 +133,8 @@ body{margin:0}h1,h2,p,figure{margin:0}a{color:inherit;text-underline-offset:4px}
 .tbar{flex:none;height:40px;display:flex;align-items:flex-end;gap:10px;padding-left:8px;background:#202020;color:#fff;font-size:12px}.ttab{display:flex;align-items:center;gap:8px;height:32px;padding:0 40px 0 12px;border-radius:7px 7px 0 0;background:#0c0c0c;font-weight:600}.ttab i{width:16px;height:12px;border:1px solid #ccc;border-radius:2px;background:linear-gradient(#ccc,#ccc) 3px 3px/4px 1px no-repeat,#000}.tplus{align-self:center;color:#ccc}.term .wc{align-self:center;margin-left:auto;padding-right:14px;color:#ccc;font-size:12px}
 .term pre{margin:0;padding:12px 16px;color:#ccc;font:12.5px/1.5 "Cascadia Mono",Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}.term em{font-style:normal;color:#e74856}
 .term u{text-decoration:underline wavy #e74856;text-underline-offset:3px;transition:text-decoration-color .3s}.term u.later{text-decoration-color:transparent}.term pre{position:relative}.term .lol{visibility:hidden}.versus figure{position:relative}.lol.float{margin:0;z-index:5}
-.lol{position:absolute;margin:-44px 0 0 6px;font-size:40px;line-height:1;transform:rotate(-10deg);filter:drop-shadow(0 3px 6px #000a);pointer-events:none}.lol{transition:opacity .15s,scale .35s cubic-bezier(.3,1.7,.5,1)}.lol.later{opacity:0;scale:.3}
-img.lol{width:72px;height:72px;margin:-64px 0 0 4px;object-fit:contain;transform:none}
+.lol{position:absolute;margin:-8px 0 0 10px;font-size:32px;line-height:1;transform:rotate(-10deg);filter:drop-shadow(0 3px 6px #000a);pointer-events:none}.lol{transition:opacity .15s,scale .35s cubic-bezier(.3,1.7,.5,1)}.lol.later{opacity:0;scale:.3}
+img.lol{width:52px;height:52px;margin:-17px 0 0 4px;object-fit:contain;transform:none}
 .caret{display:inline-block;width:7px;height:1.1em;vertical-align:-.2em;background:#ccc;animation:caret 1s steps(1) infinite}
 .click{position:relative;display:flex;flex-direction:column;overflow:hidden;background:#fff;border:1px solid #cfcfcf;box-shadow:0 10px 30px #0002;font:12px "Segoe UI",system-ui,sans-serif;color:#1a1a1a}
 .xbar{flex:none;height:36px;display:flex;align-items:flex-end;gap:8px;padding-left:8px;background:#e9edf3}.xtab{display:flex;align-items:center;gap:8px;height:29px;padding:0 10px 0 12px;border-radius:7px 7px 0 0;background:#f7f9fc}.xtab b{margin-left:34px;font-weight:400;font-size:10px;color:#555}.xplus{align-self:center;color:#444;font-size:14px}.click .wc{align-self:center;margin-left:auto;padding-right:14px;color:#333}
@@ -163,4 +163,5 @@ figcaption .aside{font-weight:400;opacity:.8}
 @media(max-width:760px){.term{max-height:420px}}
 /* Phones: a balanced headline, a full-width download button with its details centred under it, and smaller laughs. */
 h1,.sub{text-wrap:balance}
-@media(max-width:620px){.hero-download{align-self:stretch}.hero-download .button{display:flex;width:100%}.hero-download .meta{text-align:center}img.lol{width:60px;height:60px;margin-top:-54px}span.lol{font-size:34px;margin-top:-38px}}
+@media(max-width:620px){.hero-download{align-self:stretch}.hero-download .button{display:flex;width:100%}.hero-download .meta{text-align:center}img.lol{width:44px;height:44px;margin-top:-13px}span.lol{font-size:28px;margin-top:-6px}}
+.toast b{color:#107c10;font-weight:600}

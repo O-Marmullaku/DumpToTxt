@@ -204,24 +204,9 @@ function chat() {
   return T;
 }
 
-// Done with the dump, the cursor tidies up: it closes the window in front, then the review window. The trip back
-// to the folder is Explorer's own first move, so it runs straight into the right-click. With one card, each close
-// uncovers the window below.
-function tidy() {
-  const top = scenes[2].querySelector(clip ? '.chat' : '.notepad'), dialog = scenes[1].querySelector('.win');
-  const T = 2100, tr = track(T), x = w => pt(w.querySelector('.x'), 0.5, 0.5);
-  const hot = (w, ms) => { later(ms, () => w.querySelector('.x').classList.add('hot')); later(ms + 360, () => w.querySelector('.x').classList.remove('hot')); };
-  const close = w => w.animate([{opacity: 1, transform: 'none'}, {opacity: 0, transform: 'scale(.95)'}], {duration: 180, easing: 'ease-in'})
-    .finished.then(() => w.classList.add('closed'), () => {});
-  tr.go(0, 600, x(top), 0.12).click(750);
-  hot(top, 520);
-  later(810, () => { close(top); later(180, () => show(1)); });
-  tr.go(1100, 1700, x(dialog), 0.12).click(1850);
-  hot(dialog, 1620);
-  later(1910, () => { close(dialog); later(180, () => show(0)); });
-  tr.play();
-  return T;
-}
+// Once the dump has been seen, its windows quietly close on their own; the cursor just heads back to the folder.
+const close = w => w.animate([{opacity: 1, transform: 'none'}, {opacity: 0, transform: 'scale(.95)'}], {duration: 180, easing: 'ease-in'})
+  .finished.then(() => w.classList.add('closed'), () => {});
 
 const stages = [explorer, review, () => (clip ? chat : notepad)()];
 function show(k) {
@@ -238,7 +223,11 @@ async function play(id, from) {
     await wait(stages[k]());
     if (!on()) return;
     if (k === 2) {
-      await wait(tidy());
+      await wait(900);
+      if (!on()) return;
+      close(scenes[2].querySelector(clip ? '.chat' : '.notepad'));
+      close(scenes[1].querySelector('.win'));
+      await wait(300);
       if (!on()) return;
       clip = !clip; // the next pass takes the other route
       scenes[1].classList.remove('copied');
@@ -256,7 +245,7 @@ function start(from = 0) {
   wt.classList.add('playing');
   show(-1); // a jump isn't a handover: nothing stays lit from before
   if (from === 0) clip = false;
-  wt.querySelectorAll('.closed').forEach(w => w.classList.remove('closed')); // a jump reopens what the last tidy-up closed
+  wt.querySelectorAll('.closed').forEach(w => w.classList.remove('closed')); // a jump reopens what the last pass closed
   scenes[2].classList.toggle('clip', clip);
   scenes[2].classList.toggle('fresh', from < 2); // no dump exists yet: Notepad appears only once step 2 makes one
   // Starts on the chosen card once layout has settled.
@@ -304,7 +293,7 @@ function enter(raw) {
   tpre.scrollTop = tpre.scrollHeight;
 }
 // The laughs float over the whole terminal, edges and all: the pre only keeps an invisible stand-in where each one
-// sits, and the floating copy follows it as the pre scrolls. They sit up and to the right of the typo, pulled back
+// sits, and the floating copy follows it as the pre scrolls. They sit just right of the typo, on its line, pulled back
 // in where the line runs to the edge so they stay on screen.
 const fig = term.parentElement;
 function laughs() {
@@ -335,6 +324,28 @@ term.style.minHeight = term.offsetHeight + 'px';
 while (live.previousSibling) live.previousSibling.remove();
 tin.disabled = true;
 const pause = ms => new Promise(r => setTimeout(r, ms));
+// People type in bursts: mostly quick keys, a beat before each new word, the odd hesitation. In a typed sentence
+// (not the npx commands, whose typos go unnoticed) two letters may come out swapped and get backspaced.
+async function type(text, slips) {
+  typed.textContent = ' ';
+  let slipped = !slips;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    let d = 35 + Math.random() ** 2 * 140;
+    if (text[i - 1] === ' ') d += 80 + Math.random() * 180;
+    if (Math.random() < 0.07) d += 250 + Math.random() * 350;
+    await pause(d);
+    if (!slipped && i > 3 && /\w\w/.test(text.slice(i, i + 2)) && Math.random() < 0.2) {
+      slipped = true;
+      typed.textContent += text[i + 1];
+      await pause(60 + Math.random() * 60);
+      typed.textContent += ch;
+      await pause(250 + Math.random() * 250);
+      for (let k = 0; k < 2; k++) { typed.textContent = typed.textContent.slice(0, -1); await pause(90 + Math.random() * 40); }
+    }
+    typed.textContent += ch;
+  }
+}
 new IntersectionObserver(async ([e], seen) => {
   if (!e.isIntersecting) return;
   seen.disconnect();
@@ -351,8 +362,7 @@ new IntersectionObserver(async ([e], seen) => {
       const f = frag(command[1]);
       f.querySelectorAll('.lol').forEach(l => l.remove());
       await pause(600);
-      typed.textContent = ' ';
-      for (const ch of f.textContent) { typed.textContent += ch; await pause(60 + Math.random() * 70); }
+      await type(f.textContent, !/^npx /.test(f.textContent));
       await pause(350);
       typed.textContent = '';
     } else await pause(90);
