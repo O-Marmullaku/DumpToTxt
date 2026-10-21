@@ -13,7 +13,7 @@
     <FileVersion>$(Version).0</FileVersion>
     <AssemblyVersion>$(Version).0</AssemblyVersion>
     <Product>DumpToTxt</Product>
-    <Company>O-Marmullaku</Company>
+    <Company>Crazy Entertainment</Company>
     <Description>Pack any folder or file into a single AI-friendly text dump, from the Windows right-click menu.</Description>
   </PropertyGroup>
 
