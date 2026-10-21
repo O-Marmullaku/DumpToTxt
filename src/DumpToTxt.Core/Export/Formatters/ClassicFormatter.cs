@@ -31,6 +31,8 @@ public sealed class ClassicFormatter : IDumpFormatter
 
         foreach (var entry in model.Entries)
             sb.Append(entry.FullName).Append("\r\n");
+        if (model.Unreadable.Count > 0)
+            sb.Append("\r\n").Append(DirectoryTree.UnreadableNote(model, "\r\n")).Append("\r\n");
 
         sb.Append("\r\n\r\n===== FILE CONTENTS (LEGIBLE ONLY) =====\r\n");
 

@@ -54,6 +54,7 @@ public sealed class RepomixFormatter : IDumpFormatter
         if (cfg.RespectGitignore) writer.Write("\n- Files matching patterns in .gitignore are excluded");
         if (defaultIgnore) writer.Write("\n- Files matching default ignore patterns are excluded");
         if (securityOff) writer.Write("\n- Security check has been disabled - content may contain sensitive information");
+        foreach (string m in model.Unreadable) writer.Write("\n- Could not read, skipped: " + m);
         if (model.GitChangeCounts is not null)
             writer.Write("\n- Files are sorted by Git change count (files with more changes are at the bottom)");
         writer.Write("\n</notes>\n\n</file_summary>\n\n");

@@ -38,7 +38,7 @@ public sealed class MarkdownFormatter : IDumpFormatter
                 : $"- **Token budget:** {cfg.MaxTokens:N0} — within budget\r\n");
         sb.Append("\r\n");
 
-        string tree = DirectoryTree.RenderStructureOrNote(model.Entries);
+        string tree = DirectoryTree.RenderStructureOrNote(model);
         string treeFence = Fence(tree);
         sb.Append("## Directory structure\r\n\r\n");
         sb.Append(treeFence).Append("\r\n").Append(tree).Append("\r\n").Append(treeFence).Append("\r\n\r\n");
@@ -116,7 +116,7 @@ public sealed class MarkdownFormatter : IDumpFormatter
         sb.Append("Estimated tokens: ").Append(model.TotalTokens.ToString("N0")).Append("\r\n\r\n");
         AppendBudget(sb, model, cfg);
         sb.Append("## Directory structure\r\n\r\n```text\r\n")
-            .Append(DirectoryTree.RenderStructureOrNote(model.Entries)).Append("\r\n```\r\n");
+            .Append(DirectoryTree.RenderStructureOrNote(model)).Append("\r\n```\r\n");
         foreach (var f in model.Files)
         {
             string path = f.RelativePath.Replace("--", "—", StringComparison.Ordinal);
@@ -148,6 +148,7 @@ public sealed class MarkdownFormatter : IDumpFormatter
     {
         var sb = new TextOutput(writer).Append("# Files\r\n");
         AppendBudget(sb, model, cfg);
+        if (model.Unreadable.Count > 0) sb.Append(DirectoryTree.UnreadableNote(model, "\r\n")).Append("\r\n");
         foreach (var f in model.Files)
         {
             sb.Append("\r\n## `").Append(f.RelativePath).Append("`\r\n");

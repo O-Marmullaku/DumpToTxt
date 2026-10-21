@@ -51,6 +51,7 @@ public sealed class GitingestFormatter : IDumpFormatter
         }
         Sort(root);
 
+        if (model.Unreadable.Count > 0) writer.Write(DirectoryTree.UnreadableNote(model, "\n") + "\n\n");
         writer.Write("Directory structure:\n");
         var order = new List<string>();
         if (model.IsSingleFile)

@@ -70,9 +70,13 @@ public sealed class DumpPreviewTests
         var result = new DumpEngine().Run(tree.Root, cfg, contentSelection: DumpContentSelection.Empty);
         Assert.Contains("native.bin", result.Text);
         Assert.Equal(0, result.FilesIncluded);
-        // An explicit content inclusion still refuses unsupported decoding.
-        Assert.Throws<InvalidDataException>(() => new DumpEngine().Run(tree.Root, cfg,
-            contentSelection: DumpContentSelection.FromMode(DumpSelectionMode.Thorough, cfg)));
+        // Selected content with unsupported decoding is skipped and listed; the rest still dumps.
+        result = new DumpEngine().Run(tree.Root, cfg,
+            contentSelection: DumpContentSelection.FromMode(DumpSelectionMode.Thorough, cfg));
+        Assert.Equal(1, result.UnreadableCount);
+        Assert.Equal(1, result.FilesIncluded);
+        Assert.Contains("[could not read — skipped]", result.Text);
+        Assert.Contains("native.bin", result.Text);
     }
 
     [Fact]

@@ -33,7 +33,7 @@ public sealed class PlainFormatter : IDumpFormatter
         sb.Append("\r\n");
 
         sb.Append("----- Directory structure -----\r\n");
-        sb.Append(DirectoryTree.RenderStructureOrNote(model.Entries)).Append("\r\n\r\n");
+        sb.Append(DirectoryTree.RenderStructureOrNote(model)).Append("\r\n\r\n");
 
         var top = DirectoryTree.TopByTokens(model.Files, 10);
         if (top.Count > 0)

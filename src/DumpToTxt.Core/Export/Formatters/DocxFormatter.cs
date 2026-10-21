@@ -43,7 +43,7 @@ public static class DocxFormatter
             Paragraph(writer, $"Token budget: {model.TotalTokens:N0} / {cfg.MaxTokens:N0}" +
                 (model.TotalTokens > cfg.MaxTokens ? " — OVER BUDGET" : " — within budget"));
         Paragraph(writer, "Directory structure", "Heading2");
-        using (var tree = new StringReader(DirectoryTree.RenderStructureOrNote(model.Entries)))
+        using (var tree = new StringReader(DirectoryTree.RenderStructureOrNote(model)))
         {
             string? line;
             while ((line = tree.ReadLine()) is not null) { cancellationToken.ThrowIfCancellationRequested(); Paragraph(writer, line, "Code"); }

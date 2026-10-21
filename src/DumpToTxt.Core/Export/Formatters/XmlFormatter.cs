@@ -59,7 +59,7 @@ public sealed class XmlFormatter : IDumpFormatter
             }
 
             w.WriteStartElement("directoryStructure");
-            w.WriteString("\r\n" + Sanitize(DirectoryTree.RenderStructureOrNote(model.Entries)) + "\r\n");
+            w.WriteString("\r\n" + Sanitize(DirectoryTree.RenderStructureOrNote(model)) + "\r\n");
             w.WriteEndElement();
 
             if (DirectoryTree.TopByTokens(model.Files, 1).Count > 0)

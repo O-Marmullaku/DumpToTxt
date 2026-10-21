@@ -28,6 +28,8 @@ public sealed class DumpResult
     public bool Cancelled { get; init; }
     /// <summary>The action actually used for rendering, including a one-run choice from the review dialog.</summary>
     public SecretScanMode EffectiveSecretScan { get; init; } = SecretScanMode.Warn;
+    /// <summary>Folders/files skipped because they could not be read; listed in the dump itself.</summary>
+    public int UnreadableCount { get; init; }
 }
 
 /// <summary>
@@ -161,6 +163,7 @@ public sealed class DumpEngine
             FilesWithSecrets = model.FilesWithSecrets,
             FilesContentOmitted = filesContentOmitted,
             EffectiveSecretScan = effectiveConfig.SecretScan,
+            UnreadableCount = model.Unreadable.Count,
         };
     }
 
@@ -227,6 +230,7 @@ public sealed class DumpEngine
 
         var entries = new List<ListedEntry>();
         var candidates = new List<FileInfo>();
+        var unreadable = new List<string>();
 
         // ONE traversal: ignored directories are pruned (never descended), and the same pass collects
         // the full surviving structure (entries) and the content-eligible files (candidates).
@@ -237,7 +241,7 @@ public sealed class DumpEngine
             if (!matcher.IsExcluded(targetPath, relative, false))
                 entries.Add(new ListedEntry { FullName = targetPath, RelativePath = relative, IsDirectory = false });
         }
-        else Walk(root, matcher, extSet, dotAllow, outputPath, entries, candidates, contentSelection, cancellationToken);
+        else Walk(root, matcher, extSet, dotAllow, outputPath, entries, candidates, unreadable, contentSelection, cancellationToken);
 
         entries.Sort((a, b) => string.Compare(a.FullName, b.FullName, StringComparison.OrdinalIgnoreCase));
         candidates.Sort((a, b) => string.Compare(a.FullName, b.FullName, StringComparison.OrdinalIgnoreCase));
@@ -304,7 +308,10 @@ public sealed class DumpEngine
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 progress?.Report(new("Reading and checking", Path.GetRelativePath(root, fi.FullName), files.Count, 0));
-                var file = ReadDumpFile(fi, root, cfg, ref budget, allowlist, sensitiveValues, contentSelection is not null, staging, cancellationToken);
+                DumpFile file;
+                try { file = ReadDumpFile(fi, root, cfg, ref budget, allowlist, sensitiveValues, contentSelection is not null, staging, cancellationToken); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+                { unreadable.Add($"Could not read '{fi.FullName}': {ex.Message}"); continue; }
                 findingCount = checked(findingCount + file.Secrets.Count);
                 if (findingCount > 100_000)
                     throw new InvalidOperationException("This dump exceeds the supported limit of 100,000 sensitive findings across all files. No output was published. Select fewer files and export them separately.");
@@ -321,6 +328,7 @@ public sealed class DumpEngine
             Files = files,
             SkippedSingleFile = skipped,
             SingleFileSkippedUnchanged = skippedUnchanged,
+            Unreadable = unreadable,
             GitChangeCounts = cfg.Style == OutputStyle.Repomix && !isFile
                 ? GitChanges.ChangeCounts(root, cancellationToken: cancellationToken) : null,
         };
@@ -329,9 +337,9 @@ public sealed class DumpEngine
     /// <summary>Manual recursive walk that prunes ignored directories and collects entries + content candidates.</summary>
     private static void Walk(string root, IgnoreMatcher matcher, HashSet<string> extSet,
         HashSet<string> dotAllow, string? outputPath, List<ListedEntry> entries, List<FileInfo> candidates,
-        DumpContentSelection? contentSelection, CancellationToken cancellationToken)
+        List<string> unreadable, DumpContentSelection? contentSelection, CancellationToken cancellationToken)
     {
-        foreach (var entry in FileDiscovery.Enumerate(root, matcher, cancellationToken))
+        foreach (var entry in FileDiscovery.Enumerate(root, matcher, cancellationToken, unreadable.Add))
         {
             entries.Add(new ListedEntry
             {

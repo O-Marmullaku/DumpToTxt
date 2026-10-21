@@ -149,6 +149,8 @@ internal static class Program
             : "";
         if (result.TokenBudgetExceeded)
             notice += $"\n\nToken budget exceeded: {result.TotalTokens:N0} body tokens; budget {config.MaxTokens:N0}. The selected content was preserved.";
+        if (result.UnreadableCount > 0)
+            notice += $"\n\n{result.UnreadableCount} folder(s)/file(s) could not be read and were skipped; they are listed in the dump.";
         return notice;
     }
 

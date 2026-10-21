@@ -58,7 +58,7 @@ public sealed class JsonFormatter : IDumpFormatter
             if (model.SecretFindingCount > 0)
                 Property("secretRuleTally", SecretScanner.RuleTally(model.Files).Select(kv => new { rule = kv.Key, count = kv.Value }));
         }
-        Property("directoryStructure", DirectoryTree.RenderStructureOrNote(model.Entries));
+        Property("directoryStructure", DirectoryTree.RenderStructureOrNote(model));
         var top = DirectoryTree.TopByTokens(model.Files, 10);
         if (top.Count > 0)
         {

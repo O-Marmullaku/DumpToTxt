@@ -95,13 +95,13 @@ public class FilesystemSafetyTests
             Assert.Contains(snapshot.Paths, p => p.RelativePath == "cycle");
             Assert.DoesNotContain(snapshot.Paths, p => p.RelativePath.Contains("private.txt"));
             Assert.Equal(2, snapshot.Paths.Count);
-            // Authoritative exports refuse traversal gaps even when only the map was selected.
-            // Preview inventory is diagnostic, not permission to silently omit linked contents.
+            // Authoritative exports still never traverse links, but complete and list the gap in the dump.
             var config = DumpConfig.CreateDefault();
             config.OutputTarget = OutputTarget.Stdout;
-            var error = Assert.Throws<IOException>(() => new DumpEngine().Run(root, config,
-                contentSelection: DumpContentSelection.Empty, textOutput: TextWriter.Null));
-            Assert.Contains("Directory link was listed but not traversed", error.Message);
+            var result = new DumpEngine().Run(root, config, contentSelection: DumpContentSelection.Empty);
+            Assert.Equal(2, result.UnreadableCount);
+            Assert.Contains("Directory link was listed but not traversed", result.Text);
+            Assert.DoesNotContain("private.txt", result.Text);
         }
         finally
         {

@@ -22,6 +22,17 @@ public static class DirectoryTree
         return t.Length == 0 ? "(no matching files)" : t;
     }
 
+    /// <summary>Structure (or note) followed by the could-not-read list when anything was skipped.</summary>
+    public static string RenderStructureOrNote(DumpModel model)
+    {
+        string tree = RenderStructureOrNote(model.Entries);
+        return model.Unreadable.Count == 0 ? tree : tree + "\r\n\r\n" + UnreadableNote(model, "\r\n");
+    }
+
+    /// <summary>"[could not read — skipped]" header plus one "- message" line per unreadable item.</summary>
+    public static string UnreadableNote(DumpModel model, string newline) =>
+        "[could not read — skipped]" + string.Concat(model.Unreadable.Select(m => newline + "- " + m));
+
     /// <summary>Renders an ASCII tree of the entries' relative paths (directories included). Empty string if none.</summary>
     public static string RenderStructure(IReadOnlyList<ListedEntry> entries)
     {
