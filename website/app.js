@@ -354,7 +354,7 @@ new IntersectionObserver(async ([e], seen) => {
       for (const el of held) { await pause(450); el.classList.remove('later'); laughs(); }
       held = [];
       rounds++;
-      if (rounds === 2) document.querySelector('.click-arrow').classList.add('is-on');
+      if (rounds === 2) document.querySelector('.versus').classList.add('is-pointing');
       await pause(rounds > 1 ? 1300 : 500);
     }
     const command = line.match(/^C:\\Projects\\weather-app&gt; (.*)$/);
