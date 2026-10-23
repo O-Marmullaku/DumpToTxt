@@ -9,11 +9,14 @@ $previous = @{}
 foreach ($name in $settings) { $previous[$name] = [Environment]::GetEnvironmentVariable($name) }
 $global:DumpToTxtSigningTestStatus = 'Valid'
 $global:DumpToTxtSigningTestTimestamp = $true
+$global:DumpToTxtSigningTestSubject = 'CN=Crazy Entertainment, O=Crazy Entertainment, L=Test City, S=Test Region, C=CH'
 function Get-AuthenticodeSignature {
     param($LiteralPath)
     [pscustomobject]@{
         Status = $global:DumpToTxtSigningTestStatus
-        SignerCertificate = [pscustomobject]@{ Subject = 'synthetic signer' }
+        SignerCertificate = [pscustomobject]@{
+            SubjectName = [System.Security.Cryptography.X509Certificates.X500DistinguishedName]::new($global:DumpToTxtSigningTestSubject)
+        }
         TimeStamperCertificate = $(if ($global:DumpToTxtSigningTestTimestamp) { [pscustomobject]@{ Subject = 'synthetic timestamp' } } else { $null })
     }
 }
@@ -58,11 +61,29 @@ $global:LASTEXITCODE = $(if ($env:SIGNING_TEST_FAIL -eq $ToolArguments[0]) { 1 }
     $global:DumpToTxtSigningTestTimestamp = $true
     $global:DumpToTxtSigningTestStatus = 'HashMismatch'
     Expect-Failure { & $signer -Path $target -VerifyOnly } 'timestamped Authenticode signature'
+    $global:DumpToTxtSigningTestStatus = 'Valid'
+    $approvedSubject = $global:DumpToTxtSigningTestSubject
+    foreach ($rejectedSubject in @(
+        'CN=Synthetic Person, O=Crazy Entertainment, C=CH',
+        'CN=Crazy Entertainment, O=Synthetic Organization, C=CH',
+        'CN=Crazy Entertainment, C=CH',
+        'CN=Crazy Entertainment, O=Crazy Entertainment, C=US'
+    )) {
+        $global:DumpToTxtSigningTestSubject = $rejectedSubject
+        Expect-Failure { & $signer -Path $target -VerifyOnly } 'must identify Crazy Entertainment'
+    }
+    foreach ($extraField in @('STREET=Synthetic Road 1', 'PostalCode=0000', 'G=Synthetic', 'SN=Person', 'OU=Synthetic Unit', 'O=Crazy Entertainment')) {
+        $global:DumpToTxtSigningTestSubject = "$approvedSubject, $extraField"
+        Expect-Failure { & $signer -Path $target -VerifyOnly } 'unapproved public subject field'
+    }
+    $global:DumpToTxtSigningTestSubject = 'CN=Crazy Entertainment, O=Crazy Entertainment, L="Test City, East", ST=Test Region, C=CH'
+    & $signer -Path $target -VerifyOnly
+    $global:DumpToTxtSigningTestSubject = $approvedSubject
     $metadata = Get-Content -LiteralPath $env:DUMPTOTXT_SIGNING_METADATA -Raw | ConvertFrom-Json
     $metadata.Endpoint = 'https://example.com'
     $metadata | ConvertTo-Json | Set-Content -LiteralPath $env:DUMPTOTXT_SIGNING_METADATA
     Expect-Failure { & $signer -Path $target } 'Signing metadata requires'
-    Write-Host 'PASS: synthetic signing arguments, fail-closed verification, timestamps and metadata validation.'
+    Write-Host 'PASS: synthetic signing arguments, fail-closed verification, timestamps, publisher privacy and metadata validation.'
 } finally {
     foreach ($name in $settings) { [Environment]::SetEnvironmentVariable($name, $previous[$name]) }
     $resolved = [IO.Path]::GetFullPath($testRoot)

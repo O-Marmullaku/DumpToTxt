@@ -6,6 +6,13 @@ embedded uninstaller. Each signed build gets a separate uninstaller work directo
 SHA-256 signatures and RFC3161 timestamps are required. Signing or verification
 failure stops the build; there is no unsigned fallback in signing mode.
 
+Certificate verification also requires both CN and O to be exactly **Crazy
+Entertainment**, with country **CH**. Only city and region fields may accompany
+that identity; street, postcode, personal-name, duplicate and other subject fields
+stop the build. Rejection messages do not print the subject. Review Microsoft's
+subject preview privately before creating or using a certificate profile: this
+build check does not establish that Microsoft accepts the requested business name.
+
 The ordinary build without `-Sign` remains available for development. Adding
 this integration does not establish Azure account approval, a successful cloud
 signature, installed Windows acceptance, or a signed public release. Keep the
@@ -38,8 +45,10 @@ before committing to the billable account.
    Review the certificate subject preview: this verified identity becomes public
    in signatures. Business/identity documents and account recovery information
    belong in private business custody, never this repository.
-3. After Microsoft approves validation, create a Public Trust certificate profile
-   for DumpToTxt. Signing cannot work while validation is pending.
+3. After Microsoft approves validation, create one Public Trust certificate profile
+   for the business's Windows apps. Leave **Include street address** and **Include
+   postal code** unchecked. Confirm its complete public subject meets the requirement
+   above. Signing cannot work while validation is pending.
 4. Create a dedicated Microsoft Entra app registration/service principal for this
    repository. Use a federated credential, not a client secret or private-key export:
 
@@ -50,7 +59,8 @@ before committing to the billable account.
    | Subject | `repo:O-Marmullaku/DumpToTxt:environment:code-signing` |
 
 5. Assign that principal **Artifact Signing Certificate Profile Signer**, scoped
-   to this signing account. Do not grant subscription Contributor/Owner for builds.
+   to the approved certificate profile. Do not grant subscription Contributor/Owner
+   for builds.
 6. Create the GitHub environment **code-signing**, allow deployment from **main
    only**, and configure owner review before granting it signing access. The workflow
    is manual and also rejects refs other than `main`; the environment branch policy

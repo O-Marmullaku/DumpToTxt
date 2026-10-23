@@ -39,4 +39,19 @@ $signature = Get-AuthenticodeSignature -LiteralPath $target
 if ($signature.Status -ne 'Valid' -or -not $signature.SignerCertificate -or -not $signature.TimeStamperCertificate) {
     throw "A valid, timestamped Authenticode signature is required: $target"
 }
+$subject = $signature.SignerCertificate.SubjectName.Decode(
+    [System.Security.Cryptography.X509Certificates.X500DistinguishedNameFlags]::UseNewLines)
+$fields = @{}
+foreach ($attribute in $subject -split '\r?\n') {
+    if ([string]::IsNullOrWhiteSpace($attribute)) { continue }
+    $name, $value = $attribute -split '=', 2
+    if ($name -notin @('CN', 'O', 'L', 'S', 'C') -or $fields.ContainsKey($name) -or
+        [string]::IsNullOrWhiteSpace($value)) {
+        throw 'Signing certificate contains an unapproved public subject field. Review the profile privately.'
+    }
+    $fields[$name] = $value
+}
+if ($fields.CN -cne 'Crazy Entertainment' -or $fields.O -cne 'Crazy Entertainment' -or $fields.C -cne 'CH') {
+    throw 'Signing certificate must identify Crazy Entertainment in Switzerland. Review the profile privately.'
+}
 Write-Host "Verified signed output: $target"
