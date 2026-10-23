@@ -1,0 +1,88 @@
+name: Build signed Windows packages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: signed-windows-packages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: windows-2022
+    timeout-minutes: 30
+    environment: code-signing
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      ARTIFACT_SIGNING_ENDPOINT: ${{ vars.ARTIFACT_SIGNING_ENDPOINT }}
+      ARTIFACT_SIGNING_ACCOUNT: ${{ vars.ARTIFACT_SIGNING_ACCOUNT }}
+      ARTIFACT_SIGNING_PROFILE: ${{ vars.ARTIFACT_SIGNING_PROFILE }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Check signing configuration
+        run: |
+          foreach ($name in 'AZURE_CLIENT_ID', 'AZURE_TENANT_ID', 'AZURE_SUBSCRIPTION_ID', 'ARTIFACT_SIGNING_ENDPOINT', 'ARTIFACT_SIGNING_ACCOUNT', 'ARTIFACT_SIGNING_PROFILE') {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
+              throw "Missing code-signing environment variable: $name. See docs/signing.md."
+            }
+          }
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: 8.0.x
+      - name: Install build and signing dependencies
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Install-Module ps2exe -RequiredVersion 1.0.18 -Repository PSGallery -Scope CurrentUser -Force
+          $tools = Join-Path $env:RUNNER_TEMP 'dumptotxt-signing-tools'
+          nuget install Microsoft.Windows.SDK.BuildTools -Version 10.0.26100.4188 -OutputDirectory $tools -Source https://api.nuget.org/v3/index.json -NonInteractive -DirectDownload
+          if ($LASTEXITCODE -ne 0) { throw 'Signing SDK download failed.' }
+          nuget install Microsoft.ArtifactSigning.Client -Version 1.0.128 -OutputDirectory $tools -Source https://api.nuget.org/v3/index.json -NonInteractive -DirectDownload
+          if ($LASTEXITCODE -ne 0) { throw 'Artifact Signing client download failed.' }
+          $signTool = Join-Path $tools 'Microsoft.Windows.SDK.BuildTools.10.0.26100.4188\bin\10.0.26100.0\x64\signtool.exe'
+          $dlib = Join-Path $tools 'Microsoft.ArtifactSigning.Client.1.0.128\bin\x64\Azure.CodeSigning.Dlib.dll'
+          $metadata = Join-Path $env:RUNNER_TEMP 'dumptotxt-signing.json'
+          @{
+            Endpoint = $env:ARTIFACT_SIGNING_ENDPOINT
+            CodeSigningAccountName = $env:ARTIFACT_SIGNING_ACCOUNT
+            CertificateProfileName = $env:ARTIFACT_SIGNING_PROFILE
+            CorrelationId = "$env:GITHUB_REPOSITORY/$env:GITHUB_RUN_ID"
+            ExcludeCredentials = @('EnvironmentCredential', 'WorkloadIdentityCredential', 'ManagedIdentityCredential', 'SharedTokenCacheCredential', 'VisualStudioCredential', 'VisualStudioCodeCredential', 'AzurePowerShellCredential', 'AzureDeveloperCliCredential', 'InteractiveBrowserCredential')
+          } | ConvertTo-Json | Set-Content -LiteralPath $metadata -Encoding utf8
+          "DUMPTOTXT_SIGNTOOL=$signTool" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "DUMPTOTXT_SIGNING_DLIB=$dlib" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "DUMPTOTXT_SIGNING_METADATA=$metadata" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Check source contracts
+        run: ./tools/check.ps1 -SourceOnly
+      - name: Azure login with GitHub OIDC
+        uses: azure/login@935127ca5bb3c4b02c9c2c10060028383878f33f # v3
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Build, sign and verify all editions
+        run: ./tools/build.ps1 -Flavor all -Installer -Sign
+      - name: Stage checksums from signed installers
+        run: ./tools/prepare-npm.ps1
+      - name: Save signed candidates for acceptance
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: DumpToTxt-signed-${{ github.run_id }}
+          path: |
+            artifacts/packages/
+            artifacts/npm/release.json
+          if-no-files-found: error
+          retention-days: 14

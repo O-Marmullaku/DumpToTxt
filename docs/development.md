@@ -92,6 +92,12 @@ pwsh -NoProfile -File tools/build.ps1 -Flavor all -Installer
 
 Generated executables are `artifacts/packages/<flavor>/DumpToTxt.exe`; optional installers are `artifacts/packages/DumpToTxt-Setup-<flavor>.exe`. Full is self-contained and single-file; Compact is framework-dependent and single-file without self-contained-only compression. Lite is compiled from its own PowerShell source. Keep generated files out of source ZIPs and commits.
 
+For signed candidates, use `tools/build.ps1 -Flavor all -Installer -Sign` after
+configuring [Azure Artifact Signing](signing.md). It signs the applications before
+packaging and signs/verifies setup plus its embedded uninstaller. The manual
+**Build signed Windows packages** GitHub workflow automates this with OIDC and
+saves verified candidates; it does not publish a release.
+
 `Version` in `src/DumpToTxt.App/DumpToTxt.App.csproj` is the release version source. Assembly/file metadata, ps2exe metadata and the installer receive it through build properties/arguments. The Inno script intentionally has no independent version default: invoke it through `tools/build.ps1`. Installer runtime checks support `win-x64`; another .NET runtime can be cross-published without `-Installer`, but that is not certification of another installer platform.
 
 `packaging/assets/DumpToTxt.ico` is the shared application/setup icon; the PSD beside it is the editable source artwork, not a generated release asset. `DumpToTxtWizard.png` is the installer image. The completion WAV is embedded from the App's own `Assets` directory. Preserve the embedded logical resource name when moving or replacing it.
@@ -151,8 +157,8 @@ For a release candidate, build installers, complete signing and the Windows VM
 acceptance checks above, then stage the npm package from those exact binaries:
 
 ```powershell
-pwsh -NoProfile -File tools/build.ps1 -Flavor all -Installer
-# Sign and verify the installers and complete VM acceptance before staging.
+pwsh -NoProfile -File tools/build.ps1 -Flavor all -Installer -Sign
+# Complete Windows VM acceptance of these exact signed candidates before publication.
 pwsh -NoProfile -File tools/prepare-npm.ps1
 npm pack ./artifacts/npm --pack-destination ./artifacts
 ```

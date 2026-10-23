@@ -27,6 +27,11 @@ AppVersion={#AppVersion}
 DefaultDirName={commonpf}\{#AppName}
 OutputDir=..\artifacts\packages
 OutputBaseFilename=DumpToTxt-Setup-{#Flavor}
+#ifdef SignBuild
+SignTool=DumpToTxtArtifactSigning
+SignedUninstaller=yes
+SignedUninstallerDir={#SignedUninstallerPath}
+#endif
 Compression=lzma2
 SolidCompression=yes
 PrivilegesRequired=admin

@@ -10,13 +10,16 @@ The application project supplies the release version for every flavor and instal
 .\tools\build.ps1 -Flavor full
 .EXAMPLE
 .\tools\build.ps1 -Flavor all -Installer
+.EXAMPLE
+.\tools\build.ps1 -Flavor all -Installer -Sign
 #>
 param(
     [ValidateSet('all', 'full', 'compact', 'lite')]
     [string]$Flavor = 'all',
     [string]$Configuration = 'Release',
     [string]$Runtime = 'win-x64',
-    [switch]$Installer
+    [switch]$Installer,
+    [switch]$Sign
 )
 
 $ErrorActionPreference = 'Stop'
@@ -35,6 +38,16 @@ if (($Installer -or $flavors -contains 'lite') -and [Environment]::OSVersion.Pla
 }
 if ($Installer -and $Runtime -ne 'win-x64' -and ($flavors -contains 'full' -or $flavors -contains 'compact')) {
     throw 'The installer runtime checks support win-x64. Build other runtime executables without -Installer.'
+}
+if ($Sign) {
+    if ([Environment]::OSVersion.Platform -ne 'Win32NT') { throw 'Authenticode signing requires Windows.' }
+    foreach ($setting in 'DUMPTOTXT_SIGNTOOL', 'DUMPTOTXT_SIGNING_DLIB', 'DUMPTOTXT_SIGNING_METADATA') {
+        $value = [Environment]::GetEnvironmentVariable($setting)
+        if ([string]::IsNullOrWhiteSpace($value) -or -not (Test-Path -LiteralPath $value -PathType Leaf)) {
+            throw "Set $setting to an existing file before requesting -Sign. See docs/signing.md."
+        }
+    }
+    $signingRun = Join-Path $dist ('signed-uninstallers\' + [guid]::NewGuid().ToString('N'))
 }
 if ($flavors -contains 'full' -or $flavors -contains 'compact') {
     Get-Command dotnet -ErrorAction Stop | Out-Null
@@ -89,9 +102,22 @@ function Build-Installer([string]$FlavorName) {
     if (-not (Test-Path -LiteralPath $iscc)) { $iscc = Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe' }
     if (-not (Test-Path -LiteralPath $iscc)) { throw 'Inno Setup 6 (ISCC.exe) is required to compile installers.' }
     Write-Host "==> [$FlavorName] installer"
-    & $iscc "/DFlavor=$FlavorName" "/DAppVersion=$version" (Join-Path $root 'packaging\DumpToTxt.iss')
+    $arguments = @("/DFlavor=$FlavorName", "/DAppVersion=$version")
+    if ($Sign) {
+        $uninstallerDir = Join-Path $signingRun $FlavorName
+        New-Item -ItemType Directory -Path $uninstallerDir -Force | Out-Null
+        $powerShell = (Get-Process -Id $PID).Path
+        $signScript = Join-Path $PSScriptRoot 'sign.ps1'
+        $signCommand = '$q' + $powerShell + '$q -NoProfile -ExecutionPolicy Bypass -File $q' + $signScript + '$q -Path $f'
+        $arguments += @('/DSignBuild=1', "/DSignedUninstallerPath=$uninstallerDir", "/SDumpToTxtArtifactSigning=$signCommand")
+    }
+    & $iscc @arguments (Join-Path $root 'packaging\DumpToTxt.iss')
     if ($LASTEXITCODE -ne 0) { throw "ISCC failed for $FlavorName ($LASTEXITCODE)." }
-    Report-Size (Join-Path $dist "DumpToTxt-Setup-$FlavorName.exe")
+    $setup = Join-Path $dist "DumpToTxt-Setup-$FlavorName.exe"
+    Report-Size $setup
+    if ($Sign) {
+        & (Join-Path $PSScriptRoot 'sign.ps1') -Path $setup -VerifyOnly
+    }
 }
 
 foreach ($f in $flavors) {
@@ -100,6 +126,7 @@ foreach ($f in $flavors) {
         'compact' { Build-Compact }
         'lite' { Build-Lite }
     }
+    if ($Sign) { & (Join-Path $PSScriptRoot 'sign.ps1') -Path (Join-Path $dist "$f\DumpToTxt.exe") }
     if ($Installer) { Build-Installer $f }
 }
 Write-Host "==> Built: $($flavors -join ', ')"
