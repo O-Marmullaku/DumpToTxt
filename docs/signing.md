@@ -18,6 +18,19 @@ supported for Artifact Signing. Review the current Basic tier price before creat
 an account. A Microsoft Store/Partner Center account does not establish that an
 Azure subscription or Artifact Signing identity validation exists.
 
+Billing starts when the signing account is created, including while identity
+validation is pending, and the monthly fee is not prorated. Keeping an unused
+account still incurs that fee. To leave the service, delete the signing account;
+Microsoft says this does not affect certificates already used to sign files.
+Timestamped signatures can remain valid after certificate expiry, unless revoked.
+Future builds still need an active signing account and approved profile.
+
+Public publisher names must be validated business/legal or trading names; they
+are not arbitrary branding fields. Organization validation also verifies a human
+representative's legal identity. Review the certificate subject separately from
+the representative's contact details, and resolve any publisher-name uncertainty
+before committing to the billable account.
+
 1. Create an Artifact Signing account in **Switzerland North**, using **Basic**
    and **Public Trust**. The matching endpoint is
    `https://swn.codesigning.azure.net`.
@@ -116,6 +129,8 @@ can be reverified with `tools/sign.ps1 -Path <absolute-path> -VerifyOnly`.
 - [Artifact Signing setup and eligible countries](https://learn.microsoft.com/en-us/azure/artifact-signing/quickstart)
 - [Subscription restrictions](https://learn.microsoft.com/en-us/azure/artifact-signing/faq)
 - [Pricing](https://azure.microsoft.com/en-us/pricing/details/artifact-signing/)
+- [Publisher names and leaving the service](https://learn.microsoft.com/en-us/azure/artifact-signing/faq)
+- [Certificate lifetime and timestamp validity](https://learn.microsoft.com/en-us/azure/artifact-signing/concept-certificate-management)
 - [Microsoft SignTool/dlib setup and timestamp requirements](https://learn.microsoft.com/en-us/azure/artifact-signing/how-to-signing-integrations)
 - [GitHub OIDC with Azure](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-azure)
 - [Inno Setup signing hook](https://jrsoftware.org/ishelp/topic_setup_signtool.htm)
