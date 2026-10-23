@@ -349,7 +349,7 @@ new IntersectionObserver(async ([e], seen) => {
   seen.disconnect();
   let held = [], rounds = 0;
   for (const line of story) {
-    // A blank line ends a failed command: once its errors are out, the typo gets underlined, then laughed at.
+    // A blank line ends a failed command: once its errors are out, the typo gets underlined.
     if (!line && held.length) {
       for (const el of held) { await pause(450); el.classList.remove('later'); laughs(); }
       held = [];
@@ -358,13 +358,17 @@ new IntersectionObserver(async ([e], seen) => {
     const command = line.match(/^C:\\Projects\\weather-app&gt; (.*)$/);
     if (command) {
       const f = frag(command[1]);
-      f.querySelectorAll('.lol').forEach(l => l.remove());
+      const laugh = f.querySelector('.lol');
+      laugh?.remove();
       await pause(600);
       await type(f.textContent, !/^npx /.test(f.textContent));
-      await pause(350);
+      if (laugh) { live.append(laugh); laughs(); }
+      await pause(laugh ? 700 : 350);
+      laugh?.float?.remove();
+      laugh?.remove();
       typed.textContent = '';
     } else await pause(90);
-    const f = frag(line + '\n'), marks = [...f.querySelectorAll('u, .lol')];
+    const f = frag(line + '\n'), marks = [...f.querySelectorAll('u')];
     if (marks.length) held = marks;
     marks.forEach(el => el.classList.add('later'));
     live.before(f);

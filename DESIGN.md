@@ -216,9 +216,9 @@ height is 52px, with a 12px icon gap. The icon is inline SVG. Downloads remain
 ordinary links and work without JavaScript. Hover and press follow the treatments
 in Elevation & Depth.
 
-Version and platform metadata sit beside the primary action, with a link to the
-Windows publisher warning explanation. The subtitle distinguishes file formats
-from clipboard output; the following line states that dumps are created locally.
+Version and platform metadata sit centered under the primary action on wide
+screens and phones. The unsigned-installer note stays with the edition choices.
+The subtitle distinguishes file formats from clipboard output.
 
 ### Download cards and recommendation badge
 
@@ -267,9 +267,11 @@ Animations remain independent of operating-system motion preferences.
 
 The comparison places a dark Command Prompt beside a light Explorer window.
 The terminal replays its typo sequence when first fully visible, then accepts
-commands through a hidden input. Its visible input treatment is the terminal
+commands through a hidden input. Each laughing emoji appears beside the finished
+typo before Enter submits the command. Its visible input treatment is the terminal
 prompt, not a separate form field. A text description also explains the successful
-Explorer action. Selection memory and format choices appear before the comic.
+Explorer action. Selection memory and format choices appear in the informal
+"Btw" paragraph below the comic, leaving the heading directly above the panels.
 The cat is a native button: Enter, Space and clicks spin it, and rapid activation
 still makes cats rain. The full comic and its laughing images remain intact.
 Keep competitor claims fair and cite dated sources.
