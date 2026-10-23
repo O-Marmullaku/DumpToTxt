@@ -185,10 +185,10 @@ from the figure top, with an 84px gutter from 1100px and a 60px gutter in the
 stacked phone layout. It is hidden between those layouts. The context menu stays
 inset from the right edge, with its miniature type scaling from 10 to 12px on
 phones so the action fits beside the cat. A red underline marks Create dump
-with DumpToTxt, with a curved arrow from the cat pointing up to that line. The
-arrow shares the cat's visibility breakpoints; the underline remains at all widths.
-After the second failed command on the left, it draws in over 650ms, gently pulses
-twice over
+with DumpToTxt, with a curved arrow starting just below the cat's lower edge
+and pointing up to that line, clear of its face. The arrow shares the cat's
+visibility breakpoints; the underline remains at all widths. After the second
+failed command on the left, it draws in over 650ms, gently pulses twice over
 1.8 seconds, then stays visible. Without JavaScript it is visible from the start.
 
 Downloads use three equal columns with a 14px gap and stack at 760px. Every card
