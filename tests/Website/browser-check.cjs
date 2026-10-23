@@ -68,11 +68,29 @@ const lit = page => page.evaluate(() => [...document.querySelectorAll('.steps > 
       // The terminal takes commands; spelling Repomix right stops the laughing.
       // The Repomix story replays once the terminal is in view; typing waits until it's done.
       assert.ok(!(await page.locator('.term pre').textContent()).includes('YOU-SUCK'));
+      await page.evaluate(() => {
+        window.terminalBeats = [];
+        new MutationObserver(() => {
+          const mark = document.querySelector('.live u');
+          if (!mark) return;
+          let beat = window.terminalBeats.at(-1);
+          if (beat?.word !== mark.textContent) {
+            beat = { word: mark.textContent, command: document.querySelector('.live .cmd').textContent,
+              color: getComputedStyle(mark).textDecorationColor, underlineAt: performance.now() };
+            window.terminalBeats.push(beat);
+          }
+          if (document.querySelector('.live > .lol')) beat.emojiAt ??= performance.now();
+        }).observe(document.querySelector('.live'), { childList: true, subtree: true });
+      });
       await page.locator('.term').scrollIntoViewIfNeeded();
       // Enter must not move either laugh away from the command it already sits beside.
       for (const tag of ['img', 'span']) {
         const typing = page.locator(`.live > ${tag}.lol`);
         await typing.waitFor({ state: 'attached', timeout: 15000 });
+        const beat = await page.evaluate(() => window.terminalBeats.at(-1));
+        assert.ok(beat?.command.endsWith(beat.word), `${name}: underline must follow the completed typo`);
+        assert.equal(beat.color, 'rgb(231, 72, 86)');
+        assert.ok(beat.emojiAt - beat.underlineAt >= 250, `${name}: emoji must follow the underline after a short beat`);
         const before = await typing.evaluate(e => ({ x: e.float.offsetLeft, y: e.float.offsetTop }));
         const submitted = page.locator(`.term pre > ${tag}.lol`);
         await submitted.waitFor({ state: 'attached' });

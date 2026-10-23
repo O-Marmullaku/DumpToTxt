@@ -274,9 +274,10 @@ Animations remain independent of operating-system motion preferences.
 
 The comparison places a dark Command Prompt beside a light Explorer window.
 The terminal replays its typo sequence when first fully visible, then accepts
-commands through a hidden input. Each laughing emoji appears beside the finished
-typo before Enter submits the command. Its visible input treatment is the terminal
-prompt, not a separate form field. A text description also explains the successful
+commands through a hidden input. The completed typo gets its red underline, then
+the laughing emoji appears 300ms later, before Enter submits the command. Each
+emoji keeps its position when the prompt advances. Its visible input treatment is
+the terminal prompt, not a separate form field. A text description also explains the successful
 Explorer action. Selection memory and format choices appear in the informal
 "Btw" paragraph below the comic, leaving the heading directly above the panels.
 The cat is a native button: Enter, Space and clicks spin it, and rapid activation

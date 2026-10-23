@@ -347,12 +347,11 @@ async function type(text, slips) {
 new IntersectionObserver(async ([e], seen) => {
   if (!e.isIntersecting) return;
   seen.disconnect();
-  let held = [], rounds = 0;
+  let failed = false, rounds = 0;
   for (const line of story) {
-    // A blank line ends a failed command: once its errors are out, the typo gets underlined.
-    if (!line && held.length) {
-      for (const el of held) { await pause(450); el.classList.remove('later'); laughs(); }
-      held = [];
+    // The second failed command cues the Explorer highlight after its errors finish.
+    if (!line && failed) {
+      failed = false;
       rounds++;
       if (rounds === 2) document.querySelector('.versus').classList.add('is-pointing');
       await pause(rounds > 1 ? 1300 : 500);
@@ -364,15 +363,19 @@ new IntersectionObserver(async ([e], seen) => {
       laugh?.remove();
       await pause(600);
       await type(f.textContent, !/^npx /.test(f.textContent));
-      if (laugh) { typed.after(laugh); laughs(); }
+      if (laugh) {
+        typed.replaceChildren(' ', f);
+        await pause(300);
+        typed.after(laugh);
+        laughs();
+      }
       await pause(laugh ? 700 : 350);
       laugh?.float?.remove();
       laugh?.remove();
       typed.textContent = '';
     } else await pause(90);
-    const f = frag(line + '\n'), marks = [...f.querySelectorAll('u')];
-    if (marks.length) held = marks;
-    marks.forEach(el => el.classList.add('later'));
+    const f = frag(line + '\n');
+    if (f.querySelector('u')) failed = true;
     live.before(f);
     tpre.scrollTop = tpre.scrollHeight;
     laughs();
