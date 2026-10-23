@@ -262,9 +262,9 @@ being pasted into ChatGPT. Step 3 keeps the title "Use it anywhere" for both.
 Clicking Create dump hands over to the next step with a brief overlap. The
 clipboard toast clears between passes. Steps and frames support replay by click;
 native step buttons provide keyboard replay. Illustrated frames stay out of the
-tab order. Persistent captions explain each step and are associated with its
-button. Width changes and returning to the tab restart playback. Static scenes
-and captions remain readable without JavaScript.
+tab order. Screen-reader descriptions explain each step and are associated with
+its button; the pictures have no visible captions. Width changes and returning
+to the tab restart playback. Static scenes remain readable without JavaScript.
 
 The ChatGPT question is random, with a 5% chance of a silly question. Playback
 starts automatically and loops without footer controls, preserving the owner's decision.
