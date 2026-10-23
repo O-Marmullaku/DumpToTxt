@@ -1,42 +1,381 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-10T00:00:00Z",
+  "generatedAt": "2026-10-23T12:57:11.994315Z",
   "title": "Design System: DumpToTxt Website",
   "extensions": {
     "colorMeta": {
-      "canvas": { "role": "neutral", "displayName": "Pale Graphite Canvas", "canonical": "#f7f7f7" },
-      "surface": { "role": "neutral", "displayName": "White Surface", "canonical": "#ffffff" },
-      "surface-subtle": { "role": "neutral", "displayName": "Near White", "canonical": "#fafafa" },
-      "text": { "role": "neutral", "displayName": "Charcoal Text", "canonical": "#202020" },
-      "text-muted": { "role": "neutral", "displayName": "Muted Gray", "canonical": "#626262" },
-      "line": { "role": "neutral", "displayName": "Divider Gray", "canonical": "#dedede" },
-      "action": { "role": "primary", "displayName": "Graphite Action", "canonical": "#2d2d2d" },
-      "focus": { "role": "secondary", "displayName": "Focus Blue", "canonical": "#1967d2" }
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Pale Graphite Canvas",
+        "canonical": "#f7f7f7",
+        "tonalRamp": [
+          "oklch(15% 0.00000 0.00)",
+          "oklch(25% 0.00000 0.00)",
+          "oklch(35% 0.00000 0.00)",
+          "oklch(45% 0.00000 0.00)",
+          "oklch(55% 0.00000 0.00)",
+          "oklch(65% 0.00000 0.00)",
+          "oklch(80% 0.00000 0.00)",
+          "oklch(95% 0.00000 0.00)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "White Surface",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "oklch(15% 0.00000 0.00)",
+          "oklch(25% 0.00000 0.00)",
+          "oklch(35% 0.00000 0.00)",
+          "oklch(45% 0.00000 0.00)",
+          "oklch(55% 0.00000 0.00)",
+          "oklch(65% 0.00000 0.00)",
+          "oklch(80% 0.00000 0.00)",
+          "oklch(95% 0.00000 0.00)"
+        ]
+      },
+      "surface-subtle": {
+        "role": "neutral",
+        "displayName": "Near White",
+        "canonical": "#fafafa",
+        "tonalRamp": [
+          "oklch(15% 0.00000 0.00)",
+          "oklch(25% 0.00000 0.00)",
+          "oklch(35% 0.00000 0.00)",
+          "oklch(45% 0.00000 0.00)",
+          "oklch(55% 0.00000 0.00)",
+          "oklch(65% 0.00000 0.00)",
+          "oklch(80% 0.00000 0.00)",
+          "oklch(95% 0.00000 0.00)"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Charcoal Text",
+        "canonical": "#202020",
+        "tonalRamp": [
+          "oklch(15% 0.00000 0.00)",
+          "oklch(25% 0.00000 0.00)",
+          "oklch(35% 0.00000 0.00)",
+          "oklch(45% 0.00000 0.00)",
+          "oklch(55% 0.00000 0.00)",
+          "oklch(65% 0.00000 0.00)",
+          "oklch(80% 0.00000 0.00)",
+          "oklch(95% 0.00000 0.00)"
+        ]
+      },
+      "text-secondary": {
+        "role": "neutral",
+        "displayName": "Secondary Gray",
+        "canonical": "#515151",
+        "tonalRamp": [
+          "oklch(15% 0.00000 0.00)",
+          "oklch(25% 0.00000 0.00)",
+          "oklch(35% 0.00000 0.00)",
+          "oklch(45% 0.00000 0.00)",
+          "oklch(55% 0.00000 0.00)",
+          "oklch(65% 0.00000 0.00)",
+          "oklch(80% 0.00000 0.00)",
+          "oklch(95% 0.00000 0.00)"
+        ]
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Muted Gray",
+        "canonical": "#626262",
+        "tonalRamp": [
+          "oklch(15% 0.00000 0.00)",
+          "oklch(25% 0.00000 0.00)",
+          "oklch(35% 0.00000 0.00)",
+          "oklch(45% 0.00000 0.00)",
+          "oklch(55% 0.00000 0.00)",
+          "oklch(65% 0.00000 0.00)",
+          "oklch(80% 0.00000 0.00)",
+          "oklch(95% 0.00000 0.00)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Divider Gray",
+        "canonical": "#dedede",
+        "tonalRamp": [
+          "oklch(15% 0.00000 0.00)",
+          "oklch(25% 0.00000 0.00)",
+          "oklch(35% 0.00000 0.00)",
+          "oklch(45% 0.00000 0.00)",
+          "oklch(55% 0.00000 0.00)",
+          "oklch(65% 0.00000 0.00)",
+          "oklch(80% 0.00000 0.00)",
+          "oklch(95% 0.00000 0.00)"
+        ]
+      },
+      "line-control": {
+        "role": "neutral",
+        "displayName": "Control Border Gray",
+        "canonical": "#dcdcdc",
+        "tonalRamp": [
+          "oklch(15% 0.00000 0.00)",
+          "oklch(25% 0.00000 0.00)",
+          "oklch(35% 0.00000 0.00)",
+          "oklch(45% 0.00000 0.00)",
+          "oklch(55% 0.00000 0.00)",
+          "oklch(65% 0.00000 0.00)",
+          "oklch(80% 0.00000 0.00)",
+          "oklch(95% 0.00000 0.00)"
+        ]
+      },
+      "action": {
+        "role": "primary",
+        "displayName": "Graphite Action",
+        "canonical": "#2d2d2d",
+        "tonalRamp": [
+          "oklch(15% 0.00000 0.00)",
+          "oklch(25% 0.00000 0.00)",
+          "oklch(35% 0.00000 0.00)",
+          "oklch(45% 0.00000 0.00)",
+          "oklch(55% 0.00000 0.00)",
+          "oklch(65% 0.00000 0.00)",
+          "oklch(80% 0.00000 0.00)",
+          "oklch(95% 0.00000 0.00)"
+        ]
+      },
+      "focus": {
+        "role": "secondary",
+        "displayName": "Focus Blue",
+        "canonical": "#1967d2",
+        "tonalRamp": [
+          "oklch(15% 0.18068 258.26)",
+          "oklch(25% 0.18068 258.26)",
+          "oklch(35% 0.18068 258.26)",
+          "oklch(45% 0.18068 258.26)",
+          "oklch(55% 0.18068 258.26)",
+          "oklch(65% 0.18068 258.26)",
+          "oklch(80% 0.18068 258.26)",
+          "oklch(95% 0.18068 258.26)"
+        ]
+      }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "Hero headline." },
-      "body": { "displayName": "Body", "purpose": "Product and supporting copy." },
-      "code": { "displayName": "Code", "purpose": "Commands and output examples." }
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default page text."
+      },
+      "display": {
+        "displayName": "Display",
+        "purpose": "Hero headline."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section headings."
+      },
+      "lead": {
+        "displayName": "Lead",
+        "purpose": "Hero subtitle."
+      },
+      "card-title": {
+        "displayName": "Card title",
+        "purpose": "Edition names in the aligned download title rows."
+      },
+      "card-copy": {
+        "displayName": "Card copy",
+        "purpose": "Download edition descriptions."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Primary download label."
+      },
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "Version, compatibility and installation notes."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "PowerShell command."
+      }
     },
     "shadows": [
-      { "name": "example", "value": "0 14px 40px #20202018", "purpose": "Subtle separation for real application screenshots." }
+      {
+        "name": "primary-rest",
+        "value": "inset 0 1px 0 #ffffff26,0 1px 2px #0003,0 8px 24px -8px #0006",
+        "purpose": "Primary download at rest."
+      },
+      {
+        "name": "primary-hover",
+        "value": "inset 0 1px 0 #ffffff26,0 2px 4px #0003,0 14px 30px -10px #0007",
+        "purpose": "Primary download on hover."
+      },
+      {
+        "name": "window",
+        "value": "0 .5em 1.8em #0003",
+        "purpose": "Layered walkthrough windows."
+      },
+      {
+        "name": "context-menu",
+        "value": ".2em .3em .8em #0003",
+        "purpose": "Walkthrough context menu."
+      },
+      {
+        "name": "comparison-terminal",
+        "value": "0 10px 30px #0003",
+        "purpose": "Comparison Command Prompt panel."
+      },
+      {
+        "name": "comparison-explorer",
+        "value": "0 10px 30px #0002",
+        "purpose": "Comparison Explorer panel."
+      }
+    ],
+    "motion": [
+      {
+        "name": "download-feedback",
+        "value": "transform .15s,box-shadow .15s",
+        "purpose": "Hover and press feedback."
+      },
+      {
+        "name": "scene-state",
+        "value": "opacity .4s,filter .4s",
+        "purpose": "Active and inactive scene states."
+      },
+      {
+        "name": "window-open",
+        "value": "300ms cubic-bezier(.2,.8,.2,1)",
+        "purpose": "Window appearance in the walkthrough."
+      },
+      {
+        "name": "window-close",
+        "value": "180ms ease-in",
+        "purpose": "Window closing between passes."
+      },
+      {
+        "name": "terminal-caret",
+        "value": "caret 1s steps(1) infinite",
+        "purpose": "Focused terminal prompt."
+      }
     ],
     "breakpoints": [
-      { "name": "mobile", "value": "620px" },
-      { "name": "compact", "value": "900px" },
-      { "name": "wide", "value": "1450px" }
+      {
+        "name": "phone-max",
+        "value": "620px"
+      },
+      {
+        "name": "comparison-stack-max",
+        "value": "760px"
+      },
+      {
+        "name": "hero-stack-max",
+        "value": "900px"
+      },
+      {
+        "name": "walkthrough-shared-max",
+        "value": "980px"
+      },
+      {
+        "name": "comparison-cat-min",
+        "value": "1100px"
+      }
     ]
   },
-  "components": [],
+  "components": [
+    {
+      "name": "Primary download",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Windows download action with hover lift and press feedback.",
+      "html": "<a class=\"ds-download\" href=\"#download\"><svg class=\"ds-win-logo\" viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M0 0h7.5v7.5H0zM8.5 0H16v7.5H8.5zM0 8.5h7.5V16H0zM8.5 8.5H16V16H8.5z\"/></svg>Download for Windows</a>",
+      "css": ".ds-download{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-height:52px;background:linear-gradient(#3a3a3a,#1f1f1f);color:#fff;padding:14px 26px;border-radius:12px;text-decoration:none;font-size:15px;font-weight:600;white-space:nowrap;box-shadow:inset 0 1px 0 #ffffff26,0 1px 2px #0003,0 8px 24px -8px #0006;transition:transform .15s,box-shadow .15s;font-family:\"Segoe UI\",system-ui,sans-serif;}.ds-download:hover{color:white;transform:translateY(-1px);box-shadow:inset 0 1px 0 #ffffff26,0 2px 4px #0003,0 14px 30px -10px #0007;}.ds-download:active{transform:none;background:#111;}.ds-win-logo{width:16px;height:16px;fill:currentColor;}.ds-download:focus-visible{outline:3px solid var(--focus,#1967d2);outline-offset:4px}"
+    },
+    {
+      "name": "Copy button",
+      "kind": "button",
+      "refersTo": "copy-button",
+      "description": "Secondary action beside the selectable command.",
+      "html": "<button class=\"ds-copy\" type=\"button\">Copy</button>",
+      "css": ".ds-copy{margin-left:auto;padding:7px 12px;border:1px solid #ccc;border-radius:4px;background:white;cursor:pointer;font:inherit;font-size:13px;color:#202020;font-family:\"Segoe UI\",system-ui,sans-serif;}.ds-copy:hover{background:#f7f7f7;}.ds-copy:focus-visible{outline:3px solid var(--focus,#1967d2);outline-offset:4px}"
+    },
+    {
+      "name": "Navigation",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "Compact GitHub navigation link.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Main navigation\"><a href=\"https://github.com/O-Marmullaku/DumpToTxt\">GitHub</a></nav>",
+      "css": ".ds-nav{display:flex;gap:28px;font-size:14px;font-family:\"Segoe UI\",system-ui,sans-serif;color:#202020;}.ds-nav a{text-decoration:none;color:inherit;}.ds-nav a:hover{color:#1967d2;}.ds-nav a:focus-visible{outline:3px solid var(--focus,#1967d2);outline-offset:4px}"
+    },
+    {
+      "name": "Recommendation badge",
+      "kind": "chip",
+      "refersTo": "recommendation-badge",
+      "description": "The passive badge shown beside Full on the charcoal card.",
+      "html": "<div class=\"ds-badge-surface\"><em class=\"ds-badge\">Recommended</em></div>",
+      "css": ".ds-badge-surface{background:#2d2d2d;padding:16px 18px;border-radius:8px;}.ds-badge{white-space:nowrap;padding:2px 8px;border-radius:99px;background:#ffffff1f;color:#fff;font-size:11px;font-weight:600;line-height:1.5;font-style:normal;font-family:\"Segoe UI\",system-ui,sans-serif;}"
+    },
+    {
+      "name": "Download card",
+      "kind": "card",
+      "refersTo": "download-card",
+      "description": "Standard edition with a title, arrow and description.",
+      "html": "<a class=\"ds-card\" href=\"#compact\"><b>Compact <span aria-hidden=\"true\">↓</span></b><span>The same app, smaller download. Only works if the Microsoft .NET 8 Desktop Runtime is already on your PC.</span></a>",
+      "css": ".ds-card{display:flex;flex-direction:column;gap:6px;padding:16px 18px;border:1px solid #dcdcdc;border-radius:8px;background:#fff;text-decoration:none;font-size:13px;line-height:1.5;color:#515151;font-family:\"Segoe UI\",system-ui,sans-serif;}.ds-card b{display:flex;align-items:center;gap:8px;font-size:16px;color:#1a1a1a;}.ds-card b span{margin-left:auto;}.ds-card:hover{border-color:#999;color:#515151;}.ds-card:focus-visible{outline:3px solid var(--focus,#1967d2);outline-offset:4px}"
+    },
+    {
+      "name": "Recommended download card",
+      "kind": "card",
+      "refersTo": "download-card-recommended",
+      "description": "Full with its badge in the aligned title row.",
+      "html": "<a class=\"ds-card ds-card-main\" href=\"#full\"><b>Full <em class=\"ds-badge\">Recommended</em><span aria-hidden=\"true\">↓</span></b><span>Just works. Everything it needs is included, so the download is bigger.</span></a>",
+      "css": ".ds-card{display:flex;flex-direction:column;gap:6px;padding:16px 18px;border:1px solid #dcdcdc;border-radius:8px;background:#fff;text-decoration:none;font-size:13px;line-height:1.5;color:#515151;font-family:\"Segoe UI\",system-ui,sans-serif;}.ds-card b{display:flex;align-items:center;gap:8px;font-size:16px;color:#1a1a1a;}.ds-card b span{margin-left:auto;}.ds-card:hover{border-color:#999;color:#515151;}.ds-card:focus-visible{outline:3px solid var(--focus,#1967d2);outline-offset:4px}.ds-card.ds-card-main{background:#2d2d2d;border-color:#2d2d2d;color:#cfcfcf;}.ds-card.ds-card-main b{color:#fff;}.ds-badge{white-space:nowrap;padding:2px 8px;border-radius:99px;background:#ffffff1f;color:#fff;font-size:11px;font-weight:600;line-height:1.5;font-style:normal;font-family:\"Segoe UI\",system-ui,sans-serif;}.ds-card.ds-card-main:hover{background:#444;color:#cfcfcf;}"
+    },
+    {
+      "name": "Walkthrough step",
+      "kind": "button",
+      "refersTo": "walkthrough-step",
+      "description": "Numbered replay control in the three-step walkthrough.",
+      "html": "<button class=\"ds-step\" type=\"button\"><span>1</span>Right-click in Explorer</button>",
+      "css": ".ds-step{display:flex;align-items:center;gap:10px;border:0;padding:2px 0;background:none;font:inherit;color:inherit;text-align:left;cursor:pointer;font-family:\"Segoe UI\",system-ui,sans-serif;font-size:16px;font-weight:600;line-height:1.15;letter-spacing:0;color:var(--muted,#626262);}.ds-step>span{font-size:12px;border:1px solid #aaa;border-radius:50%;width:24px;height:24px;display:grid;place-items:center;flex-shrink:0;transition:background .4s,color .4s,border-color .4s;}.ds-step:focus-visible{outline:3px solid var(--focus,#1967d2);outline-offset:4px}"
+    },
+    {
+      "name": "Command strip",
+      "kind": "custom",
+      "refersTo": "command-strip",
+      "description": "PowerShell label, selectable command and Copy control.",
+      "html": "<div class=\"ds-command\"><span class=\"ds-ps\">PowerShell</span><code>irm https://dumptotxt.com/install.ps1 | iex</code><button class=\"ds-copy\" type=\"button\">Copy</button></div>",
+      "css": ".ds-command{display:flex;align-items:center;gap:16px;padding:14px 16px;background:#eaeaea;margin-top:20px;border-radius:6px;font-family:\"Segoe UI\",system-ui,sans-serif;color:#202020;}.ds-command .ds-ps{flex:none;font-size:12px;font-weight:600;color:#777;}.ds-command code{font:13px/1.6 Consolas,monospace;overflow-wrap:anywhere;user-select:all;}.ds-copy{margin-left:auto;padding:7px 12px;border:1px solid #ccc;border-radius:4px;background:white;cursor:pointer;font:inherit;font-size:13px;color:#202020;font-family:\"Segoe UI\",system-ui,sans-serif;}.ds-copy:hover{background:#f7f7f7;}.ds-copy:focus-visible{outline:3px solid var(--focus,#1967d2);outline-offset:4px}"
+    }
+  ],
   "narrative": {
     "northStar": "Light Graphite",
-    "overview": "The website carries the application's light Graphite identity into a quiet, readable download page. Pale gray canvas, real application screenshots, charcoal actions and text, and restrained blue interaction cues keep attention on the product and its download choices. This document applies to website/; the native application's palette remains owned by UiTheme.cs.",
-    "keyCharacteristics": ["Graphite neutrals", "Restrained blue interaction cues", "Screenshot-first product explanation"],
-    "rules": [
-      { "name": "Website Scope Rule", "body": "These tokens describe website/ only; UiTheme.cs owns native application palettes.", "section": "colors" },
-      { "name": "Focus Rule", "body": "Keep visible keyboard focus with the established blue outline.", "section": "components" }
+    "overview": "The website carries the application's light Graphite identity into a Windows\ndownload page. Pale gray backgrounds, white surfaces, charcoal actions and Segoe\nUI surround miniature Windows scenes. Blue marks focus, selection and link hover;\nthe scenes retain the colors of the interfaces they depict.\n\nThis document applies to `website/`. The native application's palettes remain\nowned by `UiTheme.cs`. The observed implementation is in\n[styles.css](website/styles.css), [index.html](website/index.html) and\n[app.js](website/app.js).",
+    "keyCharacteristics": [
+      "Graphite neutrals with blue interaction cues.",
+      "Segoe UI text and monospace commands.",
+      "Animated Windows scenes that scale as one picture.",
+      "Download choices that remain usable without JavaScript."
     ],
-    "dos": ["Do keep most of each page in the graphite neutral palette.", "Do retain visible keyboard focus and responsive layouts."],
-    "donts": ["Don't invent a new brand palette for the website.", "Don't replace actual app screenshots with mockups."]
+    "rules": [
+      {
+        "name": "Website Scope Rule",
+        "body": "These tokens describe `website/` only; `UiTheme.cs` owns native application palettes.",
+        "section": "colors"
+      },
+      {
+        "name": "Focus Rule",
+        "body": "Keep the established blue keyboard outline at 3px with a 4px offset.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do keep the page in Graphite neutrals with blue focus, selection and link hover.",
+      "Do retain visible keyboard focus and responsive layouts.",
+      "Do keep download titles and descriptions aligned across editions.",
+      "Do preserve static scenes and working download links without JavaScript.",
+      "Do keep visible copy concise and claims sourced.",
+      "Do keep the headline true for files, folders and folder backgrounds."
+    ],
+    "donts": [
+      "Don't invent a new brand palette for the website.",
+      "Don't treat the miniature Windows interfaces as new page-level design tokens.",
+      "Don't add footer controls under the walkthrough without revisiting the owner's decision.",
+      "Don't disable animation automatically because of operating-system motion settings.",
+      "Don't invent testimonials, usage counts, benchmarks or competitor limitations."
+    ]
   }
 }
