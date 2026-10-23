@@ -184,7 +184,8 @@ simplifies the Explorer chrome. The cat sits beside the Explorer window, 200px
 from the figure top, with an 84px gutter from 1100px and a 60px gutter in the
 stacked phone layout. It is hidden between those layouts. The context menu stays
 inset from the right edge, with its miniature type scaling from 10 to 12px on
-phones so the action fits beside the cat.
+phones so the action fits beside the cat. A red curved arrow points to the
+cursor over Create dump with DumpToTxt in the comparison, marking the click.
 
 Downloads use three equal columns with a 14px gap and stack at 760px. Every card
 begins with its title row, followed by its description with a 6px gap. The

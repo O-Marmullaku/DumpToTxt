@@ -147,6 +147,7 @@ img.lol{width:52px;height:52px;margin:-17px 0 0 4px;object-fit:contain;transform
 .click .menu{position:absolute;right:12px;top:128px;display:flex;flex-direction:column;padding:2px;background:#f2f2f2;border:1px solid #a0a0a0;box-shadow:2px 2px 4px #0003}
 .click .menu span{position:relative;padding:3px 26px 3px 32px;white-space:nowrap}.click .menu .def{font-weight:700}.click .menu .hot{background:#e1e1e1}
 .click .menu hr{margin:3px 2px 3px 30px;border:0;border-top:1px solid #d7d7d7}
+.click-arrow{position:absolute;right:10px;bottom:calc(100% - 10px);width:80px;height:72px;fill:none;stroke:#d92d20;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
 .xcur{position:absolute;right:2px;top:9px;width:18px;height:18px;fill:#fff;stroke:#111;stroke-width:1.4;stroke-linejoin:round;filter:drop-shadow(0 1px 1px #0006)}.click .menu img{position:absolute;left:8px;top:3px;width:16px;height:16px}
 .versus figure{position:relative}.wow{display:none;position:absolute;z-index:2;right:0;top:200px;width:72px;padding:0;border:0;background:none;filter:drop-shadow(0 4px 8px #0005)}.wow img{display:block;width:100%;height:auto}
 /* The cat sits beside the window where there is room: wide screens and the stacked phone layout. */
