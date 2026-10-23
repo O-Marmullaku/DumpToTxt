@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-23T12:57:11.994315Z",
+  "generatedAt": "2026-10-23T13:41:13.183490Z",
   "title": "Design System: DumpToTxt Website",
   "extensions": {
     "colorMeta": {
@@ -268,10 +268,6 @@
       {
         "name": "walkthrough-shared-max",
         "value": "980px"
-      },
-      {
-        "name": "comparison-cat-min",
-        "value": "1100px"
       }
     ]
   },
@@ -321,7 +317,7 @@
       "kind": "card",
       "refersTo": "download-card-recommended",
       "description": "Full with its badge in the aligned title row.",
-      "html": "<a class=\"ds-card ds-card-main\" href=\"#full\"><b>Full <em class=\"ds-badge\">Recommended</em><span aria-hidden=\"true\">↓</span></b><span>Just works. Everything it needs is included, so the download is bigger.</span></a>",
+      "html": "<a class=\"ds-card ds-card-main\" href=\"#full\"><b>Full <em class=\"ds-badge\">Recommended</em><span aria-hidden=\"true\">↓</span></b><span>Includes everything needed to run the app. Larger download.</span></a>",
       "css": ".ds-card{display:flex;flex-direction:column;gap:6px;padding:16px 18px;border:1px solid #dcdcdc;border-radius:8px;background:#fff;text-decoration:none;font-size:13px;line-height:1.5;color:#515151;font-family:\"Segoe UI\",system-ui,sans-serif;}.ds-card b{display:flex;align-items:center;gap:8px;font-size:16px;color:#1a1a1a;}.ds-card b span{margin-left:auto;}.ds-card:hover{border-color:#999;color:#515151;}.ds-card:focus-visible{outline:3px solid var(--focus,#1967d2);outline-offset:4px}.ds-card.ds-card-main{background:#2d2d2d;border-color:#2d2d2d;color:#cfcfcf;}.ds-card.ds-card-main b{color:#fff;}.ds-badge{white-space:nowrap;padding:2px 8px;border-radius:99px;background:#ffffff1f;color:#fff;font-size:11px;font-weight:600;line-height:1.5;font-style:normal;font-family:\"Segoe UI\",system-ui,sans-serif;}.ds-card.ds-card-main:hover{background:#444;color:#cfcfcf;}"
     },
     {
@@ -338,7 +334,7 @@
       "refersTo": "command-strip",
       "description": "PowerShell label, selectable command and Copy control.",
       "html": "<div class=\"ds-command\"><span class=\"ds-ps\">PowerShell</span><code>irm https://dumptotxt.com/install.ps1 | iex</code><button class=\"ds-copy\" type=\"button\">Copy</button></div>",
-      "css": ".ds-command{display:flex;align-items:center;gap:16px;padding:14px 16px;background:#eaeaea;margin-top:20px;border-radius:6px;font-family:\"Segoe UI\",system-ui,sans-serif;color:#202020;}.ds-command .ds-ps{flex:none;font-size:12px;font-weight:600;color:#777;}.ds-command code{font:13px/1.6 Consolas,monospace;overflow-wrap:anywhere;user-select:all;}.ds-copy{margin-left:auto;padding:7px 12px;border:1px solid #ccc;border-radius:4px;background:white;cursor:pointer;font:inherit;font-size:13px;color:#202020;font-family:\"Segoe UI\",system-ui,sans-serif;}.ds-copy:hover{background:#f7f7f7;}.ds-copy:focus-visible{outline:3px solid var(--focus,#1967d2);outline-offset:4px}"
+      "css": ".ds-command{display:flex;align-items:center;gap:16px;padding:14px 16px;background:#eaeaea;margin-top:20px;border-radius:6px;font-family:\"Segoe UI\",system-ui,sans-serif;color:#202020;}.ds-command .ds-ps{flex:none;font-size:12px;font-weight:600;color:var(--muted,#626262);}.ds-command code{font:13px/1.6 Consolas,monospace;overflow-wrap:anywhere;user-select:all;}.ds-copy{margin-left:auto;padding:7px 12px;border:1px solid #ccc;border-radius:4px;background:white;cursor:pointer;font:inherit;font-size:13px;color:#202020;font-family:\"Segoe UI\",system-ui,sans-serif;}.ds-copy:hover{background:#f7f7f7;}.ds-copy:focus-visible{outline:3px solid var(--focus,#1967d2);outline-offset:4px}"
     }
   ],
   "narrative": {

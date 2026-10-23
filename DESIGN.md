@@ -179,11 +179,12 @@ static scenes stack in a centered column capped at 560px. During playback, three
 compact step headings sit over one shared scene area capped at 600px. Earlier
 windows remain behind the active window.
 
-The comparison uses columns in a 1.25-to-1 ratio with a 24px gap. At 760px it
-stacks and simplifies the Explorer chrome. At 1100px and above, the right panel
-reserves space for the cat beside it; the stacked layout also shows the cat.
+The comparison uses two equal columns with a 24px gap. At 760px it stacks and
+simplifies the Explorer chrome. The cat perches on the lower edge of the Explorer
+window without taking width away from it. The context menu is inset from the
+right edge so its highlighted action remains visible on phones.
 
-Downloads use three equal columns with a 14px gap and stack at 620px. Every card
+Downloads use three equal columns with a 14px gap and stack at 760px. Every card
 begins with its title row, followed by its description with a 6px gap. The
 recommendation badge sits beside Full, and each download arrow is pushed to the
 right edge. The footer wraps on phones.
@@ -214,6 +215,10 @@ A white Windows mark and label sit in a charcoal gradient button. Its minimum
 height is 52px, with a 12px icon gap. The icon is inline SVG. Downloads remain
 ordinary links and work without JavaScript. Hover and press follow the treatments
 in Elevation & Depth.
+
+Version and platform metadata sit beside the primary action, with a link to the
+Windows publisher warning explanation. The subtitle distinguishes file formats
+from clipboard output; the following line states that dumps are created locally.
 
 ### Download cards and recommendation badge
 
@@ -249,8 +254,10 @@ Passes alternate between a text file opening in Notepad and clipboard content
 being pasted into ChatGPT. Step 3 keeps the title "Use it anywhere" for both.
 Clicking Create dump hands over to the next step with a brief overlap. The
 clipboard toast clears between passes. Steps and frames support replay by click;
-frames also support Enter and Space. Width changes and returning to the tab
-restart playback. Static scenes remain readable without JavaScript.
+native step buttons provide keyboard replay. Illustrated frames stay out of the
+tab order. Persistent captions explain each step and are associated with its
+button. Width changes and returning to the tab restart playback. Static scenes
+and captions remain readable without JavaScript.
 
 The ChatGPT question is random, with a 5% chance of a silly question. Playback
 starts automatically and loops without footer controls, preserving the owner's decision.
@@ -261,8 +268,11 @@ Animations remain independent of operating-system motion preferences.
 The comparison places a dark Command Prompt beside a light Explorer window.
 The terminal replays its typo sequence when first fully visible, then accepts
 commands through a hidden input. Its visible input treatment is the terminal
-prompt, not a separate form field. The cat and laughing images provide the
-existing playful interactions. Keep competitor claims fair and cite dated sources.
+prompt, not a separate form field. A text description also explains the successful
+Explorer action. Selection memory and format choices appear before the comic.
+The cat is a native button: Enter, Space and clicks spin it, and rapid activation
+still makes cats rain. The full comic and its laughing images remain intact.
+Keep competitor claims fair and cite dated sources.
 
 ## Do's and Don'ts
 

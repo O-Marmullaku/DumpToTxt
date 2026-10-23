@@ -258,10 +258,8 @@ function start(from = 0) {
 
 // A click on a step title or its card replays that step.
 wt.querySelectorAll('.step, .frame').forEach(el => {
-  if (el.classList.contains('frame')) { el.tabIndex = 0; el.setAttribute('role', 'button'); }
   const go = () => start(Number(el.dataset.step));
   el.addEventListener('click', go);
-  el.addEventListener('keydown', e => { if (el.classList.contains('frame') && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); go(); } });
 });
 // A width change moves every measured target, and a hidden tab stalls the cursor's clock: start over afterwards.
 // Height-only resizes (a phone's address bar showing or hiding on scroll) move nothing, so they don't restart it.
@@ -379,16 +377,18 @@ new IntersectionObserver(async ([e], seen) => {
 
 // The cat spins on each click. Spins add up, so clicking fast spins it faster; too fast and it rains cats.
 const cat = document.querySelector('.wow');
+const catArt = cat.querySelector('img');
+cat.disabled = false;
 let catClicks = [];
 cat.addEventListener('click', () => {
-  cat.animate([{transform: 'rotate(0)'}, {transform: 'rotate(360deg)'}], {duration: 1000, easing: 'ease-in-out', composite: 'add'});
+  catArt.animate([{transform: 'rotate(0)'}, {transform: 'rotate(360deg)'}], {duration: 1000, easing: 'ease-in-out', composite: 'add'});
   const now = performance.now();
   catClicks = [...catClicks.filter(t => now - t < 3000), now];
   if (catClicks.length < 12) return;
   catClicks = [];
   for (let i = 0; i < 40; i++) {
     const c = document.createElement('img'), w = 30 + Math.random() * 50;
-    c.src = cat.src;
+    c.src = catArt.src;
     c.alt = '';
     c.className = 'rain';
     c.style.width = w + 'px';

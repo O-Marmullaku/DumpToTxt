@@ -10,6 +10,7 @@ target_fingerprint: "sha256:7e9058d68c986463b523f4651dd31b2f544bed654286bd3741b5
 target_path: "F:\\WORK\\Creations\\DumpToTXT\\website\\index.html"
 timestamp: 2026-10-23T13-07-23Z
 slug: website-index-html
+closed: true
 ---
 Method: dual-agent (A: design_assessment; B: evidence_assessment), with a separate Humanizer copy review.
 
