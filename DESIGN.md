@@ -184,8 +184,8 @@ simplifies the Explorer chrome. The cat sits beside the Explorer window, 200px
 from the figure top, with an 84px gutter from 1100px and a 60px gutter in the
 stacked phone layout. It is hidden between those layouts. The context menu stays
 inset from the right edge, with its miniature type scaling from 10 to 12px on
-phones so the action fits beside the cat. A red curved arrow points to the
-cursor over Create dump with DumpToTxt in the comparison. After the second
+phones so the action fits beside the cat. A red underline marks Create dump
+with DumpToTxt, with a curved arrow pointing up to that line. After the second
 failed command on the left, it draws in over 650ms, gently pulses twice over
 1.8 seconds, then stays visible. Without JavaScript it is visible from the start.
 
