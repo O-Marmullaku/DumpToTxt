@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-23T13:56:14.335714Z",
+  "generatedAt": "2026-10-23T14:01:37.356701Z",
   "title": "Design System: DumpToTxt Website",
   "extensions": {
     "colorMeta": {
@@ -268,6 +268,10 @@
       {
         "name": "walkthrough-shared-max",
         "value": "980px"
+      },
+      {
+        "name": "comparison-cat-min",
+        "value": "1100px"
       }
     ]
   },

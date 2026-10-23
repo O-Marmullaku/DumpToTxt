@@ -180,9 +180,11 @@ compact step headings sit over one shared scene area capped at 600px. Earlier
 windows remain behind the active window.
 
 The comparison uses two equal columns with a 24px gap. At 760px it stacks and
-simplifies the Explorer chrome. The cat perches on the lower edge of the Explorer
-window without taking width away from it. The context menu is inset from the
-right edge so its highlighted action remains visible on phones.
+simplifies the Explorer chrome. The cat sits beside the Explorer window, 200px
+from the figure top, with an 84px gutter from 1100px and a 60px gutter in the
+stacked phone layout. It is hidden between those layouts. The context menu stays
+inset from the right edge, with its miniature type scaling from 10 to 12px on
+phones so the action fits beside the cat.
 
 Downloads use three equal columns with a 14px gap and stack at 760px. Every card
 begins with its title row, followed by its description with a 6px gap. The
