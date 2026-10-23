@@ -134,7 +134,7 @@ body{margin:0}h1,h2,p,figure{margin:0}a{color:inherit;text-underline-offset:4px}
 .term u{text-decoration:underline wavy #e74856;text-underline-offset:3px;transition:text-decoration-color .3s}.term u.later{text-decoration-color:transparent}.term pre{position:relative}.term .lol{visibility:hidden}.versus figure{position:relative}.lol.float{margin:0;z-index:5}
 .lol{position:absolute;margin:-8px 0 0 10px;font-size:32px;line-height:1;transform:rotate(-10deg);filter:drop-shadow(0 3px 6px #000a);pointer-events:none}.lol{transition:opacity .15s,scale .35s cubic-bezier(.3,1.7,.5,1)}.lol.later{opacity:0;scale:.3}
 img.lol{width:52px;height:52px;margin:-17px 0 0 4px;object-fit:contain;transform:none}
-.caret{display:inline-block;width:7px;height:1.1em;vertical-align:-.2em;background:#ccc;animation:caret 1s steps(1) infinite}
+.caret{display:inline-block;width:1px;height:1.1em;vertical-align:-.2em;background:#ccc;animation:caret 1s steps(1) infinite}
 .click{position:relative;display:flex;flex-direction:column;overflow:hidden;background:#fff;border:1px solid #cfcfcf;box-shadow:0 10px 30px #0002;font:12px "Segoe UI",system-ui,sans-serif;color:#1a1a1a}
 .xbar{flex:none;height:36px;display:flex;align-items:flex-end;gap:8px;padding-left:8px;background:#e9edf3}.xtab{display:flex;align-items:center;gap:8px;height:29px;padding:0 10px 0 12px;border-radius:7px 7px 0 0;background:#f7f9fc}.xtab b{margin-left:34px;font-weight:400;font-size:10px;color:#555}.xplus{align-self:center;color:#444;font-size:14px}.click .wc{align-self:center;margin-left:auto;padding-right:14px;color:#333}
 .xnav{flex:none;display:flex;align-items:center;gap:10px;padding:5px 10px;background:#f7f9fc}.xarr{color:#555;white-space:nowrap}.xaddr{flex:1;min-width:0;overflow:hidden;white-space:nowrap;padding:4px 8px;border:1px solid #e3e3e3;border-radius:4px;background:#fff}.xsearch{width:28%;flex:none;overflow:hidden;white-space:nowrap;padding:4px 8px;border:1px solid #e3e3e3;border-radius:4px;background:#fff;color:#777}
@@ -159,7 +159,6 @@ figcaption .aside{font-weight:400;opacity:.8}
 @media(max-width:760px){.versus{grid-template-columns:minmax(0,1fr)}.term{height:auto}.click{height:312px}.xside{display:none}.xcmd span:nth-child(n+8){display:none}.click .menu{font-size:clamp(10px,3.125vw,12px)}.dl{grid-template-columns:minmax(0,1fr)}.versus figure:last-child{padding-right:60px}.wow{display:block;width:54px}.cat-arrow{display:block;right:46px;top:calc(159px + clamp(10px,3.125vw,12px)*3)}.cat-tail-desktop{display:none}.cat-tail-mobile{display:block}}
 /* The terminal takes typing; the cat takes clicks. */
 .term{position:relative}.term pre{flex:1;min-height:0;overflow:auto;cursor:text}.term .ok{color:#16c60c}
-.term:not(:focus-within) .caret{background:none;outline:1px solid #ccc;outline-offset:-1px;animation:none}
 .tin{position:absolute;left:0;bottom:0;width:1px;height:1px;opacity:0;font-size:16px;pointer-events:none}
 .wow{cursor:pointer}.wow:disabled{cursor:default}.rain{position:fixed;top:-120px;z-index:50;height:auto;pointer-events:none}
 @media(max-width:760px){.term{max-height:420px}}

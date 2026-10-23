@@ -69,9 +69,36 @@ const lit = page => page.evaluate(() => [...document.querySelectorAll('.steps > 
       // The Repomix story replays once the terminal is in view; typing waits until it's done.
       assert.ok(!(await page.locator('.term pre').textContent()).includes('YOU-SUCK'));
       await page.locator('.term').scrollIntoViewIfNeeded();
+      // Enter must not move either laugh away from the command it already sits beside.
+      for (const tag of ['img', 'span']) {
+        const typing = page.locator(`.live > ${tag}.lol`);
+        await typing.waitFor({ state: 'attached', timeout: 15000 });
+        const before = await typing.evaluate(e => ({ x: e.float.offsetLeft, y: e.float.offsetTop }));
+        const submitted = page.locator(`.term pre > ${tag}.lol`);
+        await submitted.waitFor({ state: 'attached' });
+        const after = await submitted.evaluate(e => ({ x: e.float.offsetLeft, y: e.float.offsetTop }));
+        assert.deepEqual(after, before, `${name}: ${tag} laugh shifted on Enter`);
+      }
       await page.waitForFunction(() => !document.querySelector('.tin').disabled, null, { timeout: 30000 });
       assert.ok((await page.locator('.term pre').textContent()).includes('YOU-SUCK'));
+      const caret = page.locator('.term .caret');
+      assert.equal(await caret.evaluate(e => getComputedStyle(e).width), '1px');
+      assert.equal(await caret.evaluate(e => {
+        const blink = e.getAnimations().find(a => a.animationName === 'caret');
+        if (!blink) return false;
+        blink.pause();
+        blink.currentTime = 0;
+        const on = getComputedStyle(e).opacity;
+        blink.currentTime = 500;
+        const off = getComputedStyle(e).opacity;
+        blink.currentTime = 0;
+        return on === '1' && off === '0';
+      }), true, `${name}: unfocused cursor must blink`);
+      await page.locator('.comparison').screenshot({ path: path.join(captures, `${name}-comparison.png`) });
+      await caret.evaluate(e => e.getAnimations().forEach(a => a.play()));
       await page.locator('.term pre').click();
+      assert.equal(await caret.evaluate(e => getComputedStyle(e).width), '1px');
+      assert.equal(await caret.evaluate(e => getComputedStyle(e).animationName), 'caret');
       for (const command of ['dir', 'npx repomix']) await page.keyboard.type(command + '\n');
       const said = await page.locator('.term pre').textContent();
       for (const line of ["'dir' is not recognized", '...wait, you spelled it right?']) assert.ok(said.includes(line), line);

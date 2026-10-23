@@ -364,7 +364,7 @@ new IntersectionObserver(async ([e], seen) => {
       laugh?.remove();
       await pause(600);
       await type(f.textContent, !/^npx /.test(f.textContent));
-      if (laugh) { live.append(laugh); laughs(); }
+      if (laugh) { typed.after(laugh); laughs(); }
       await pause(laugh ? 700 : 350);
       laugh?.float?.remove();
       laugh?.remove();
