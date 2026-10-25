@@ -21,6 +21,62 @@ Keep product claims grounded in `product.md` and the released application.
 No fabricated testimonials, adoption figures, benchmarks, or open-source claims.
 Animations ignore the OS motion preference. No analytics or uploads are needed for this site.
 
+## Commercial licensing
+
+The owner approved free personal use and monthly commercial subscriptions on
+25 October 2026. Each subscription covers one company for this app. Tiers use
+total company employee headcount, not the number of app users: CHF 2.90 for
+1–10 employees, CHF 49.90 for 11–200, and CHF 299.90 for over 200.
+Cancellation stops renewal and commercial permission lasts through the paid period.
+Full, Compact and Lite share this permission; source-code rights remain reserved.
+
+`commercial.html` and `commercial.css` hold the separate, static licence page.
+The download page adds only a short personal-use note and commercial-licence link;
+the walkthrough, comic, cats and download behaviour stay intact. No app account,
+network licence check or DRM has been added.
+
+Checkout stays closed. The three app-specific Stripe Payment Links are prepared
+and deactivated, and the site's Subscribe controls remain disabled. A reusable
+checkout URL can bypass a website-only terms checkbox. Before sales open, the
+actual checkout must collect agreement to the applicable, preserved terms version
+and make the seller/privacy information accessible. The shared billing-policy
+drafts need owner review before their URLs or acceptance settings are applied.
+The public brand is Crazy Entertainment; legally required seller/controller
+information is confined to the licence page and necessary payment/legal surfaces.
+
+Use a downloadable-software business-use tax category and explicitly tax-inclusive
+CHF monthly prices. Managed Payments is conditionally approved at 3.5% per sale
+plus ordinary processing and subscription Billing fees, subject to the agreed
+customer-disclosure checks and any required contract acceptance. It does not remove
+the developer’s seller or data-controller responsibilities.
+Do not replace disabled controls with unverified or placeholder URLs. The existing
+merchant is `acct_1TbNfA48s3d2RGMj`; each link uses one saved CHF monthly inclusive
+Price, quantity one, Managed Payments and required company-name collection. Its
+final Deactivated status and its customer-facing inactive page were checked.
+
+| Company employees | Product | Price | Inactive checkout |
+|---|---|---|---|
+| 1–10 | `prod_VVXt9RfrPINwJm` | `price_1UUWnw48s3d2RGMjf9Cx1uaI` | [plink_1UUXSZ48s3d2RGMjbNgqDCvn](https://buy.stripe.com/bJebIUfmXbdu7dP3nWgbm00) |
+| 11–200 | `prod_VVXvZX0aBIhOOH` | `price_1UUWpg48s3d2RGMjrIAvZ5Bt` | [plink_1UUXUK48s3d2RGMjOzouiynW](https://buy.stripe.com/8x200c7Uv95m9lXbUsgbm01) |
+| Over 200 | `prod_VVXv667qiJJ34b` | `price_1UUWpo48s3d2RGMjarnjojNj` | [plink_1UUXUc48s3d2RGMjhVPvLpaL](https://buy.stripe.com/bJecMY2Ab0yQ9lX7Ecgbm02) |
+
+The isolated sandbox is `acct_1TbNfMQMTNMKM4eY`, separate from live mode. A synthetic
+subscription verified the CHF 2.90 inclusive total, paid invoice, confirmation,
+same-price renewal preview and merchant cancellation at period end with no further
+invoice. No live-money purchase was made. Stripe does not show sandbox orders in
+Link's customer order-management app, so that customer flow is documentation-backed
+and not a completed live test. Receipt email delivery and shared support-mailbox
+routing have not been established by these checks.
+
+Keep Portica’s offers, webhooks and explicit portal configuration separate. Shared
+Tax currently uses the General electronically supplied services fallback
+(`txcd_10000000`) and Automatic tax display; this app's Products explicitly use
+`txcd_10202003` and its Prices are inclusive. Do not substitute utility-specific
+terms for other apps through shared Stripe public policy fields. Brand spacing and
+the previously empty shared support email were corrected to Crazy Entertainment
+and `admin@crazyentertainment.ch`; no personal/legal identity, address, phone,
+website, statement descriptor or portal was changed.
+
 ## Develop and publish
 
 Serve `website/` with a local static HTTP server. Run:

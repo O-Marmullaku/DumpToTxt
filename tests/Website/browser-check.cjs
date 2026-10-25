@@ -87,6 +87,11 @@ const lit = page => page.evaluate(() => [...document.querySelectorAll('.steps > 
       for (const tag of ['img', 'span']) {
         const typing = page.locator(`.live > ${tag}.lol`);
         await typing.waitFor({ state: 'attached', timeout: 15000 });
+        // Compare the rendered float, not a hidden copy's zero offsets.
+        await page.waitForFunction(selector => {
+          const float = document.querySelector(selector)?.float;
+          return float && !float.hidden && float.getBoundingClientRect().height > 0;
+        }, `.live > ${tag}.lol`, { timeout: 2000 });
         const beat = await page.evaluate(() => window.terminalBeats.at(-1));
         assert.ok(beat?.command.endsWith(beat.word), `${name}: underline must follow the completed typo`);
         assert.equal(beat.color, 'rgb(231, 72, 86)');
@@ -94,6 +99,10 @@ const lit = page => page.evaluate(() => [...document.querySelectorAll('.steps > 
         const before = await typing.evaluate(e => ({ x: e.float.offsetLeft, y: e.float.offsetTop }));
         const submitted = page.locator(`.term pre > ${tag}.lol`);
         await submitted.waitFor({ state: 'attached' });
+        await page.waitForFunction(selector => {
+          const float = document.querySelector(selector)?.float;
+          return float && !float.hidden && float.getBoundingClientRect().height > 0;
+        }, `.term pre > ${tag}.lol`, { timeout: 2000 });
         const after = await submitted.evaluate(e => ({ x: e.float.offsetLeft, y: e.float.offsetTop }));
         assert.deepEqual(after, before, `${name}: ${tag} laugh shifted on Enter`);
       }

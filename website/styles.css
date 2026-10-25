@@ -12,6 +12,8 @@ body{margin:0}h1,h2,p,figure{margin:0}a{color:inherit;text-underline-offset:4px}
 
 
 
+.licence-note{margin-top:12px;font-size:14px;line-height:1.6;color:var(--muted)}
+
 /* Walkthrough: three miniature Windows scenes on a 360x270 reference (sizes in em off a container-width
    font, positions in %), so each scales as one picture. One page cursor plays them in turn (app.js). */
 .hero.wrap{padding-bottom:40px}.walkthrough{padding-top:26px}
