@@ -72,6 +72,33 @@ Link's customer order-management app, so that customer flow is documentation-bac
 and not a completed live test. Receipt email delivery and shared support-mailbox
 routing have not been established by these checks.
 
+The later isolated-sandbox consent check completed after configuring the immutable
+common v1 URLs and requiring native terms agreement on the existing test link.
+An unchecked submission was blocked. After a synthetic card payment, the saved
+Checkout Session was complete/paid with required/accepted terms consent and the
+same policy-set ID, terms/privacy hashes and ordinary download URL in metadata.
+The confirmation tab was closed before recovering the payment and paid invoice
+independently. The downloaded invoice PDF visibly identified the company, app,
+employee tier and paid period. It contained no download URL or seller support
+email. A fresh browser context could reach the ordinary three downloads and the
+public billing contact. These checks do not establish actual inbox delivery or
+Link's live customer order flow. No custom installer-email service was added.
+
+The live merchant's public Terms/Privacy URLs and legal-link display now use the
+same immutable common v1. Its legacy test-mode UI hides those shared settings;
+the separate sandbox has its own verified v1 configuration. Other apps retain
+their own product terms and fulfillment. Utility links remain deactivated.
+
+A Dump-only opening policy v2 is prepared privately but is not published or
+applied to Stripe. Managed Payments accepts buyers beyond its indirect-tax
+coverage countries. The existing reusable links do not enforce the reviewed
+coverage list. Custom Radar country blocking is a separately billed option;
+utility-only scope across initial and renewal payments is not established. Do
+not add a paid plan, change account-wide rules, or claim a country restriction
+without the corresponding decision and actual enforcement verification. Opening
+sales still needs that concrete sales-scope decision and the matching final
+product/policy version. FSI and MicBridge also retain their own release holds.
+
 Keep Portica’s offers, webhooks and explicit portal configuration separate. Shared
 Tax currently uses the General electronically supplied services fallback
 (`txcd_10000000`) and Automatic tax display; this app's Products explicitly use
