@@ -1,2 +1,16 @@
+# Treat asset/binary files as binary (no diff, no EOL conversion)
+*.bmp  binary
+*.ico  binary
+*.png  binary
+*.psd  binary
+*.exe  binary
+
+# Windows-native tooling — keep CRLF
+*.ps1  text eol=crlf
+*.iss  text eol=crlf
+*.wav  binary
+*.sln  text eol=crlf
+*.cjs  text eol=lf
+
 # Preserve sealed billing-policy bytes across Windows and Pages checkouts.
-website/billing/** -text
+website/billing/** -text whitespace=cr-at-eol
