@@ -9,10 +9,11 @@ const root = fileURLToPath(new URL('../../website/', import.meta.url));
 const version = 'ce-billing-2026-10-25-v1';
 const manifestPath = `billing/versions/${version}/policy-set.json`;
 const manifest = JSON.parse(readFileSync(resolve(root, manifestPath), 'utf8'));
+const appendix = 'billing/products/micbridge/micbridge-preview-2026-10-25-v1.html';
 
 test('published billing policies preserve the sealed purchase version', () => {
   assert.equal(manifest.version, version);
-  const expected = new Set([...Object.keys(manifest.files), manifestPath]);
+  const expected = new Set([...Object.keys(manifest.files), manifestPath, appendix]);
   const actual = readdirSync(resolve(root, 'billing'), { recursive: true, withFileTypes: true })
     .filter(entry => entry.isFile())
     .map(entry => relative(root, resolve(entry.parentPath, entry.name)).replaceAll('\\', '/'));
@@ -35,4 +36,9 @@ test('published billing policies preserve the sealed purchase version', () => {
     assert.deepEqual(readFileSync(resolve(root, `billing/${page}/index.html`)),
       readFileSync(resolve(root, `billing/versions/${version}/${page}.html`)));
   }
+  const body = readFileSync(resolve(root, appendix));
+  assert.equal(body.length, 5071);
+  assert.equal(createHash('sha256').update(body).digest('hex'),
+    '59e877fda1ccabe041e4f095b425af8b78af3ceb2ccaa2175364bdc7c72eec7c');
+  assert.doesNotMatch(body.toString('utf8'), /<(?:script|form|iframe)\b|\bon\w+\s*=/i);
 });
