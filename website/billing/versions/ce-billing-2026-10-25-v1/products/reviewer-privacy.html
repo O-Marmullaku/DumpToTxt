@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,follow"><title>Reviewer3000 — privacy</title><style>body{font:17px/1.6 system-ui,sans-serif;max-width:840px;margin:40px auto;padding:0 24px;color:#18232d;background:#fff}h1,h2{line-height:1.2}a{color:#174e90}@media print{body{margin:0}}</style></head><body><main>
+    <article style="max-width:72ch;margin:0 auto">
+      <p style="color:var(--fg-muted);margin-bottom:1rem">Provisional · Revised 25 October 2026</p>
+      <h1 class="section-heading">Privacy notice (provisional)</h1>
+      <p class="card" style="margin-bottom:2rem">Provisional notice describing the current private beta. Provider-specific retention and contractual transfer safeguards remain under review; they are identified below. Publication of this notice does not certify worldwide legal compliance.</p>
+
+      <h2>Operator and contact</h2>
+      <p style="margin:.75rem 0 1.5rem">Reviewer 3000 is operated by Crazy Entertainment, a Swiss sole proprietorship, Hasenweg 9, 5611 Anglikon, Schweiz. . For privacy questions or requests, email <a href="mailto:support@remotedronefly.com">support@remotedronefly.com</a>.</p>
+
+      <h2>Information handled</h2>
+      <ul style="list-style:disc;padding-left:1.25rem;margin:.75rem 0 1.5rem">
+        <li>Account details such as email address, optional name, and linked sign-in provider and account identifiers.</li>
+        <li>Site configuration, source usernames or IDs, imported and authored reviews, generated site files, claimed profile details, build status and usage records.</li>
+        <li>Subscription and invoice records such as provider IDs, payment status, amount, currency and dates. Checkout is handled by Stripe; Reviewer does not store your full card number.</li>
+        <li>Authentication and security records, including hashed sign-in rate-limit identifiers and short-lived one-use login claims.</li>
+      </ul>
+
+      <h2>Sources and use</h2>
+      <p style="margin:.75rem 0 1.5rem">When you connect a source to a managed site, Reviewer 3000 fetches public Letterboxd and Goodreads review feeds or public Steam recommendation pages using the identifier you provide. It does not request those source passwords. Imported reviews are stored with your site data. Disconnecting a source removes its saved identifier but does not delete reviews already imported from it. Optional movie enrichment sends movie titles and years to TMDB; image and media links may point to source or provider websites.</p>
+      <p style="margin:.75rem 0 1.5rem">We use this information to sign you in, maintain your account and sites, fetch and build reviews, provide exports and publishing, process subscriptions, and protect and operate the service.</p>
+
+      <h2>Reasons for processing</h2>
+      <p style="margin:.75rem 0 1.5rem">Where a legal basis is required, account, hosting and billing processing is needed to provide the service you request; security, abuse prevention and support serve our legitimate interests in running a reliable service; tax and accounting records may be required by law. Where we rely on consent, you may withdraw it without affecting earlier lawful processing. Required account information is necessary to provide the associated feature.</p>
+
+      <h2>Support and checkout demo</h2>
+      <p style="margin:.75rem 0 1.5rem">Emailing support shares your address, message and attachments with us and our email provider. Include only information needed for your request. The checkout demo collects no payment or account details and does not contact Stripe. Like other pages, requests to load it pass through our hosting providers, which may process IP addresses and request information for delivery and security.</p>
+
+      <h2>Public sites and profiles</h2>
+      <p style="margin:.75rem 0 1.5rem">When you publish a site, its generated reviews and site content are public at its hosting address. If you claim a public profile handle, the directory displays that handle, site title, tagline and links; it does not display your account email. Visitors may load images from the external URLs included in published review data.</p>
+
+      <h2>Service providers</h2>
+      <p style="margin:.75rem 0 1.5rem">The service uses Render for the application and database hosting; Cloudflare for managed site delivery, custom-domain routing and encrypted backups; Resend for sign-in email and delivery events; Migadu for the support mailbox; and Stripe for checkout, subscriptions and billing. Google and GitHub receive sign-in requests when those options are configured; Steam is used for sign-in. Public source sites and optional TMDB receive requests needed to fetch or enrich review data. </p>
+
+      <h2>Processing outside Switzerland</h2>
+      <p style="margin:.75rem 0 1.5rem">The application runs in Render’s Oregon, United States region. Resend states that email content, logs and webhook data are processed in the United States. Cloudflare delivers sites through its global network. Our R2 bucket uses a Western Europe location hint; this is not a guarantee that data stays in that region. Stripe may process billing data in the United States and other countries. Migadu is a Swiss company and states that its email data centers are in France.</p>
+      <p style="margin:.75rem 0 1.5rem">The providers describe their transfer arrangements in their <a href="https://render.com/dpa">Render</a>, <a href="https://www.cloudflare.com/cloudflare-customer-dpa/">Cloudflare</a>, <a href="https://resend.com/legal/dpa">Resend</a>, <a href="https://www.migadu.com/privacy/">Migadu</a> (<a href="https://www.migadu.com/procon/">data-center location</a>) and <a href="https://stripe.com/legal/dta">Stripe</a> policies. The applicable account agreements, complete processing-country details and safeguards still need confirmation before this notice is finalized.</p>
+
+      <h2>Cookies and browser storage</h2>
+      <p style="margin:.75rem 0 1.5rem">The storefront uses a signed, HttpOnly session cookie that lasts up to 30 days and a temporary OAuth sign-in state cookie that lasts 10 minutes. The session cookie is Secure in production. The setup wizard saves a draft in your browser’s local storage; generated sites may save theme, sort and view preferences there. These browser records remain on that device until cleared or removed by the app.</p>
+
+      <h2>Retention and deletion</h2>
+      <p style="margin:.75rem 0 1.5rem">Account records remain in the service until you delete the account; there is no inactivity deletion in the application. You can export your account and request deletion from the dashboard. Deletion removes account records and attempts to remove hosted site artifacts and the Reviewer subscription. Local build-scratch cleanup is best-effort. Encrypted remote backups contain the database and local build/published artifacts; successful backups retain the seven most recent archives, so a deleted account may remain in older archives until they are rotated. This is not a fixed number of days. Stripe retains its separate customer and billing records after deletion from Reviewer. Provider log-retention periods remain to be confirmed.
+      </p>
+      <p style="margin:.75rem 0 1.5rem">Sign-in rate-limit keys are removed opportunistically after 20 minutes; one-use authentication claims after 24 hours; email-delivery event records after 30 days when a later event is processed. These cleanup checks are request-driven, not fixed-time deletion jobs.</p>
+      <p style="margin:.75rem 0 1.5rem">Resend’s <a href="https://resend.com/security/gdpr">published retention policy</a> specifies 30 days for email and log data on its Free, Pro and Scale plans, seven days for backups, and deletion of remaining customer data within 90 days after terminating the Resend account. Deleting a Reviewer account does not terminate our shared Resend account.</p>
+
+      <h2>Your requests</h2>
+      <p style="margin:.75rem 0 1.5rem">Use the dashboard to export or delete your account. Depending on applicable law, you may also request access, correction, erasure, restriction or portability, object to processing, or withdraw consent where we rely on it. We may need proportionate identity verification before acting. You can complain to the Swiss Federal Data Protection and Information Commissioner or your competent local data-protection authority. For these requests or other privacy questions, contact <a href="mailto:support@remotedronefly.com">support@remotedronefly.com</a>.</p>
+      <h2>Changes to this notice</h2>
+      <p style="margin:.75rem 0 1.5rem">We will update the publication date when this notice changes. Material changes affecting how your account information is used will be communicated through the service or your account email as appropriate.</p>
+    </article>
+  </main></body></html>

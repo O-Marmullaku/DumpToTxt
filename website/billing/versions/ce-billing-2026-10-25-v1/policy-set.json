@@ -1,0 +1,61 @@
+{
+  "version": "ce-billing-2026-10-25-v1",
+  "terms": "https://dumptotxt.com/billing/versions/ce-billing-2026-10-25-v1/terms.html",
+  "privacy": "https://dumptotxt.com/billing/versions/ce-billing-2026-10-25-v1/privacy.html",
+  "product_policy_versions": {
+    "portica-terms": {
+      "version": "portica-live-snapshot-2026-10-25",
+      "url": "https://dumptotxt.com/billing/versions/ce-billing-2026-10-25-v1/products/portica-terms.html",
+      "sha256": "41fce5546aeeca51b54a358198d38728b71d312e790c541b8cdfc910db979f6c"
+    },
+    "portica-privacy": {
+      "version": "portica-live-snapshot-2026-10-25",
+      "url": "https://dumptotxt.com/billing/versions/ce-billing-2026-10-25-v1/products/portica-privacy.html",
+      "sha256": "c4ab8359351953c77abdd0d91d0cc1e4009eae6baa86f3cf3930d4d23a698bdb"
+    },
+    "reviewer-terms": {
+      "version": "reviewer-corrected-2026-10-25",
+      "url": "https://dumptotxt.com/billing/versions/ce-billing-2026-10-25-v1/products/reviewer-terms.html",
+      "sha256": "df92d7fd43f056e6aa22ef9dbd3c5f60b0d598eca6b5ea0f13198ea948e5223a"
+    },
+    "reviewer-privacy": {
+      "version": "reviewer-corrected-2026-10-25",
+      "url": "https://dumptotxt.com/billing/versions/ce-billing-2026-10-25-v1/products/reviewer-privacy.html",
+      "sha256": "05a37220a8483db7e41007e22b1b53e12ec06b4d28830a696db67f3d661a702b"
+    }
+  },
+  "files": {
+    "billing/privacy/index.html": {
+      "sha256": "6c173c656c9826898f6c0fd5172af9a7e2dbd81c4403bb3f5f86e44acde6a412",
+      "bytes": 8627
+    },
+    "billing/terms/index.html": {
+      "sha256": "0edd20bb8a63d593558787696a93c69a873184d3666359a1b30b1f72db809396",
+      "bytes": 11138
+    },
+    "billing/versions/ce-billing-2026-10-25-v1/privacy.html": {
+      "sha256": "6c173c656c9826898f6c0fd5172af9a7e2dbd81c4403bb3f5f86e44acde6a412",
+      "bytes": 8627
+    },
+    "billing/versions/ce-billing-2026-10-25-v1/products/portica-privacy.html": {
+      "sha256": "c4ab8359351953c77abdd0d91d0cc1e4009eae6baa86f3cf3930d4d23a698bdb",
+      "bytes": 6637
+    },
+    "billing/versions/ce-billing-2026-10-25-v1/products/portica-terms.html": {
+      "sha256": "41fce5546aeeca51b54a358198d38728b71d312e790c541b8cdfc910db979f6c",
+      "bytes": 5434
+    },
+    "billing/versions/ce-billing-2026-10-25-v1/products/reviewer-privacy.html": {
+      "sha256": "05a37220a8483db7e41007e22b1b53e12ec06b4d28830a696db67f3d661a702b",
+      "bytes": 8936
+    },
+    "billing/versions/ce-billing-2026-10-25-v1/products/reviewer-terms.html": {
+      "sha256": "df92d7fd43f056e6aa22ef9dbd3c5f60b0d598eca6b5ea0f13198ea948e5223a",
+      "bytes": 7186
+    },
+    "billing/versions/ce-billing-2026-10-25-v1/terms.html": {
+      "sha256": "0edd20bb8a63d593558787696a93c69a873184d3666359a1b30b1f72db809396",
+      "bytes": 11138
+    }
+  }
+}

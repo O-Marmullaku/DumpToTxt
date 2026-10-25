@@ -39,8 +39,12 @@ Checkout stays closed. The three app-specific Stripe Payment Links are prepared
 and deactivated, and the site's Subscribe controls remain disabled. A reusable
 checkout URL can bypass a website-only terms checkbox. Before sales open, the
 actual checkout must collect agreement to the applicable, preserved terms version
-and make the seller/privacy information accessible. The shared billing-policy
-drafts need owner review before their URLs or acceptance settings are applied.
+and make the seller/privacy information accessible. The shared policy set is
+published separately under `website/billing/`. Its dated
+`ce-billing-2026-10-25-v1` snapshot preserves common terms/privacy and
+Portica/Reviewer product notices. The directory explicitly keeps utility sales
+closed; opening them requires a preserved applicable product-terms version,
+verified fulfilment and required consent on the direct checkout URL.
 The public brand is Crazy Entertainment; legally required seller/controller
 information is confined to the licence page and necessary payment/legal surfaces.
 
@@ -78,6 +82,14 @@ and `admin@crazyentertainment.ch`; no personal/legal identity, address, phone,
 website, statement descriptor or portal was changed.
 
 ## Develop and publish
+
+The billing-policy payload is supplied and sealed by TAXES 'n' DOCS. Publish only
+its `billing/` subtree. Private handoff, evidence and seal files are not site
+assets. `tests/Website/billing.test.mjs` verifies the preserved file hashes,
+canonical/version equality, local policy links and absence of active content.
+Do not silently edit an immutable purchase version; publish a new version for a
+semantic revision. The dated directory keeps each product's offer and licence
+separate, including its own release and checkout gates.
 
 Serve `website/` with a local static HTTP server. Run:
 
