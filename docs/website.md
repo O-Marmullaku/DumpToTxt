@@ -84,7 +84,8 @@ email. A fresh browser context could reach the ordinary three downloads and the
 public billing contact. On 26 October, the expected manually sent sandbox receipt
 was found in the owner's Inbox. Its exact cached-message hashes and body references
 matched the test; both actual PDF attachments were rendered and checked. The
-received invoice was byte-identical to the invoice recovered from Stripe. This
+received invoice had identical extracted text and rendered pixels to the Stripe
+copy. Its bytes differed, with different creation/modification metadata. This
 confirms manual sandbox delivery, while automatic live email delivery and Link's
 live customer order flow remain untested. No custom installer-email service was added.
 
