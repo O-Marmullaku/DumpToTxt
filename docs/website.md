@@ -81,8 +81,12 @@ The confirmation tab was closed before recovering the payment and paid invoice
 independently. The downloaded invoice PDF visibly identified the company, app,
 employee tier and paid period. It contained no download URL or seller support
 email. A fresh browser context could reach the ordinary three downloads and the
-public billing contact. These checks do not establish actual inbox delivery or
-Link's live customer order flow. No custom installer-email service was added.
+public billing contact. On 26 October, the expected manually sent sandbox receipt
+was found in the owner's Inbox. Its exact cached-message hashes and body references
+matched the test; both actual PDF attachments were rendered and checked. The
+received invoice was byte-identical to the invoice recovered from Stripe. This
+confirms manual sandbox delivery, while automatic live email delivery and Link's
+live customer order flow remain untested. No custom installer-email service was added.
 
 The live merchant's public Terms/Privacy URLs and legal-link display now use the
 same immutable common v1. Its legacy test-mode UI hides those shared settings;
